@@ -1,5 +1,5 @@
 /*
- * Copyright 2022, 2023, Technology Innovation Institute
+ * Copyright 2022, 2023, Unikie
  *
  * SPDX-License-Identifier: Apache-2.0
  */

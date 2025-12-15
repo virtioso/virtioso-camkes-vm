@@ -12,7 +12,8 @@ This document captures findings from a systematic audit of ARM64 memory manageme
 
 **RAS (Reliability, Availability, Serviceability) errors on NVIDIA Tegra are SOFTWARE BUGS in seL4, NOT hardware problems.**
 
-- RAS errors indicate seL4 is generating invalid physical addresses
+- RAS errors indicate seL4 is generating accesses to PA=0x0 (NULL pointer access)
+- **Note**: RAS error ADDR field uses ARM standard encoding where bit 63 = NS flag, not part of address. See `orin-ras-error-investigation.md` for details.
 - They must be investigated and eliminated at the source
 - `KernelAArch64SErrorIgnore ON` is a **workaround**, not a solution
 - Tests "passing" while ignoring SErrors is NOT a valid pass
@@ -374,19 +375,22 @@ RAS Error in IPC1003: address = 0x8000000000000040
 
 **THIS IS A SOFTWARE BUG, NOT A HARDWARE PROBLEM.**
 
-The address `0x8000000000000040` has bit 63 set. This indicates seL4 is generating invalid physical addresses, likely due to:
-1. Incorrect page table entry format causing MMU to read garbage as PA
-2. TLB entry corruption from incorrect invalidation sequences
-3. Page table race condition leaving stale/invalid entries
-4. Missing barriers allowing speculative access to unmapped regions
+**ADDR field decoding** (see ARM RAS ERR<n>ADDR encoding):
+- `0x8000000000000040`: bit 63 (NS) = 1, bits 55:0 (PA) = `0x40`
+- This means: **access to PA=0x40 from non-secure world**, NOT "invalid address with bit 63 set"
+
+**Hypothesized cause** (see `orin-ras-error-investigation.md`):
+1. VTTBR_EL2 set with NULL base during ASID/TLB operations
+2. Speculative table walks attempt to read from PA near 0x0
+3. Tegra234's memory subsystem generates RAS errors for accesses to unmapped low addresses
 
 **CURRENT STATUS**: seL4 ignores SErrors (`KernelAArch64SErrorIgnore ON`). This is a **WORKAROUND, NOT A FIX**. The root cause must be found and eliminated.
 
 **REQUIRED ACTION**:
-- Audit all page table entry construction code
-- Verify all TLB invalidation sequences have correct barriers
-- Check for race conditions in page table updates
-- Find what code path generates addresses with bit 63 set
+- Audit all VTTBR_EL2 writes to ensure base address is never NULL
+- Verify TLB invalidation sequences use valid page table bases
+- Check for race conditions in VMID/ASID switching
+- See `orin-ras-error-investigation.md` for detailed investigation
 
 ### CRITICAL BUG FOUND: Page Table Level Mismatch
 
@@ -439,7 +443,7 @@ After applying the fix and rebuilding:
 
 ### Remaining Issues (Post-Fix) - ALL ARE BUGS TO FIX
 
-1. **RAS errors**: SOFTWARE BUG - seL4 generating invalid physical addresses
+1. **RAS errors**: SOFTWARE BUG - accesses to PA near 0x0, likely due to NULL VTTBR_EL2 base (see `orin-ras-error-investigation.md`)
 2. **Translation faults (level 3)**: SOFTWARE BUG - pages not correctly mapped (`FSR 0x82000007`)
 3. **Prefetch/read faults**: SOFTWARE BUG - MMU configuration or page table errors
 

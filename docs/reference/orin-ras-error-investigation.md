@@ -2131,6 +2131,35 @@ Tests run in sequential mode (AAA BBB CCC DDD) where each test runs 100× before
 3. **CANCEL_BADGED_SENDS remains unaffected by fix**: Errors increase with fix in both modes
 4. **Test order matters less than expected**: Error distribution is similar between modes
 
+### Hypothesis: Error Attribution Bleeding in Interleaved Mode
+
+**Note: This is a hypothesis, not yet confirmed.**
+
+RAS errors are **asynchronous** - the memory access triggering an error occurs at time T, but the error interrupt may fire at T+N cycles. In interleaved mode (ABCD ABCD), this could cause misattribution:
+
+```
+Test A triggers error → Test B running when interrupt fires → Error attributed to B
+```
+
+Observations supporting this hypothesis:
+
+| Test | Interleaved | Sequential | Delta |
+|------|-------------|------------|-------|
+| CANCEL_BADGED_SENDS | 723 | 678 | -45 (fewer in sequential) |
+| FPU0001 | 286 | 354 | +68 (more in sequential) |
+| THREAD_LIFECYCLE | 102 | 120 | +18 (more in sequential) |
+
+CANCEL_BADGED_SENDS runs **first** in each interleaved iteration. If it triggers delayed errors, those could be caught during subsequent tests (FPU0001, THREAD_LIFECYCLE), causing:
+- Undercounting of CANCEL_BADGED_SENDS errors in interleaved mode
+- Overcounting of subsequent tests' errors
+
+However, alternative explanations exist:
+- Sequential mode may accumulate different CPU/cache state
+- Interleaved mode may have different timing characteristics
+- The differences could be within normal variation
+
+**Implication**: Sequential mode results may provide more accurate per-test error attribution. Further testing would be needed to confirm this hypothesis.
+
 ---
 
 ## Stage 1 Translation Disabled in sel4test (2025-12-16)
@@ -2224,7 +2253,7 @@ This is consistent with [Linux's ARM64_WORKAROUND_SPECULATIVE_AT](https://lore.k
 
 | Date | Change |
 |------|--------|
-| 2025-12-16 | **SEQUENTIAL MODE TESTS**: Ran tests in sequential mode (AAA BBB CCC). HCR fix effect consistent (~88% improvement for THREAD_LIFECYCLE). Sequential mode shows slightly higher FPU/thread errors. |
+| 2025-12-16 | **SEQUENTIAL MODE TESTS**: Ran tests in sequential mode (AAA BBB CCC). HCR fix effect consistent (~88% improvement for THREAD_LIFECYCLE). Added hypothesis about async RAS error attribution bleeding between tests in interleaved mode. |
 | 2025-12-16 | **DOCUMENTED**: TCR_EL2 EPD bits only exist in VHE mode (E2H=1). VTCR_EL2 has no EPD equivalent - HCR_EL2.VM=0 is the correct approach for Stage 2. |
 | 2025-12-16 | **RULED OUT**: Stage 1 (TTBR0_EL1/TTBR1_EL1) issues - Stage 1 is disabled via HCR_DC in sel4test. Linux EPD errata workarounds not applicable. |
 | 2025-12-16 | **COMPARISON TEST**: Without HCR fix: 613 SCC, THREAD_LIFECYCLE_0001 has 102 errors. With fix: 655 SCC, THREAD_LIFECYCLE_0001 drops to 12 errors (88% improvement). |

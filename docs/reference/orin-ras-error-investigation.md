@@ -2114,10 +2114,54 @@ Investigation of seL4's HCR configuration revealed that **Stage 1 translation is
 
 ---
 
+## Why HCR_EL2.VM is Correct for Stage 2 (2025-12-16)
+
+### TCR_EL2 Layout Depends on VHE Mode
+
+ARM TCR_EL2 has **two different layouts** depending on VHE (Virtualization Host Extensions) mode:
+
+| Mode | HCR_EL2.E2H | TCR_EL2 Layout | EPD bits? | TTBRs Available |
+|------|-------------|----------------|-----------|-----------------|
+| Non-VHE | 0 | Simple | **No** | TTBR0_EL2 only |
+| VHE | 1 | Same as TCR_EL1 | **Yes** (EPD0/EPD1) | TTBR0_EL2 + TTBR1_EL2 |
+
+**seL4 uses non-VHE mode** (HCR_EL2.E2H = 0), so TCR_EL2 does NOT have EPD bits.
+
+### VTCR_EL2 Has No EPD Equivalent
+
+More importantly, **VTCR_EL2** (which controls Stage 2 translation via VTTBR_EL2) **never has EPD bits** regardless of VHE mode. The VTCR_EL2 register only contains:
+
+- T0SZ - Address size
+- SL0 - Starting level
+- IRGN0/ORGN0/SH0 - Cacheability/shareability
+- TG0 - Granule size
+- PS - Physical address size
+- VS - VMID size
+
+There is **no per-table walk disable** for Stage 2 translation.
+
+### Architecture Summary
+
+| Translation | Control Register | Walk Disable Mechanism |
+|-------------|------------------|------------------------|
+| Stage 1 EL1 | TCR_EL1 | EPD0/EPD1 bits (per-TTBR) |
+| Stage 1 EL2 (VHE) | TCR_EL2 | EPD0/EPD1 bits (when E2H=1) |
+| Stage 1 EL2 (non-VHE) | TCR_EL2 | None (single TTBR0) |
+| **Stage 2** | **VTCR_EL2** | **None - must use HCR_EL2.VM=0** |
+
+### Conclusion
+
+The **HCR_EL2.VM workaround is the architecturally correct approach** for preventing speculative Stage 2 page table walks during VTTBR_EL2 switches. There is no EPD-equivalent for Stage 2 - the only option is to disable Stage 2 translation entirely during the switch.
+
+This is consistent with [Linux's ARM64_WORKAROUND_SPECULATIVE_AT](https://lore.kernel.org/kvm/20190927090348.GC15760@arrakis.emea.arm.com/T/) which uses similar techniques for Stage 2 protection.
+
+---
+
 ## Changelog
 
 | Date | Change |
 |------|--------|
+| 2025-12-16 | **DOCUMENTED**: TCR_EL2 EPD bits only exist in VHE mode (E2H=1). VTCR_EL2 has no EPD equivalent - HCR_EL2.VM=0 is the correct approach for Stage 2. |
 | 2025-12-16 | **RULED OUT**: Stage 1 (TTBR0_EL1/TTBR1_EL1) issues - Stage 1 is disabled via HCR_DC in sel4test. Linux EPD errata workarounds not applicable. |
 | 2025-12-16 | **COMPARISON TEST**: Without HCR fix: 613 SCC, THREAD_LIFECYCLE_0001 has 102 errors. With fix: 655 SCC, THREAD_LIFECYCLE_0001 drops to 12 errors (88% improvement). |
 | 2025-12-16 | **BASELINE ESTABLISHED**: 655 SCC errors with automated analyzer. CANCEL_BADGED_SENDS 79%, FPU0001 20%, THREAD_LIFECYCLE 1%. Created `analyze_sel4log.py` tool. |

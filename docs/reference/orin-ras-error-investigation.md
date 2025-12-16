@@ -2374,10 +2374,153 @@ This rules out TLB multiple-hit amalgamation as the cause. The 0x7fffxxxx addres
 
 ---
 
+## CANCEL_BADGED_SENDS Code Path Analysis (2025-12-17)
+
+### Overview
+
+CANCEL_BADGED_SENDS_0002 causes ~77% of all RAS errors. Deep analysis of the code path revealed multiple potential trigger points.
+
+### Test Structure
+
+The test (`projects/sel4test/apps/sel4test-tests/src/tests/endpoints.c`) performs:
+
+1. **Creates `NUM_BADGED_CLIENTS` helper threads** with badged endpoint capabilities
+2. **Calls `cnode_revoke()`** on the badged endpoint cap - this triggers capability deletion in kernel
+3. **Calls `cnode_cancelBadgedSends()`** - this triggers endpoint queue manipulation
+
+**Key insight**: The test triggers TWO kernel operations, not just one.
+
+### Kernel Code Path: cancelBadgedSends()
+
+**Location**: `kernel/src/object/endpoint.c:436-487`
+
+```c
+void cancelBadgedSends(endpoint_t *epptr, word_t badge)
+{
+    // 1. Set endpoint to Idle, clear queue pointers
+    endpoint_ptr_set_state(epptr, EPState_Idle);
+    endpoint_ptr_set_epQueue_head(epptr, 0);
+    endpoint_ptr_set_epQueue_tail(epptr, 0);
+
+    // 2. Iterate through ALL threads in queue
+    for (thread = queue.head; thread; thread = next) {
+        word_t b = thread_state_ptr_get_blockingIPCBadge(&thread->tcbState);
+        next = thread->tcbEPNext;
+
+        if (b == badge) {
+            // Restart or schedule thread
+            if (seL4_Fault_get_seL4_FaultType(...) == seL4_Fault_NullFault) {
+                restart_thread_if_no_fault(thread);  // or SCHED_ENQUEUE
+            } else {
+                restart_thread_if_no_fault(thread);
+            }
+            // Dequeue from endpoint
+            queue = tcbEPDequeue(thread, queue);
+        }
+    }
+    // 3. Trigger scheduler
+    rescheduleRequired();
+}
+```
+
+### Scheduler Trigger Chain
+
+When `rescheduleRequired()` is called:
+
+```
+rescheduleRequired()
+  └→ schedule() [kernel/src/kernel/thread.c:375]
+      └→ switchToThread(candidate) [thread.c:465]
+          └→ Arch_switchToThread(thread) [arch/arm/64/kernel/thread.c]
+              ├→ vcpu_switch(vcpu)
+              └→ setVMRoot(tcb)
+                  └→ armv_contextSwitch(vspace, asid)
+                      └→ setCurrentUserVSpaceRoot(ttbr)
+                          └→ MSR("vttbr_el2", ttbr)  ← VTTBR switch!
+```
+
+### Capability Revocation Path
+
+The `cnode_revoke()` call in the test triggers:
+
+```
+seL4_CNode_Revoke(...)
+  └→ invokeCNodeRevoke()
+      └→ cteRevoke()
+          └→ finaliseCap()       ← Frees capabilities
+              └→ unmapPage()     ← Page table teardown
+                  └→ TLBI operations
+```
+
+### Userspace Memory Allocator Path
+
+After kernel operations, userspace cleanup in libsel4allocman:
+
+**Location**: `projects/seL4_libs/libsel4allocman/src/cspace/two_level.c:214`
+
+```c
+static int _destroy_second_level(cspace_two_level_t *cspace, ...)
+{
+    // Calls kernel to delete capability
+    error = seL4_CNode_Delete(
+        cspace->second_levels[index].cnode.cptr,
+        slot,
+        cspace->config.second_level_slot_bits
+    );
+}
+```
+
+### ELR Address Analysis (from previous runs)
+
+RAS errors occur in BOTH kernel and userspace:
+
+**Kernel addresses (EL2):**
+- `ep_ptr_set_queue` - Endpoint queue manipulation
+- `tcbEPDequeue` - Thread queue removal
+- `setMRs_syscall_error` - Message register operations
+
+**Userspace addresses (EL0):**
+- `_destroy_second_level` - CSpace cleanup (144 occurrences)
+- `_cspace_two_level_alloc` - CSpace allocation (65 occurrences)
+- Various test functions
+
+### Why This Test Is Problematic
+
+1. **Heavy thread lifecycle operations**: Creates and destroys multiple threads
+2. **Capability revocation**: Triggers page table teardown
+3. **Endpoint queue manipulation**: Modifies kernel data structures
+4. **Multiple context switches**: Each restarted thread may trigger VTTBR switch
+5. **Combined userspace/kernel operations**: Memory allocator cleanup interleaved with kernel operations
+
+### Comparison with Other Problematic Tests
+
+| Test | Primary Operation | VTTBR Switches | Error Rate |
+|------|-------------------|----------------|------------|
+| CANCEL_BADGED_SENDS | Cap revoke + EP queue | High | 77% |
+| FPU0001 | FPU context switch | High | 22% |
+| THREAD_LIFECYCLE | Thread create/delete | Medium | <1% |
+
+### Investigation Conclusions
+
+1. **Not purely VTTBR switching**: HCR_EL2.VM fix helped FPU0001/THREAD_LIFECYCLE but made CANCEL_BADGED_SENDS worse
+2. **Not TLB multiple-hit**: Erratum 1941500 fix had no effect
+3. **Not deferred errors**: DE bit analysis shows synchronous errors
+4. **Likely kernel data structure access**: Errors occur during queue/capability manipulation
+
+### Next Investigation Directions
+
+1. **Audit endpoint queue operations** for memory ordering issues
+2. **Check capability revocation path** for speculative access issues
+3. **Investigate if errors correlate with specific queue states** (empty vs non-empty)
+4. **Add instrumentation** to track which operation (revoke vs cancelBadgedSends) triggers errors
+
+---
+
 ## Changelog
 
 | Date | Change |
 |------|--------|
+| 2025-12-17 | **CANCEL_BADGED_SENDS CODE PATH**: Documented full code path analysis. Test triggers BOTH `cnode_revoke()` AND `cnode_cancelBadgedSends()`. Errors occur in kernel (ep_ptr_set_queue, tcbEPDequeue) AND userspace (_destroy_second_level). Likely cause: kernel data structure access patterns, not VTTBR switching. |
 | 2025-12-17 | **ERRATUM 1941500 FIX - NO EFFECT**: Found ATF has inverted workaround (`bic` instead of `orr`). Fixed and tested - **RAS errors unchanged** (663 SCC). Ruled out TLB multiple-hit amalgamation as cause. |
 | 2025-12-17 | **DE BIT ANALYSIS**: Decoded RAS ERR\<n\>STATUS DE bit (bit 23). All errors have DE=0, confirming they are **synchronous**, not deferred. Explains why idle delay had no effect - there are no deferred errors waiting to surface. |
 | 2025-12-17 | **IDLE DELAY TEST**: Added 5-second WFI idle between tests. Error distribution unchanged - **DISPROVED** async bleeding hypothesis. Errors are correctly attributed to triggering tests. |

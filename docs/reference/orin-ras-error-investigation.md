@@ -2070,10 +2070,55 @@ All addresses are below DRAM base (0x80000000), NS bit set:
 
 ---
 
+## Stage 1 Translation Disabled in sel4test (2025-12-16)
+
+### Background: Linux/KVM TTBR0/TTBR1 Errata
+
+Linux/KVM has documented errata ([ARM errata 1319367/1319537](https://lore.kernel.org/kvm/20190927090348.GC15760@arrakis.emea.arm.com/T/)) where speculative page table walks using TTBR0_EL1/TTBR1_EL1 can cause issues during context switches. The workaround uses EPD (Entry Point Disable) bits in TCR_EL1 to prevent speculative Stage 1 walks.
+
+### seL4 Analysis: Stage 1 is Disabled
+
+Investigation of seL4's HCR configuration revealed that **Stage 1 translation is disabled** in sel4test:
+
+```c
+/* From vcpu.h */
+/* Note that the HCR_DC for ARMv8 disables S1 translation if enabled */
+#define HCR_DC       BIT(12)     /* Default cacheable */
+
+#define HCR_NATIVE ( HCR_COMMON | HCR_TGE | HCR_TVM | HCR_TTLB | HCR_DC | ... )
+#define HCR_VCPU   ( HCR_COMMON )  /* No HCR_DC - S1 enabled for VMs */
+```
+
+**Key Points:**
+
+1. **HCR_DC disables Stage 1**: When `HCR_DC` is set, Stage 1 translation (TTBR0_EL1/TTBR1_EL1) is bypassed
+2. **HCR_NATIVE includes HCR_DC**: Used for native seL4 threads (including sel4test)
+3. **HCR_VCPU excludes HCR_DC**: Only used for actual VM guests with VCPU
+
+### Implications
+
+| Mode | HCR_DC | Stage 1 | Stage 2 | Used By |
+|------|--------|---------|---------|---------|
+| HCR_NATIVE | Set | **Disabled** | VTTBR_EL2 | sel4test, native threads |
+| HCR_VCPU | Clear | TTBR0/1_EL1 | VTTBR_EL2 | VM guests |
+
+### Conclusion
+
+**The Linux/KVM EPD workarounds for TTBR0_EL1/TTBR1_EL1 are NOT relevant to sel4test** because:
+
+1. Stage 1 translation is completely disabled via HCR_DC
+2. Only Stage 2 (VTTBR_EL2) is active for address translation
+3. Our HCR_EL2.VM fix already addresses Stage 2 speculative walks
+
+**The CANCEL_BADGED_SENDS RAS errors must have a different root cause** - not related to any TTBR switching (Stage 1 or Stage 2).
+
+---
+
 ## Changelog
 
 | Date | Change |
 |------|--------|
+| 2025-12-16 | **RULED OUT**: Stage 1 (TTBR0_EL1/TTBR1_EL1) issues - Stage 1 is disabled via HCR_DC in sel4test. Linux EPD errata workarounds not applicable. |
 | 2025-12-16 | **COMPARISON TEST**: Without HCR fix: 613 SCC, THREAD_LIFECYCLE_0001 has 102 errors. With fix: 655 SCC, THREAD_LIFECYCLE_0001 drops to 12 errors (88% improvement). |
 | 2025-12-16 | **BASELINE ESTABLISHED**: 655 SCC errors with automated analyzer. CANCEL_BADGED_SENDS 79%, FPU0001 20%, THREAD_LIFECYCLE 1%. Created `analyze_sel4log.py` tool. |
 | 2025-12-16 | **TESTED**: DSB barriers in `cancelBadgedSends()` - NO improvement. Added dsb() before loop and before rescheduleRequired(). RAS errors still occur at same rate (~600+ per 100 iterations). DMB was tested previously (2025-12-13), now DSB also confirmed ineffective. |

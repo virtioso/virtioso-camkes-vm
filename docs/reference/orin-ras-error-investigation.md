@@ -1992,12 +1992,12 @@ Once confirmed:
 
 ---
 
-## Baseline Test Results (2025-12-16)
+## Baseline Test Results (2025-12-16) - Without HCR_EL2.VM Fix
 
 Established with automated analyzer tool (`autopilot/analyze_sel4log.py`).
 
 ### Test Configuration
-- **Kernel commit**: e7a4cb886 (HCR_EL2.VM fix + commented null cap log)
+- **Kernel**: HCR_EL2.VM fix REVERTED (commit b476853f7)
 - **Stress test**: 100 iterations × 4 tests per iteration
 - **Tests**: CANCEL_BADGED_SENDS_0002, FPU0001, THREAD_LIFECYCLE_0001, THREAD_LIFECYCLE_RAPID_0001
 
@@ -2008,10 +2008,45 @@ Established with automated analyzer tool (`autopilot/analyze_sel4log.py`).
 | Total iterations | 100 |
 | Total test runs | 401 |
 | Passed | 401 (100%) |
+| Clean iterations | **0/100** |
+| SCC errors | 613 |
+| ACI errors | 498 |
+| Total errors | 1111 |
+| Error rate | 11.11/iteration |
+
+### Errors by Test
+
+| Test | Errors | Percentage |
+|------|--------|------------|
+| CANCEL_BADGED_SENDS_0002 | 723 | 65.1% |
+| FPU0001 | 286 | 25.7% |
+| THREAD_LIFECYCLE_0001 | 102 | 9.2% |
+| THREAD_LIFECYCLE_RAPID_0001 | 0 | 0.0% |
+
+### Top Error Addresses (ADDR field)
+
+All addresses are below DRAM base (0x80000000), NS bit set:
+- `0x7fff84c0`: 242 occurrences
+- `0x7fff44c0`: 212 occurrences
+- `0x7ffc0c00`: 130 occurrences
+
+---
+
+## Test Results with HCR_EL2.VM Fix (2025-12-16)
+
+### Test Configuration
+- **Kernel commit**: e7a4cb886 (HCR_EL2.VM fix + commented null cap log)
+- **Stress test**: 100 iterations × 4 tests per iteration
+
+### Results Summary
+
+| Metric | Value |
+|--------|-------|
+| Total iterations | 100 |
 | Clean iterations | 1/100 |
 | SCC errors | 655 |
 | ACI errors | 542 |
-| Error rate | 11.97/iteration |
+| Total errors | 1197 |
 
 ### Errors by Test
 
@@ -2022,30 +2057,16 @@ Established with automated analyzer tool (`autopilot/analyze_sel4log.py`).
 | THREAD_LIFECYCLE_0001 | 12 | 1.0% |
 | THREAD_LIFECYCLE_RAPID_0001 | 0 | 0.0% |
 
-### Top Error Addresses (ADDR field)
+### Comparison: HCR_EL2.VM Fix Effect
 
-All addresses are below DRAM base (0x80000000), NS bit set:
-- `0x7ffc0a80`: 385 occurrences
-- `0x7fff84c0`: 232 occurrences
-- `0x7ffc0c00`: 129 occurrences
+| Test | Without Fix | With Fix | Improvement |
+|------|-------------|----------|-------------|
+| CANCEL_BADGED_SENDS_0002 | 723 | 949 | -31% (worse) |
+| FPU0001 | 286 | 236 | **+17%** |
+| THREAD_LIFECYCLE_0001 | 102 | 12 | **+88%** |
+| THREAD_LIFECYCLE_RAPID_0001 | 0 | 0 | - |
 
-### Top ELR Addresses (PC at interrupt)
-
-| Address | EL | Count | Function |
-|---------|----|----|----------|
-| 0x418bc8 | 0 | 148 | _mspace_dual_pool_alloc |
-| 0x418b6c | 0 | 86 | _mspace_dual_pool_alloc |
-| 0x808001c050 | 2 | 48 | ep_ptr_set_queue |
-| 0x4007cc | 0 | 47 | seL4_DebugCapIdentify |
-| 0x808001bfc0 | 2 | 27 | tcbEPDequeue |
-
-### Key Observations
-
-1. **CANCEL_BADGED_SENDS_0002** dominates with ~80% of errors
-2. **FPU0001** still triggers errors (~20%) despite HCR_EL2.VM fix
-3. **THREAD_LIFECYCLE_RAPID_0001** is completely clean (0 errors)
-4. Most errors occur during userspace memory allocation, not kernel operations
-5. Error addresses consistently in `0x7ffcxxxx` range (below DRAM)
+**Key Finding**: HCR_EL2.VM fix dramatically helps THREAD_LIFECYCLE_0001 (88% reduction) and FPU0001 (17% reduction), but CANCEL_BADGED_SENDS_0002 errors actually increase. The fix targets VTTBR switching which is more prevalent in thread lifecycle/FPU tests than in endpoint operations.
 
 ---
 
@@ -2053,6 +2074,7 @@ All addresses are below DRAM base (0x80000000), NS bit set:
 
 | Date | Change |
 |------|--------|
+| 2025-12-16 | **COMPARISON TEST**: Without HCR fix: 613 SCC, THREAD_LIFECYCLE_0001 has 102 errors. With fix: 655 SCC, THREAD_LIFECYCLE_0001 drops to 12 errors (88% improvement). |
 | 2025-12-16 | **BASELINE ESTABLISHED**: 655 SCC errors with automated analyzer. CANCEL_BADGED_SENDS 79%, FPU0001 20%, THREAD_LIFECYCLE 1%. Created `analyze_sel4log.py` tool. |
 | 2025-12-16 | **TESTED**: DSB barriers in `cancelBadgedSends()` - NO improvement. Added dsb() before loop and before rescheduleRequired(). RAS errors still occur at same rate (~600+ per 100 iterations). DMB was tested previously (2025-12-13), now DSB also confirmed ineffective. |
 | 2025-12-16 | **TESTED**: TLB invalidation sequence with HCR_EL2.VM disabled - NO improvement. Modified `invalidateLocalTLB_VMID()` and `invalidateLocalTLB_IPA_VMID()` to disable Stage 2 for entire sequence. Still ~600 RAS errors per 100 iterations. |

@@ -2158,7 +2158,29 @@ However, alternative explanations exist:
 - Interleaved mode may have different timing characteristics
 - The differences could be within normal variation
 
-**Implication**: Sequential mode results may provide more accurate per-test error attribution. Further testing would be needed to confirm this hypothesis.
+### Idle Delay Test (2025-12-17) - Hypothesis Disproved
+
+To test the bleeding hypothesis, we added a **5-second true idle delay** (CPU in WFI state) between tests in sequential mode. If errors were deferred and bleeding between tests, the idle period would allow them to surface and be attributed to the correct test.
+
+**Results with 5-second idle delay:**
+
+| Test | No Delay | 5s Idle Delay | Change |
+|------|----------|---------------|--------|
+| CANCEL_BADGED_SENDS | 953 | 992 | +4% |
+| FPU0001 | 250 | 240 | -4% |
+| THREAD_LIFECYCLE | 14 | 8 | -43% |
+| **Total** | **1217** | **1240** | +2% |
+
+**Conclusion: Hypothesis DISPROVED**
+
+The error distribution is essentially unchanged with the idle delay. This means:
+
+1. **Errors are NOT bleeding between tests** - The async deferral is not causing misattribution
+2. **Errors are correctly attributed** - Each test genuinely triggers the errors reported against it
+3. **CANCEL_BADGED_SENDS truly causes ~80% of errors** - Not an artifact of test ordering
+4. **THREAD_LIFECYCLE improvement from HCR fix is real** - Not an attribution artifact
+
+The 5-second idle period was implemented using seL4's timer + `seL4_Wait()`, which causes the idle thread to run WFI. Any pending RAS interrupts would have fired during this window.
 
 ---
 
@@ -2253,6 +2275,7 @@ This is consistent with [Linux's ARM64_WORKAROUND_SPECULATIVE_AT](https://lore.k
 
 | Date | Change |
 |------|--------|
+| 2025-12-17 | **IDLE DELAY TEST**: Added 5-second WFI idle between tests. Error distribution unchanged - **DISPROVED** async bleeding hypothesis. Errors are correctly attributed to triggering tests. |
 | 2025-12-16 | **SEQUENTIAL MODE TESTS**: Ran tests in sequential mode (AAA BBB CCC). HCR fix effect consistent (~88% improvement for THREAD_LIFECYCLE). Added hypothesis about async RAS error attribution bleeding between tests in interleaved mode. |
 | 2025-12-16 | **DOCUMENTED**: TCR_EL2 EPD bits only exist in VHE mode (E2H=1). VTCR_EL2 has no EPD equivalent - HCR_EL2.VM=0 is the correct approach for Stage 2. |
 | 2025-12-16 | **RULED OUT**: Stage 1 (TTBR0_EL1/TTBR1_EL1) issues - Stage 1 is disabled via HCR_DC in sel4test. Linux EPD errata workarounds not applicable. |

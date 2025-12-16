@@ -2507,12 +2507,71 @@ RAS errors occur in BOTH kernel and userspace:
 3. **Not deferred errors**: DE bit analysis shows synchronous errors
 4. **Likely kernel data structure access**: Errors occur during queue/capability manipulation
 
+### Instrumentation Results: REVOKE vs CANCEL (2025-12-17)
+
+Added RAS_OP markers to isolate whether errors occur during `cnode_revoke()` or `cnode_cancelBadgedSends()`:
+
+```c
+printf("RAS_OP:REVOKE_START:%d\n", i);
+error = cnode_revoke(env, helpers[i].badged_ep);
+printf("RAS_OP:REVOKE_END:%d\n", i);
+// ...
+printf("RAS_OP:CANCEL_START:%d\n", i);
+error = cnode_cancelBadgedSends(env, helpers[i].badged_ep);
+printf("RAS_OP:CANCEL_END:%d\n", i);
+```
+
+**Results (100 iterations, 1272 total errors):**
+
+| Operation | Errors | Percentage | Interpretation |
+|-----------|--------|------------|----------------|
+| REVOKE | 321 | 25.2% | Errors during capability revocation |
+| CANCEL | 275 | 21.6% | Errors during endpoint queue ops |
+| BETWEEN | 392 | 30.8% | Errors after END, before next START |
+| UNKNOWN | 284 | 22.3% | FPU0001 errors (no instrumentation) |
+
+**Key Finding: BOTH operations trigger errors at similar rates!**
+
+The analyzer interprets this as "Both operations trigger errors" since neither REVOKE nor CANCEL dominates (>2x the other).
+
+**Top ELR Addresses:**
+
+| Address | Count | Function | Binary |
+|---------|-------|----------|--------|
+| 0x418bc8 | 163 | `_destroy_second_level` | sel4test |
+| 0x808001c050 | 64 | `ep_ptr_set_queue` | kernel |
+| 0x418b6c | 57 | `_cspace_two_level_alloc` | sel4test |
+| 0x418c50 | 25 | `_destroy_second_level` | sel4test |
+| 0x400664 | 16 | `arm_sys_send_recv` | sel4test |
+
+**Conclusions:**
+
+1. **Not operation-specific**: The bug is NOT isolated to either revoke or cancel - both trigger errors
+2. **Common code path**: Both operations share some underlying mechanism that causes RAS errors
+3. **Candidates for common trigger**:
+   - Thread state transitions (both restart/reschedule threads)
+   - Capability slot manipulation (both modify capability structures)
+   - Scheduler invocation (both call `rescheduleRequired()`)
+4. **BETWEEN errors (30.8%)**: Likely errors triggered during operation but interrupt fires after printf - suggests actual trigger rate during operations is higher
+
+**What Both Operations Have in Common:**
+
+| Aspect | cnode_revoke() | cnode_cancelBadgedSends() |
+|--------|----------------|---------------------------|
+| Modifies caps | Yes (deletes) | No |
+| Modifies EP queue | No | Yes |
+| Restarts threads | Yes (via finaliseCap) | Yes (via restart_thread_if_no_fault) |
+| Calls rescheduleRequired() | Yes | Yes |
+| May trigger context switch | Yes | Yes |
+
+The common factor is **thread restart and rescheduling**, not the specific cap/queue operations.
+
 ### Next Investigation Directions
 
-1. **Audit endpoint queue operations** for memory ordering issues
-2. **Check capability revocation path** for speculative access issues
-3. **Investigate if errors correlate with specific queue states** (empty vs non-empty)
-4. **Add instrumentation** to track which operation (revoke vs cancelBadgedSends) triggers errors
+1. ~~Add instrumentation to track which operation triggers errors~~ **DONE** - Both operations trigger equally
+2. **Focus on thread restart path** - `restart_thread_if_no_fault()` and `possibleSwitchTo()`
+3. **Audit `rescheduleRequired()` path** - Called by both operations
+4. **Check TCB state modifications** - Both operations modify thread state before rescheduling
 
 ---
 
@@ -2520,6 +2579,7 @@ RAS errors occur in BOTH kernel and userspace:
 
 | Date | Change |
 |------|--------|
+| 2025-12-17 | **INSTRUMENTATION RESULTS**: Added RAS_OP markers to isolate REVOKE vs CANCEL. **Both operations trigger errors equally** (REVOKE 25%, CANCEL 22%, BETWEEN 31%). Common factor is thread restart/rescheduling, not specific cap/queue ops. Updated analyzer to parse operation markers. |
 | 2025-12-17 | **CANCEL_BADGED_SENDS CODE PATH**: Documented full code path analysis. Test triggers BOTH `cnode_revoke()` AND `cnode_cancelBadgedSends()`. Errors occur in kernel (ep_ptr_set_queue, tcbEPDequeue) AND userspace (_destroy_second_level). Likely cause: kernel data structure access patterns, not VTTBR switching. |
 | 2025-12-17 | **ERRATUM 1941500 FIX - NO EFFECT**: Found ATF has inverted workaround (`bic` instead of `orr`). Fixed and tested - **RAS errors unchanged** (663 SCC). Ruled out TLB multiple-hit amalgamation as cause. |
 | 2025-12-17 | **DE BIT ANALYSIS**: Decoded RAS ERR\<n\>STATUS DE bit (bit 23). All errors have DE=0, confirming they are **synchronous**, not deferred. Explains why idle delay had no effect - there are no deferred errors waiting to surface. |

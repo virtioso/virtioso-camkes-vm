@@ -1992,10 +1992,68 @@ Once confirmed:
 
 ---
 
+## Baseline Test Results (2025-12-16)
+
+Established with automated analyzer tool (`autopilot/analyze_sel4log.py`).
+
+### Test Configuration
+- **Kernel commit**: e7a4cb886 (HCR_EL2.VM fix + commented null cap log)
+- **Stress test**: 100 iterations × 4 tests per iteration
+- **Tests**: CANCEL_BADGED_SENDS_0002, FPU0001, THREAD_LIFECYCLE_0001, THREAD_LIFECYCLE_RAPID_0001
+
+### Results Summary
+
+| Metric | Value |
+|--------|-------|
+| Total iterations | 100 |
+| Total test runs | 401 |
+| Passed | 401 (100%) |
+| Clean iterations | 1/100 |
+| SCC errors | 655 |
+| ACI errors | 542 |
+| Error rate | 11.97/iteration |
+
+### Errors by Test
+
+| Test | Errors | Percentage |
+|------|--------|------------|
+| CANCEL_BADGED_SENDS_0002 | 949 | 79.3% |
+| FPU0001 | 236 | 19.7% |
+| THREAD_LIFECYCLE_0001 | 12 | 1.0% |
+| THREAD_LIFECYCLE_RAPID_0001 | 0 | 0.0% |
+
+### Top Error Addresses (ADDR field)
+
+All addresses are below DRAM base (0x80000000), NS bit set:
+- `0x7ffc0a80`: 385 occurrences
+- `0x7fff84c0`: 232 occurrences
+- `0x7ffc0c00`: 129 occurrences
+
+### Top ELR Addresses (PC at interrupt)
+
+| Address | EL | Count | Function |
+|---------|----|----|----------|
+| 0x418bc8 | 0 | 148 | _mspace_dual_pool_alloc |
+| 0x418b6c | 0 | 86 | _mspace_dual_pool_alloc |
+| 0x808001c050 | 2 | 48 | ep_ptr_set_queue |
+| 0x4007cc | 0 | 47 | seL4_DebugCapIdentify |
+| 0x808001bfc0 | 2 | 27 | tcbEPDequeue |
+
+### Key Observations
+
+1. **CANCEL_BADGED_SENDS_0002** dominates with ~80% of errors
+2. **FPU0001** still triggers errors (~20%) despite HCR_EL2.VM fix
+3. **THREAD_LIFECYCLE_RAPID_0001** is completely clean (0 errors)
+4. Most errors occur during userspace memory allocation, not kernel operations
+5. Error addresses consistently in `0x7ffcxxxx` range (below DRAM)
+
+---
+
 ## Changelog
 
 | Date | Change |
 |------|--------|
+| 2025-12-16 | **BASELINE ESTABLISHED**: 655 SCC errors with automated analyzer. CANCEL_BADGED_SENDS 79%, FPU0001 20%, THREAD_LIFECYCLE 1%. Created `analyze_sel4log.py` tool. |
 | 2025-12-16 | **TESTED**: DSB barriers in `cancelBadgedSends()` - NO improvement. Added dsb() before loop and before rescheduleRequired(). RAS errors still occur at same rate (~600+ per 100 iterations). DMB was tested previously (2025-12-13), now DSB also confirmed ineffective. |
 | 2025-12-16 | **TESTED**: TLB invalidation sequence with HCR_EL2.VM disabled - NO improvement. Modified `invalidateLocalTLB_VMID()` and `invalidateLocalTLB_IPA_VMID()` to disable Stage 2 for entire sequence. Still ~600 RAS errors per 100 iterations. |
 | 2025-12-16 | **COMMITTED**: HCR_EL2.VM workaround for VTTBR switch (commit 5179eebf0). Fixes FPU0001/thread lifecycle tests (70% → 0% error rate). CANCEL_BADGED_SENDS still has errors. |

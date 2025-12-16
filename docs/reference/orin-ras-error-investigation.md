@@ -2575,10 +2575,99 @@ The common factor is **thread restart and rescheduling**, not the specific cap/q
 
 ---
 
+## ARM RAS Specification Analysis (IHI0100) (2025-12-17)
+
+### Document Reference
+
+ARM IHI0100 "RAS System Architecture" defines the error reporting format used by Tegra234's SCC and ACI RAS nodes.
+
+### SERR Field Decoding
+
+From Section 2.4.8 "Software faults":
+
+| SERR | Description |
+|------|-------------|
+| 0x0D | **Illegal address (software fault)**. For example, access to unpopulated memory. |
+| 0x0E | Illegal access (software fault). For example, byte write to word register. |
+| 0x0F | Illegal state (software fault). For example, device not ready. |
+
+**Our errors have SERR=0x0D** - ARM officially classifies this as a "software fault" caused by accessing memory that doesn't exist.
+
+### ERR<n>ADDR Register Layout (Section 3.2.23)
+
+```
+ 63    62   61   60   59   58:56   55:0
++----+----+----+----+----+-------+------------------+
+| NS | SI | AI | VA |NSE | RES0  |      PADDR       |
++----+----+----+----+----+-------+------------------+
+```
+
+| Field | Bits | Description |
+|-------|------|-------------|
+| NS | 63 | Non-secure attribute (physical address space) |
+| SI | 62 | Secure Incorrect |
+| AI | 61 | Address Incorrect |
+| VA | 60 | Virtual Address (if implemented) |
+| NSE | 59 | Non-secure Extension (FEAT_RME) |
+| PADDR | 55:0 | Physical address of recorded location |
+
+### Decoding Our Error Addresses
+
+Our error addresses are `0x800000007fffxxxx`:
+
+| Component | Value | Meaning |
+|-----------|-------|---------|
+| NS (bit 63) | 1 | Non-secure physical address space |
+| SI (bit 62) | 0 | Secure state is correct |
+| AI (bit 61) | 0 | Address is valid/correct |
+| PADDR (55:0) | 0x7fffxxxx | Physical address accessed |
+
+**Key interpretation:**
+- NS=1 means the access was in the **Non-secure physical address space**
+- PADDR=0x7fffxxxx is **below DRAM base** (0x80000000 on Orin AGX)
+- AI=0 means ARM believes this is the **actual physical address** being accessed (not corrupted)
+
+### What ARM Says About These Errors
+
+From Section 2.4.8:
+
+> "Examples of software faults include: **Access to memory or peripheral register that is not present.** This includes cases where physical address spaces are physically aliased."
+
+> "trusted software should **set up the translation tables to prevent accesses from occurring**"
+
+ARM explicitly states that translation tables should block accesses to non-existent memory. The fact that we're seeing these errors means either:
+
+1. **Translation tables have gaps** - Some VA→PA mapping produces 0x7fffxxxx
+2. **Speculative access bypasses translation** - Hardware speculatively accesses before translation completes
+3. **Page table contains invalid PA** - A PTE has PA=0x7fffxxxx in its output address field
+
+### IERR Field (Implementation-Defined)
+
+Our errors show `IERR = 0x9` which the Tegra234 interprets as "Address Range Error" or "FillWrite Error". This is NVIDIA-specific and indicates the SCC/ACI detected the invalid address during a cache fill or write operation.
+
+### Implications for Investigation
+
+1. **ARM confirms this is a software fault** - Not a hardware glitch or random error
+2. **The physical address 0x7fffxxxx is real** - AI=0 means it's not corrupted
+3. **Translation should prevent this** - Something is generating invalid PA translations
+4. **Focus areas:**
+   - Page table entries that could contain 0x7fffxxxx
+   - Stage 2 translation producing invalid IPAs
+   - Speculative accesses during page table transitions
+
+### Reference
+
+- ARM IHI0100 "RAS System Architecture" (~/ras.txt)
+- Section 2.4.8: Software faults
+- Section 3.2.23: ERR<n>ADDR register
+
+---
+
 ## Changelog
 
 | Date | Change |
 |------|--------|
+| 2025-12-17 | **ARM RAS SPEC ANALYSIS**: Documented IHI0100 findings. SERR=0x0D means "Illegal address (software fault)". ERR<n>ADDR bit 63 is NS (Non-secure), bits 55:0 are PADDR. ARM confirms our errors are software faults accessing unpopulated memory (0x7fffxxxx < DRAM base). |
 | 2025-12-17 | **INSTRUMENTATION RESULTS**: Added RAS_OP markers to isolate REVOKE vs CANCEL. **Both operations trigger errors equally** (REVOKE 25%, CANCEL 22%, BETWEEN 31%). Common factor is thread restart/rescheduling, not specific cap/queue ops. Updated analyzer to parse operation markers. |
 | 2025-12-17 | **CANCEL_BADGED_SENDS CODE PATH**: Documented full code path analysis. Test triggers BOTH `cnode_revoke()` AND `cnode_cancelBadgedSends()`. Errors occur in kernel (ep_ptr_set_queue, tcbEPDequeue) AND userspace (_destroy_second_level). Likely cause: kernel data structure access patterns, not VTTBR switching. |
 | 2025-12-17 | **ERRATUM 1941500 FIX - NO EFFECT**: Found ATF has inverted workaround (`bic` instead of `orr`). Fixed and tested - **RAS errors unchanged** (663 SCC). Ruled out TLB multiple-hit amalgamation as cause. |

@@ -2072,6 +2072,67 @@ All addresses are below DRAM base (0x80000000), NS bit set:
 
 ---
 
+## Sequential Mode Test Results (2025-12-16)
+
+Tests run in sequential mode (AAA BBB CCC DDD) where each test runs 100× before moving to the next.
+
+### Test Configuration
+- **Stress test**: 100 iterations × 4 tests
+- **Mode**: Sequential (AAA BBB CCC DDD)
+- **Tests**: CANCEL_BADGED_SENDS_0002, FPU0001, THREAD_LIFECYCLE_0001, THREAD_LIFECYCLE_RAPID_0001
+
+### Results Without HCR_EL2.VM Fix
+
+| Test | Errors | Percentage |
+|------|--------|------------|
+| CANCEL_BADGED_SENDS_0002 | 678 | 58.9% |
+| FPU0001 | 354 | 30.7% |
+| THREAD_LIFECYCLE_0001 | 120 | 10.4% |
+| THREAD_LIFECYCLE_RAPID_0001 | 0 | 0.0% |
+| **Total** | **1152** | |
+
+- SCC errors: 639
+- ACI errors: 513
+
+### Results With HCR_EL2.VM Fix
+
+| Test | Errors | Percentage |
+|------|--------|------------|
+| CANCEL_BADGED_SENDS_0002 | 953 | 78.3% |
+| FPU0001 | 250 | 20.5% |
+| THREAD_LIFECYCLE_0001 | 14 | 1.2% |
+| THREAD_LIFECYCLE_RAPID_0001 | 0 | 0.0% |
+| **Total** | **1217** | |
+
+- SCC errors: 661
+- ACI errors: 556
+
+### Sequential Mode Comparison
+
+| Test | Without Fix | With Fix | Improvement |
+|------|-------------|----------|-------------|
+| CANCEL_BADGED_SENDS_0002 | 678 | 953 | -41% (worse) |
+| FPU0001 | 354 | 250 | **+29%** |
+| THREAD_LIFECYCLE_0001 | 120 | 14 | **+88%** |
+| THREAD_LIFECYCLE_RAPID_0001 | 0 | 0 | - |
+
+### Interleaved vs Sequential Comparison
+
+| Test | Interleaved (no fix) | Sequential (no fix) | Difference |
+|------|---------------------|---------------------|------------|
+| CANCEL_BADGED_SENDS_0002 | 723 | 678 | Similar |
+| FPU0001 | 286 | 354 | +24% more in sequential |
+| THREAD_LIFECYCLE_0001 | 102 | 120 | +18% more in sequential |
+
+**Key Findings:**
+
+1. **HCR_EL2.VM fix effect is consistent**: THREAD_LIFECYCLE improvement is ~88% in both modes
+2. **Sequential mode shows slightly higher FPU/thread errors**: Running tests back-to-back without interleaving may accumulate more state
+3. **CANCEL_BADGED_SENDS remains unaffected by fix**: Errors increase with fix in both modes
+4. **Test order matters less than expected**: Error distribution is similar between modes
+
+---
+
 ## Stage 1 Translation Disabled in sel4test (2025-12-16)
 
 ### Background: Linux/KVM TTBR0/TTBR1 Errata
@@ -2163,6 +2224,7 @@ This is consistent with [Linux's ARM64_WORKAROUND_SPECULATIVE_AT](https://lore.k
 
 | Date | Change |
 |------|--------|
+| 2025-12-16 | **SEQUENTIAL MODE TESTS**: Ran tests in sequential mode (AAA BBB CCC). HCR fix effect consistent (~88% improvement for THREAD_LIFECYCLE). Sequential mode shows slightly higher FPU/thread errors. |
 | 2025-12-16 | **DOCUMENTED**: TCR_EL2 EPD bits only exist in VHE mode (E2H=1). VTCR_EL2 has no EPD equivalent - HCR_EL2.VM=0 is the correct approach for Stage 2. |
 | 2025-12-16 | **RULED OUT**: Stage 1 (TTBR0_EL1/TTBR1_EL1) issues - Stage 1 is disabled via HCR_DC in sel4test. Linux EPD errata workarounds not applicable. |
 | 2025-12-16 | **COMPARISON TEST**: Without HCR fix: 613 SCC, THREAD_LIFECYCLE_0001 has 102 errors. With fix: 655 SCC, THREAD_LIFECYCLE_0001 drops to 12 errors (88% improvement). |

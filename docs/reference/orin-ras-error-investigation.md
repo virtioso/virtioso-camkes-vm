@@ -2302,10 +2302,83 @@ This is consistent with [Linux's ARM64_WORKAROUND_SPECULATIVE_AT](https://lore.k
 
 ---
 
+## Erratum 1941500 - TLB Multiple Hit Bug (2025-12-17)
+
+### Discovery: ATF Workaround is INVERTED
+
+Investigation of the NVIDIA ATF source code revealed a **critical bug** in the erratum 1941500 workaround implementation:
+
+**File:** `Linux_for_Tegra/source/tegra/optee-src/atf/arm-trusted-firmware/lib/cpus/aarch64/cortex_a78_ae.S:39-42`
+
+```asm
+/* Set bit 8 in ECTLR_EL1 */      ← Comment says SET
+mrs  x0, CORTEX_A78_AE_CPUECTLR_EL1
+bic  x0, x0, #CORTEX_A78_AE_CPUECTLR_EL1_BIT_8  ← Code CLEARS (wrong!)
+msr  CORTEX_A78_AE_CPUECTLR_EL1, x0
+```
+
+The code uses `bic` (bit clear) instead of `orr` (bit set). This is a [known bug reported to TF-A](https://lists.trustedfirmware.org/archives/list/tf-a@lists.trustedfirmware.org/thread/P7RYUUJ44IHCMMVI64VQKREY4ADVIMNG/).
+
+### Erratum 1941500 Description (from ARM SDEN-1707912)
+
+**Title:** Store operation that encounters multiple hits in the TLB might access regions of memory with attributes that could not be accessed at that Exception level or Security state
+
+**Status:** Present in r0p0, r0p1. Fixed in r0p2.
+
+**Conditions:**
+1. A store operation encounters **multiple hits in the TLB** due to inappropriate invalidation or misprogramming of a contiguous bit
+2. A read request is generated with a **physical address and attributes that are an amalgamation of the multiple TLB entries** that hit
+
+**Implications:** A read request could be generated to regions of memory with attributes that could not be accessed at that Exception level or Security state.
+
+**Workaround:** Set CPUECTLR_EL1[8] = 1 (small performance cost <0.5%)
+
+### Direct Correlation to Our RAS Errors
+
+| Erratum Description | Our Observations |
+|---------------------|------------------|
+| Multiple TLB hits due to inappropriate invalidation | VTTBR switches leave stale TLB entries |
+| Physical address is **amalgamation** of multiple TLB entries | Addresses like 0x7fffxxxx (corrupted/combined) |
+| Access to memory with wrong attributes | RAS error: "Illegal address" in SCC |
+
+**Key insight:** The erratum explains why we see addresses like `0x7fffxxxx` - they're not real addresses, they're **corrupted combinations of stale and new TLB entries**!
+
+### Orin AGX CPU Revision
+
+```
+CPU variant  : 0x0
+CPU part     : 0xd42 (Cortex-A78AE)
+CPU revision : 1     (r0p1)
+```
+
+The Orin AGX has **r0p1** silicon, which is **affected by this erratum** (fixed only in r0p2).
+
+### Fix Applied and Tested
+
+Changed `bic` to `orr` in ATF and reflashed the secure-os partition.
+
+**Test Results (2025-12-17):**
+
+| Metric | Before Fix | After Fix | Change |
+|--------|------------|-----------|--------|
+| SCC errors | ~655 | 663 | **No change** |
+| CANCEL_BADGED_SENDS | ~79% | 76.7% | **No change** |
+| FPU0001 | ~20% | 22.6% | **No change** |
+| THREAD_LIFECYCLE | ~1% | 0.7% | **No change** |
+
+**Conclusion: Erratum 1941500 is NOT the root cause of our RAS errors.**
+
+The inverted workaround in ATF was a real bug that needed fixing, but it does not explain the RAS errors we're seeing. The error pattern, addresses, and distribution are identical before and after the fix.
+
+This rules out TLB multiple-hit amalgamation as the cause. The 0x7fffxxxx addresses must have a different origin.
+
+---
+
 ## Changelog
 
 | Date | Change |
 |------|--------|
+| 2025-12-17 | **ERRATUM 1941500 FIX - NO EFFECT**: Found ATF has inverted workaround (`bic` instead of `orr`). Fixed and tested - **RAS errors unchanged** (663 SCC). Ruled out TLB multiple-hit amalgamation as cause. |
 | 2025-12-17 | **DE BIT ANALYSIS**: Decoded RAS ERR\<n\>STATUS DE bit (bit 23). All errors have DE=0, confirming they are **synchronous**, not deferred. Explains why idle delay had no effect - there are no deferred errors waiting to surface. |
 | 2025-12-17 | **IDLE DELAY TEST**: Added 5-second WFI idle between tests. Error distribution unchanged - **DISPROVED** async bleeding hypothesis. Errors are correctly attributed to triggering tests. |
 | 2025-12-16 | **SEQUENTIAL MODE TESTS**: Ran tests in sequential mode (AAA BBB CCC). HCR fix effect consistent (~88% improvement for THREAD_LIFECYCLE). Added hypothesis about async RAS error attribution bleeding between tests in interleaved mode. |

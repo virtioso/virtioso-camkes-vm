@@ -1999,6 +1999,7 @@ Established with automated analyzer tool (`autopilot/analyze_sel4log.py`).
 ### Test Configuration
 - **Kernel**: HCR_EL2.VM fix REVERTED (commit b476853f7)
 - **Stress test**: 100 iterations × 4 tests per iteration
+- **Mode**: Interleaved (ABCD ABCD ABCD)
 - **Tests**: CANCEL_BADGED_SENDS_0002, FPU0001, THREAD_LIFECYCLE_0001, THREAD_LIFECYCLE_RAPID_0001
 
 ### Results Summary
@@ -2037,6 +2038,7 @@ All addresses are below DRAM base (0x80000000), NS bit set:
 ### Test Configuration
 - **Kernel commit**: e7a4cb886 (HCR_EL2.VM fix + commented null cap log)
 - **Stress test**: 100 iterations × 4 tests per iteration
+- **Mode**: Interleaved (ABCD ABCD ABCD)
 
 ### Results Summary
 

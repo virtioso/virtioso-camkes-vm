@@ -2182,6 +2182,37 @@ The error distribution is essentially unchanged with the idle delay. This means:
 
 The 5-second idle period was implemented using seL4's timer + `seL4_Wait()`, which causes the idle thread to run WFI. Any pending RAS interrupts would have fired during this window.
 
+### RAS Status DE Bit Analysis - Errors Are Synchronous
+
+The ARM RAS ERR\<n\>STATUS register contains a **DE (Deferred Error) bit at position 23**. When DE=1, the error is deferred (asynchronous to the triggering operation). When DE=0, the error is synchronous/uncorrected.
+
+**Decoding our RAS error status values:**
+
+| Status Value | Binary (bits 24:20) | DE (bit 23) | Interpretation |
+|--------------|---------------------|-------------|----------------|
+| `0xe400090d` | `0b11100100...` | **0** | Synchronous |
+| `0xe8000904` | `0b11101000...` | **0** | Synchronous |
+
+**Both status values have DE=0, confirming all our RAS errors are synchronous, NOT deferred.**
+
+**ERR\<n\>STATUS bit layout (bits 31:24):**
+```
+[31:30] AV,V   - Address Valid, Valid
+[29:28] UE,ER - Uncorrected Error, Error Reported
+[27:26] OF,MV - Overflow, Miscellaneous Valid
+[25:24] CE,DE - Corrected Error (2 bits), Deferred Error
+  bit 23: DE  - Deferred Error flag
+```
+
+**Implications:**
+
+1. **Errors are NOT deferred** - They occur synchronously with the triggering operation
+2. **No async deferral window** - The error is reported immediately, not stored for later
+3. **Idle delay cannot help** - Since errors aren't deferred, waiting won't flush them
+4. **Attribution is accurate** - Errors appear during the actual triggering test, not later
+
+This technical confirmation aligns perfectly with the empirical idle delay test results: waiting 5 seconds between tests made no difference because there were no deferred errors waiting to surface.
+
 ---
 
 ## Stage 1 Translation Disabled in sel4test (2025-12-16)
@@ -2275,6 +2306,7 @@ This is consistent with [Linux's ARM64_WORKAROUND_SPECULATIVE_AT](https://lore.k
 
 | Date | Change |
 |------|--------|
+| 2025-12-17 | **DE BIT ANALYSIS**: Decoded RAS ERR\<n\>STATUS DE bit (bit 23). All errors have DE=0, confirming they are **synchronous**, not deferred. Explains why idle delay had no effect - there are no deferred errors waiting to surface. |
 | 2025-12-17 | **IDLE DELAY TEST**: Added 5-second WFI idle between tests. Error distribution unchanged - **DISPROVED** async bleeding hypothesis. Errors are correctly attributed to triggering tests. |
 | 2025-12-16 | **SEQUENTIAL MODE TESTS**: Ran tests in sequential mode (AAA BBB CCC). HCR fix effect consistent (~88% improvement for THREAD_LIFECYCLE). Added hypothesis about async RAS error attribution bleeding between tests in interleaved mode. |
 | 2025-12-16 | **DOCUMENTED**: TCR_EL2 EPD bits only exist in VHE mode (E2H=1). VTCR_EL2 has no EPD equivalent - HCR_EL2.VM=0 is the correct approach for Stage 2. |

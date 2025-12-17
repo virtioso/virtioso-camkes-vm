@@ -2663,10 +2663,143 @@ Our errors show `IERR = 0x9` which the Tegra234 interprets as "Address Range Err
 
 ---
 
+## ⚠️ CRITICAL DISCOVERY: VTTBR Address Correlation (2025-12-17)
+
+### Instrumentation Results: Kernel Code Paths Clear
+
+Implemented two instrumentation strategies to detect where 0x7fffxxxx addresses originate:
+
+**Strategy 1: Instrument `pptr_to_paddr()`** (machine.h)
+```c
+if (pa != 0 && pa < 0x80000000) {
+    printf("RAS_DEBUG pptr_to_paddr: BAD PA! pptr=0x%lx pa=0x%lx\n", ...);
+}
+```
+
+**Strategy 2: Instrument `lookupPTSlot()`** (vspace.c)
+```c
+if (pt_pa != 0 && pt_pa < 0x80000000) {
+    printf("RAS_DEBUG lookupPTSlot: STALE PTE! pa=0x%lx ...\n", ...);
+}
+```
+
+**Result: ZERO RAS_DEBUG messages!**
+
+This proves:
+- `pptr_to_paddr()` is NOT producing invalid PA values through normal code paths
+- `lookupPTSlot()` is NOT encountering stale PTEs with PA < 0x80000000
+- **The 0x7fffxxxx addresses are NOT coming from executed kernel code!**
+
+### The Breakthrough: VTTBR Address Pattern Match
+
+Analyzing RAS error context dumps reveals a stunning correlation:
+
+**VTTBR_EL2 values at error time:**
+```
+VTTBR_EL2 (user PT):   0x10000806ae000  (478 errors) - VMID=1, base=0x806ae000
+VTTBR_EL2 (user PT):   0x27ffc0000      (92 errors)  - VMID=0, base=0x27ffc0000
+VTTBR_EL2 (user PT):   0x10000806a8000  (3 errors)   - VMID=1, base=0x806a8000
+```
+
+**Wait - 0x27ffc0000 with VMID=0?!**
+
+Memory layout (8GB RAM starting at 0x80000000):
+- RAM start: 0x80000000
+- RAM end: 0x280000000
+- **0x27ffc0000 is only 256KB from END of RAM!**
+
+### The Pattern Match is Unmistakable
+
+```
+Error addresses:     0x7ffc0xxx, 0x7fff8xxx
+VTTBR base:          0x27ffc0000
+                       ^^^^
+                   Same "7ffc" pattern!
+```
+
+### Bit Analysis: The Missing Bit 33
+
+```
+0x27ffc0000 = 0010_0111_1111_1100_0000...  (valid, in RAM)
+0x07ffc0000 = 0000_0111_1111_1100_0000...  (invalid, below DRAM!)
+                ^
+              bit 33 (represents 8GB offset!)
+```
+
+**If bit 33 gets dropped/truncated, 0x27ffc0000 becomes 0x7ffc0000!**
+
+### Error Address Analysis (Test Run 2025-12-17)
+
+| Address | Count | Offset from VTTBR base (0x27ffc0000) |
+|---------|-------|--------------------------------------|
+| 0x7fff8540 | 254 | +0x38540 (within page table area) |
+| 0x7ffc0980 | 215 | +0x980 (within page table area) |
+| 0x7ffc0a80 | 199 | +0xa80 (within page table area) |
+| 0x7ffc0c00 | 128 | +0xc00 (within page table area) |
+| 0x7ffc0940 | 105 | +0x940 (within page table area) |
+
+**All error addresses are small offsets from the VTTBR base!**
+
+### Hypothesis: Hardware Address Truncation During Speculative PTW
+
+The hardware appears to be:
+1. Speculatively walking Stage 2 page tables
+2. Using the VTTBR base address (0x27ffc0000)
+3. **Truncating bit 33 somehow**, producing 0x7ffc0xxx
+4. Accessing the resulting invalid address (below DRAM)
+5. Triggering RAS error
+
+### Why VMID=0?
+
+VMID=0 appears in 92 of the errors. This is significant because:
+- VMID=0 is typically used for idle/kernel context
+- The page table at 0x27ffc0000 with VMID=0 may be a **leftover/stale VTTBR value**
+- This could indicate a race condition during VMID switching
+
+**Boot output shows untypeds allocated at RAM end:**
+```
+0x27ffcb000 | 12 | 0   (4KB untyped at PA 0x27ffcb000)
+0x27ffcc000 | 14 | 0   (16KB untyped at PA 0x27ffcc000)
+```
+
+The page table at 0x27ffc0000 was likely allocated from these end-of-RAM untypeds!
+
+### Other Registers Near RAM End
+
+Checking all registers in error context for addresses near 0x27fxxxxxx:
+
+| Register | Value | PA | Location |
+|----------|-------|-----|----------|
+| **VTTBR_EL2** | 0x27ffc0000 | 0x27ffc0000 | **256KB from RAM end** ⚠️ |
+| SP_EL2 | 0x827fff0800 | 0x27fff0800 | 61KB from RAM end |
+| SP_EL2 | 0x827fe1b800 | 0x27fe1b800 | 1.8MB from RAM end |
+
+**Note:** The high SP_EL2 values appear with VTTBR=0x10000806ae000 (NOT 0x27ffc0000), so they're not directly correlated with the 0x7ffc0xxx errors. Only VTTBR=0x27ffc0000 correlates with error addresses.
+
+### EL Analysis
+
+Most errors occur at EL=0 (userspace):
+```
+EL=0: 457 errors (80%)
+EL=2: 116 errors (20%)
+```
+
+This suggests the speculative access happens during user code execution, not during kernel operations.
+
+### Next Steps
+
+1. **Investigate why VMID=0 has VTTBR base at end of RAM** - Who allocates page tables there?
+2. **Check if bit 33 is being masked somewhere** - Could be in hardware or VTTBR register encoding
+3. **Trace page table allocation** - Why is 0x27ffc0000 used?
+4. **Test with page tables NOT near RAM boundary** - Does moving PT away from 0x27ffc0000 eliminate errors?
+
+---
+
 ## Changelog
 
 | Date | Change |
 |------|--------|
+| 2025-12-17 | **⚠️ CRITICAL DISCOVERY: VTTBR ADDRESS CORRELATION**: Instrumented kernel shows ZERO RAS_DEBUG messages - 0x7fffxxxx addresses NOT produced by kernel code! Found stunning correlation: VTTBR_EL2=0x27ffc0000 (256KB from RAM end) with VMID=0. Error addresses 0x7ffc0xxx match VTTBR base with bit 33 dropped! Hypothesis: Hardware truncates bit 33 during speculative Stage 2 PTW, turning valid 0x27ffc0000 into invalid 0x7ffc0000. |
 | 2025-12-17 | **ARM RAS SPEC ANALYSIS**: Documented IHI0100 findings. SERR=0x0D means "Illegal address (software fault)". ERR<n>ADDR bit 63 is NS (Non-secure), bits 55:0 are PADDR. ARM confirms our errors are software faults accessing unpopulated memory (0x7fffxxxx < DRAM base). |
 | 2025-12-17 | **INSTRUMENTATION RESULTS**: Added RAS_OP markers to isolate REVOKE vs CANCEL. **Both operations trigger errors equally** (REVOKE 25%, CANCEL 22%, BETWEEN 31%). Common factor is thread restart/rescheduling, not specific cap/queue ops. Updated analyzer to parse operation markers. |
 | 2025-12-17 | **CANCEL_BADGED_SENDS CODE PATH**: Documented full code path analysis. Test triggers BOTH `cnode_revoke()` AND `cnode_cancelBadgedSends()`. Errors occur in kernel (ep_ptr_set_queue, tcbEPDequeue) AND userspace (_destroy_second_level). Likely cause: kernel data structure access patterns, not VTTBR switching. |

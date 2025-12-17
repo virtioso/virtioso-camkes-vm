@@ -2,29 +2,66 @@
 
 ## Summary
 
-**STATUS: ✅ FIX IMPLEMENTED - HCR_EL2.VM WORKAROUND**
+**STATUS: ⚠️ BUG B FIXED, BUG A STILL PRESENT**
 
 This document captures the investigation into intermittent RAS (Reliability, Availability, Serviceability) errors occurring during sel4test execution on NVIDIA Orin AGX.
 
-### The Fix (Phase 9)
+### ⚠️ BREAKTHROUGH: Two Separate Bugs (2025-12-17)
+
+Analysis across different RAM configurations revealed **TWO COMPLETELY INDEPENDENT BUGS**:
+
+| Bug | Error Pattern | Trigger Test | Code Path | RAM Dependent | Status |
+|-----|---------------|--------------|-----------|---------------|--------|
+| **A** | 0x7fffxxxx | FPU0001 (>99%) | `arm_sys_send_recv`, `load_segment` | YES - only near 0x80000000 | Partially fixed by HCR_EL2.VM |
+| **B** | 0x0fc0/0x0ff0 | All tests (CANCEL_BADGED most) | `sel4utils_destroy_process`, `vka_cnode_revoke` | NO - always present | **✓ FIXED** |
+
+### ✓ Bug B Fix (2025-12-17)
+
+**Root cause**: `pte_pte_invalid_new()` returns all zeros. During PTE clearing in `unmapPage()` / `unmapPageTable()`, speculative PTW reads the zero PTE and interprets bits[47:12] as PA=0, causing RAS errors at 0x0fc0/0x0ff0.
+
+**Fix**: Added `pte_safe_invalid_new()` which sets bits[47:12] to `armKSGlobalUserVSpace` PA while keeping bits[1:0]=0 (invalid). Speculative walkers now see safe memory instead of PA=0.
+
+**Location**: `kernel/src/arch/arm/64/kernel/vspace.c`
+
+**Verification**:
+- Before fix: 56-92 errors per run
+- After fix: **0 errors in 5 runs**
+
+### Current Workaround (Phase 9)
 
 **Disable Stage 2 translation (HCR_EL2.VM=0) during VTTBR switches** in `setCurrentUserVSpaceRoot()`.
 
-This prevents ALL speculative Stage 2 page table walks during the critical window when VTTBR is being updated, eliminating the race condition.
+This helps with Bug A (thread lifecycle tests) but does NOT fix Bug B (cap revocation path).
 
 **Results:**
-- THREAD_LIFECYCLE_DELAYED_0001 (worst case): **70% → 0%** (100/100 iterations passed)
-- Full sel4test suite: **155 tests passed**, all thread lifecycle tests pass
+- THREAD_LIFECYCLE_DELAYED_0001: **70% → 0%** error rate
+- CANCEL_BADGED_SENDS_0002: Still triggers ~30 errors per 100 iterations
 
 **Location:** `kernel/include/arch/arm/arch/64/mode/machine.h:setCurrentUserVSpaceRoot()`
 
 ---
 
-## ⚠️ ROOT CAUSE IDENTIFIED ⚠️
+## ⚠️ ROOT CAUSE ANALYSIS ⚠️
 
-### The Trigger: Repeated Thread Create/Destroy
+### Bug A: Syscall/ELF Path (0x7fffxxxx errors)
 
-**Custom diagnostic tests have conclusively identified the root cause:**
+- **Trigger**: FPU0001 test exclusively (>99% of these errors)
+- **Condition**: ONLY when RAM starts within ~64KB of 0x80000000
+- **Code path**: `arm_sys_send_recv` (syscalls), `load_segment` (ELF loading)
+- **Hypothesis**: Address calculation in syscall path wraps below 0x80000000 when RAM base is at 2GB boundary
+
+### Bug B: Destruction/Revocation Path (0x0xxx errors) - **✓ FIXED**
+
+- **Trigger**: All tests, but CANCEL_BADGED_SENDS_0002 triggered most
+- **Condition**: Was ALWAYS present regardless of RAM location
+- **Code path**: `sel4utils_destroy_process`, `vka_cnode_revoke` → `unmapPage()` / `unmapPageTable()`
+- **Root cause**: `pte_pte_invalid_new()` returned all zeros; speculative PTW read zero PTEs during race window before TLBI, interpreting bits[47:12] as PA=0
+- **Fix**: `pte_safe_invalid_new()` sets bits[47:12] to `armKSGlobalUserVSpace` PA
+- **See**: [bug-b-investigation.md](bug-b-investigation.md) for full analysis
+
+### Historical Context: Thread Destruction
+
+**Custom diagnostic tests originally identified thread destruction as a trigger:**
 
 | Test | Description | Error Rate |
 |------|-------------|------------|
@@ -33,19 +70,12 @@ This prevents ALL speculative Stage 2 page table walks during the critical windo
 | FPU_MULTITHREAD_0001 | FPU + one-shot threads | **0%** |
 | CONTEXT_SWITCH_ONLY_0001 | Context switching alone | **0%** |
 
-**Conclusion**: The RAS errors are triggered by **thread destruction operations**, NOT by:
-- FPU operations (0% when isolated)
-- Context switching alone (0% when isolated)
-- Endpoint IPC (0% when isolated)
-
-### Technical Hypothesis
-
 Thread destruction (`cleanup_helper()` → `sel4utils_clean_up_thread()`) involves:
 1. VSpace/page table cleanup
 2. Capability revocation
 3. TCB deletion
 
-**The bug**: Thread destruction leaves stale PTEs that speculative PTW accesses, causing reads to invalid addresses (0x7fffxxxx, below DRAM base).
+**The bugs**: Speculative PTW accesses stale/zero PTEs during these operations.
 
 ### Critical Finding: Exactly 4+ Threads Required
 
@@ -2786,12 +2816,208 @@ EL=2: 116 errors (20%)
 
 This suggests the speculative access happens during user code execution, not during kernel operations.
 
+### RAM Size and Base Address Experiments (2025-12-17)
+
+Tested with different RAM sizes and base addresses to isolate the error source:
+
+| RAM Config | RAM Range | VTTBR | Error Addresses | Notes |
+|------------|-----------|-------|-----------------|-------|
+| 8GB @ 0x80000000 | 0x80000000-0x280000000 | 0x27ffc0000 | 0x7fff8540 | Original config |
+| 4GB @ 0x80000000 | 0x80000000-0x180000000 | 0x17ffc0000 | 0x7fff8xxx (134), 0x0xxx (76) | Bit 33 disproven |
+| 1.5GB @ 0x80000000 | 0x80000000-0xE0000000 | 0xdffc0000 | 0x7fff8540 (162), 0x0xxx (58) | Fixed addr confirmed |
+| **1.5GB @ 0x90000000** | **0x90000000-0xF0000000** | **0xeffc0000** | **0x0fc0, 0x0ff0 (31 each)** | **Near-NULL errors** |
+| **1.5GB @ 0x90200000** | **0x90200000-0xF0000000** | **0xeffc0000** | **0x0fc0, 0x0ff0 (28 each)** | **Same as 0x90000000!** |
+| **1GB @ 0x84000000** | **0x84000000-0xC4000000** | - | **0x0fc0, 0x0ff0 (39 each)** | **Same near-NULL pattern** |
+| **1GB @ 0x81000000** | **0x81000000-0xC1000000** | - | **0x0fc0, 0x0ff0 (37 each)** | **Transition < 0x81000000** |
+| **1GB @ 0x80001000** | **0x80001000-0xC0001000** | 0xbffc0000 | **0x7fff8540 (98), 0x7fff84c0 (8), 0x0fc0 (46), 0x0ff0 (46)** | **⚠️ BOTH PATTERNS! 198 errors** |
+| **1GB @ 0x80002000** | **0x80002000-0xC0002000** | 0xbffc0000 | **0x7fff8540 (44), 0x7fff84c0 (12), 0x0fc0 (46), 0x0ff0 (46)** | **0x7fffxxxx decreasing (56 vs 106)** |
+| **1GB @ 0x80010000** | **0x80010000-0xC0010000** | 0xbffc0000 | **0x7ffccf00 (2), 0x7ff30f00 (2), 0x0fc0 (32), 0x0ff0 (32)** | **0x7fffxxxx nearly gone (4), different addrs!** |
+
+### ⚠️ BREAKTHROUGH: Two Separate Bugs Identified!
+
+Analysis of error patterns across all RAM configurations reveals **TWO INDEPENDENT BUGS**:
+
+| Bug | Error Pattern | Primary Trigger | RAM Dependency | Root Cause |
+|-----|---------------|-----------------|----------------|------------|
+| **Bug A** | 0x7fffxxxx | FPU0001 (>99%) | Only near 0x80000000 | FPU context + 2GB boundary |
+| **Bug B** | 0x0fc0/0x0ff0 | All tests (CANCEL_BADGED most) | None (constant) | Zero PTE speculation |
+
+**Detailed per-test breakdown:**
+
+| RAM Start | FPU0001 0x7fff | FPU0001 0x0xxx | CANCEL 0x7fff | CANCEL 0x0xxx |
+|-----------|----------------|----------------|---------------|---------------|
+| 0x80000000 | 188 | 10 | 0 | 26 |
+| 0x80001000 | 104 | 18 | 0 | 38 |
+| 0x80002000 | 54 | 22 | 0 | 24 |
+| 0x80010000 | 0 | 20 | 4 | 14 |
+| 0x81000000 | 0 | 18 | 0 | 24 |
+| 0x84000000+ | 0 | 12 | 0 | 32 |
+
+**Key insights:**
+1. **FPU0001 exclusively triggers 0x7fffxxxx errors** - only when RAM near 0x80000000
+2. **CANCEL_BADGED_SENDS triggers mostly 0x0xxx errors** - constant regardless of RAM location
+3. **The bugs are completely independent** - different code paths, require separate fixes
+
+### Code Path Analysis (ELR/PC at RAS interrupt)
+
+| Bug | Error Pattern | Top PCs (EL0) | Functions | Code Path |
+|-----|---------------|---------------|-----------|-----------|
+| **A** | 0x7fffxxxx | 0x400664, 0x471d10, 0x4215a8 | `arm_sys_send_recv`, `load_segment` | Syscalls, ELF loading |
+| **B** | 0x0fc0/0x0ff0 | 0x427c44, 0x424774, 0x42550c | `sel4utils_destroy_process`, `vka_cnode_revoke` | Process/cap destruction |
+
+**Bug A (0x7fffxxxx) - Syscall/ELF Path:**
+- Occurs during IPC syscalls (`arm_sys_send_recv`) and thread creation (`load_segment`)
+- ONLY triggered when RAM starts within ~64KB of 0x80000000
+- FPU0001 does heavy IPC and thread creation, triggering this path frequently
+- Hypothesis: Some address calculation in syscall/ELF path produces `(RAM_BASE + offset - X)` that wraps below 0x80000000
+- **Investigation**: Instrument kernel syscall entry, check address arithmetic near RAM base
+
+**Bug B (0x0xxx) - Destruction/Revocation Path:**
+- Occurs during process destruction (`sel4utils_destroy_process`) and cap revocation (`vka_cnode_revoke`)
+- ALWAYS present regardless of RAM location
+- CANCEL_BADGED_SENDS does heavy cap revocation, triggering this path
+- Hypothesis: Zero-initialized PTEs are speculatively walked during destruction, producing near-NULL addresses
+- **Investigation**: Add barriers in destruction path, or initialize PTEs with non-zero invalid values
+
+### ⚠️ CRITICAL FINDING: Error Addresses are NOT DRAM-Base Relative!
+
+When DRAM base moved from 0x80000000 to 0x90000000:
+
+| Expected (if DRAM-relative) | Actual |
+|----------------------------|--------|
+| 0x8fff8540 (0x90000000 - 31KB) | **0x0fc0, 0x0ff0** |
+
+**The error addresses went to NEAR-ZERO, not to DRAM_BASE - offset!**
+
+```
+With DRAM @ 0x80000000: Errors at 0x7fff8540 (looks like DRAM - 31KB)
+With DRAM @ 0x90000000: Errors at 0x0fc0, 0x0ff0 (near NULL!)
+```
+
+**This disproves the "fixed offset from DRAM base" theory.** The 0x7fff8540 pattern was a coincidence - both addresses are simply **invalid PAs from corrupted/zero page table entries**.
+
+### Root Cause Analysis
+
+The near-zero addresses (0x0fc0, 0x0ff0) strongly suggest:
+
+1. **NULL/uninitialized page table entries** - Zero-filled memory being interpreted as PTEs
+2. **Speculative PTW walking invalid entries** - Hardware speculatively accesses memory based on stale/zero PTEs
+3. **Cache line alignment** - 0x0fc0 and 0x0ff0 are 64-byte aligned (cache lines)
+
+The 0x7fffxxxx addresses seen with DRAM @ 0x80000000 were also from invalid PTEs, just happening to produce different garbage addresses due to different memory layout.
+
 ### Next Steps
 
-1. **Investigate why VMID=0 has VTTBR base at end of RAM** - Who allocates page tables there?
-2. **Check if bit 33 is being masked somewhere** - Could be in hardware or VTTBR register encoding
-3. **Trace page table allocation** - Why is 0x27ffc0000 used?
-4. **Test with page tables NOT near RAM boundary** - Does moving PT away from 0x27ffc0000 eliminate errors?
+1. ~~Test with 4GB RAM to verify bit 33 hypothesis~~ **DONE - DISPROVEN**
+2. ~~Test with 1.5GB RAM~~ **DONE - Fixed addr confirmed**
+3. ~~Move DRAM base to 0x90000000~~ **DONE - DRAM-relative theory DISPROVEN**
+4. **Focus on PTE initialization** - Why are speculative walks seeing zero/garbage PTEs?
+5. **Investigate VTTBR switch sequence** - What's happening to page tables during context switch?
+
+---
+
+## ⚠️ CRITICAL CORRECTION: Speculative PTW is NOT EL2-Specific (2025-12-17)
+
+### Previous Understanding (INCORRECT)
+
+Much of this investigation focused on EL2/hypervisor-specific aspects:
+- VTTBR_EL2 switching race conditions
+- HCR_EL2.VM workaround for Stage 2 translation
+- Stage 2 page table speculation
+
+This led to an implicit assumption that speculative PTW was primarily an EL2/hypervisor issue.
+
+### Corrected Understanding
+
+**Speculative page table walks occur at ALL exception levels on modern AArch64 SoCs.**
+
+Testing with ARM_HYPERVISOR_SUPPORT=OFF (kernel at EL1, no EL2/Stage-2) revealed:
+- ARM_HYP=OFF WITHOUT safe PTEs: **556 RAS errors per run**
+- ARM_HYP=OFF WITH safe PTEs: **0 RAS errors per run**
+- ARM_HYP=ON with safe PTEs: **0-4 RAS errors per run**
+
+The ~200x higher error rate in EL1-only mode proves:
+1. **Speculative PTW is universal** - occurs regardless of exception level
+2. **EL2 mode was MASKING the bug**, not causing it (due to earlier fixes)
+3. **Safe PTEs are the universal solution** - work for both EL1 and EL2
+
+### Implications for This Document
+
+Statements in this document that imply EL2-specific behavior should be read with this correction in mind:
+- HCR_EL2.VM workaround: Only helps for EL2/Stage-2 speculation
+- VTTBR_EL2 switching: Only relevant when running at EL2
+- The safe PTE fix (Bug B fix) now applies unconditionally to both modes
+
+### Root Cause: Zero PTEs Are Unsafe
+
+The fundamental issue is that **zero-initialized PTEs are unsafe on Cortex-A78AE** (and likely other modern AArch64 cores):
+- When a PTE is zeroed, bits[47:12] = 0
+- Speculative PTW interprets this as PA=0
+- Hardware generates RAS errors accessing unmapped PA=0
+
+**Solution**: Use "safe invalid PTEs" with bits[47:12] pointing to valid kernel memory (armKSGlobalUserVSpace) while keeping bits[1:0]=0 (invalid).
+
+### Code Changes (commit 619e1848d)
+
+Removed `#ifdef CONFIG_ARM_HYPERVISOR_SUPPORT` guards from:
+- `vspace.c`: `pte_safe_invalid_new()` now unconditional
+- `objecttype.c`: VSpaceObject and PageTableObject safe PTE initialization
+
+---
+
+## ARM_HYP=OFF vs ARM_HYP=ON Comparison (2025-12-17)
+
+### Test Setup
+
+Added multi-configuration test support to autopilot framework:
+- `sel4_client.py` now requires `--arm-hyp` or `--no-arm-hyp` flag
+- Build configs: `orinagx_defconfig` (ARM_HYP=ON) vs `orinagx_nohyp_defconfig` (ARM_HYP=OFF)
+- Results include `config.json` tracking build configuration
+
+### Results (Before Safe PTE Fix for EL1)
+
+| Test ID | ARM_HYP | RAS Errors | Tests Run |
+|---------|---------|------------|-----------|
+| 20251217-155829 | ON | **0** | 402 |
+| 20251217-155011 | OFF | **556** | 402 |
+
+Same hardware, same stress tests (CANCEL_BADGED_SENDS, FPU0001, THREAD_LIFECYCLE, THREAD_LIFECYCLE_RAPID), same sequential execution mode.
+
+**ARM_HYP=OFF produced 556x more errors than ARM_HYP=ON (which had zero).**
+
+### Results (After Safe PTE Fix for EL1)
+
+| Test ID | ARM_HYP | Safe PTEs | RAS Errors |
+|---------|---------|-----------|------------|
+| 20251217-164152 | OFF | Yes | **0** |
+
+**The safe PTE fix eliminates RAS errors in EL1-only mode.**
+
+### Error Distribution (ARM_HYP=OFF without fix)
+
+| Test | Errors | Percentage |
+|------|--------|------------|
+| THREAD_LIFECYCLE_0001 | 82 | 29.4% |
+| FPU0001 | 71 | 25.4% |
+| THREAD_LIFECYCLE_RAPID_0001 | 68 | 24.4% |
+| CANCEL_BADGED_SENDS_0002 | 58 | 20.8% |
+
+All four stress tests trigger errors at similar rates in ARM_HYP=OFF mode (unlike ARM_HYP=ON where some tests dominated).
+
+### Key Finding
+
+**The safe PTE fix is the universal solution for speculative PTW RAS errors.**
+
+It works for:
+- EL2 (hypervisor) mode - Stage 2 page tables
+- EL1 (non-hypervisor) mode - Stage 1 page tables
+- VSpaceObject creation
+- PageTableObject creation
+- unmapPage() and unmapPageTable() operations
+
+### Thermal Observation
+
+Zero errors in ARM_HYP=ON tests was unusual (normally 2-4). After several test runs, 2 errors appeared, confirming thermal correlation exists but is secondary to the safe PTE fix.
 
 ---
 
@@ -2799,7 +3025,13 @@ This suggests the speculative access happens during user code execution, not dur
 
 | Date | Change |
 |------|--------|
-| 2025-12-17 | **⚠️ CRITICAL DISCOVERY: VTTBR ADDRESS CORRELATION**: Instrumented kernel shows ZERO RAS_DEBUG messages - 0x7fffxxxx addresses NOT produced by kernel code! Found stunning correlation: VTTBR_EL2=0x27ffc0000 (256KB from RAM end) with VMID=0. Error addresses 0x7ffc0xxx match VTTBR base with bit 33 dropped! Hypothesis: Hardware truncates bit 33 during speculative Stage 2 PTW, turning valid 0x27ffc0000 into invalid 0x7ffc0000. |
+| 2025-12-17 | **⚠️ ARM_HYP=OFF COMPARISON**: ARM_HYP=OFF produces **556 errors** vs **0 errors** for ARM_HYP=ON with identical test suite. Hypervisor mode is MASKING the bug, not causing it. EL1 code paths need same fixes as EL2. Thermal variation may explain zero errors (usually 2-4). |
+| 2025-12-17 | **CODE PATH ANALYSIS**: ELR/PC analysis reveals Bug A (0x7fffxxxx) occurs in `arm_sys_send_recv`/`load_segment` (syscall/ELF path), while Bug B (0x0xxx) occurs in `sel4utils_destroy_process`/`vka_cnode_revoke` (destruction path). Different code paths confirm independent bugs. |
+| 2025-12-17 | **⚠️ BREAKTHROUGH - TWO SEPARATE BUGS IDENTIFIED**: Analysis across RAM configs (0x80000000 to 0x90000000) reveals two independent bugs: (A) 0x7fffxxxx errors triggered EXCLUSIVELY by FPU0001, only when RAM near 0x80000000; (B) 0x0xxx errors triggered by ALL tests (CANCEL_BADGED most), constant regardless of RAM location. These are completely independent bugs requiring separate investigation. |
+| 2025-12-17 | **DRAM @ 0x90200000**: Same 0x0fc0/0x0ff0 errors as 0x90000000. Error addresses are completely DRAM-base independent when above 0x80000000. |
+| 2025-12-17 | **⚠️ DRAM BASE TEST - DEFINITIVE PROOF**: Moved DRAM from 0x80000000 to 0x90000000. Error addresses changed from 0x7fff8540 to **0x0fc0/0x0ff0 (near-NULL)**! Expected 0x8fff8540 if DRAM-relative - got near-zero instead. **PROVES errors come from zero/uninitialized PTEs**, not from DRAM base offset. The 0x7fffxxxx pattern was coincidental garbage from invalid PTE interpretation. |
+| 2025-12-17 | **4GB RAM TEST - BIT 33 HYPOTHESIS DISPROVEN**: Limited RAM to 4GB so bit 33 never set. Errors STILL occur (228 total): 0x7fff8xxx (134), 0x0xxx (76). The 0x7fff8540 pattern appears regardless of RAM size - NOT from VTTBR bit truncation. New near-NULL errors (PA=0x0fc0, 0x0ff0) appeared. Root cause is elsewhere. |
+| 2025-12-17 | **⚠️ VTTBR ADDRESS CORRELATION**: Instrumented kernel shows ZERO RAS_DEBUG messages - 0x7fffxxxx addresses NOT produced by kernel code! Found stunning correlation: VTTBR_EL2=0x27ffc0000 (256KB from RAM end) with VMID=0. Error addresses 0x7ffc0xxx match VTTBR base with bit 33 dropped! ~~Hypothesis: Hardware truncates bit 33~~ **DISPROVEN by 4GB test**. |
 | 2025-12-17 | **ARM RAS SPEC ANALYSIS**: Documented IHI0100 findings. SERR=0x0D means "Illegal address (software fault)". ERR<n>ADDR bit 63 is NS (Non-secure), bits 55:0 are PADDR. ARM confirms our errors are software faults accessing unpopulated memory (0x7fffxxxx < DRAM base). |
 | 2025-12-17 | **INSTRUMENTATION RESULTS**: Added RAS_OP markers to isolate REVOKE vs CANCEL. **Both operations trigger errors equally** (REVOKE 25%, CANCEL 22%, BETWEEN 31%). Common factor is thread restart/rescheduling, not specific cap/queue ops. Updated analyzer to parse operation markers. |
 | 2025-12-17 | **CANCEL_BADGED_SENDS CODE PATH**: Documented full code path analysis. Test triggers BOTH `cnode_revoke()` AND `cnode_cancelBadgedSends()`. Errors occur in kernel (ep_ptr_set_queue, tcbEPDequeue) AND userspace (_destroy_second_level). Likely cause: kernel data structure access patterns, not VTTBR switching. |

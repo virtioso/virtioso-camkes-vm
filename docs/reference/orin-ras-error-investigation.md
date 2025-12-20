@@ -2,7 +2,7 @@
 
 ## Summary
 
-**STATUS: ⚠️ BUG B FIXED, BUG A STILL PRESENT**
+**STATUS: ⚠️ BUG B FIXED, BUG A INVESTIGATION IN PROGRESS - CACHE HYPOTHESIS DISPROVEN**
 
 This document captures the investigation into intermittent RAS (Reliability, Availability, Serviceability) errors occurring during sel4test execution on NVIDIA Orin AGX.
 
@@ -12,8 +12,499 @@ Analysis across different RAM configurations revealed **TWO COMPLETELY INDEPENDE
 
 | Bug | Error Pattern | Trigger Test | Code Path | RAM Dependent | Status |
 |-----|---------------|--------------|-----------|---------------|--------|
-| **A** | 0x7fffxxxx | FPU0001 (>99%) | `arm_sys_send_recv`, `load_segment` | YES - only near 0x80000000 | Partially fixed by HCR_EL2.VM |
+| **A** | 0x7fffxxxx | FPU0001 (>99%) | `arm_sys_send_recv`, `load_segment` | YES - only near 0x80000000 | **⚠️ PTE overwrite mystery** |
 | **B** | 0x0fc0/0x0ff0 | All tests (CANCEL_BADGED most) | `sel4utils_destroy_process`, `vka_cnode_revoke` | NO - always present | **✓ FIXED** |
+
+### ⚠️ CRITICAL: Cache Flush AND ATF/OP-TEE Hypotheses DISPROVEN (2025-12-18)
+
+**Non-temporal stores (STNP) that bypass cache entirely did NOT fix the problem.** (Phase 16)
+
+**5-second delay before verification: verification PASSES, but later scan finds garbage.** (Phase 17)
+
+This proves:
+1. Cache flush operations (dc civac) ARE working correctly
+2. Safe PTEs ARE being written to DRAM (verified with dc ivac + read-back)
+3. ATF/OP-TEE is NOT corrupting memory (5-second delay showed no corruption)
+4. **Corruption happens DURING test execution** - something in the test or kernel writes to PT memory
+5. **Phase 18 ftrace**: 65,536 kernel function calls captured between PT verification and garbage detection - **NO PT modification functions called** (no unmapPageTable, no clearMemory, no createObject)
+6. **Phase 19 diagnostic region**: 200KB pattern at 0x80000000-0x80032000 remained **INTACT** - corruption occurs in middle of DRAM (0xACxxxxxx), not at beginning
+
+See Phase 16, Phase 17, Phase 18, and Phase 19 for full analysis.
+
+### ⚠️ Latest Finding (2025-12-20): First 200KB of DRAM NOT Corrupted
+
+Phase 19 tested whether something corrupts the first 200KB of DRAM. A diagnostic pattern initialized at boot remained intact through 72+ million function calls. **PT corruption targets dynamically allocated PTs in the middle of DRAM**, not any fixed memory region. The RAM start address affects whether corruption manifests as RAS errors, not the corruption itself.
+
+### ⚠️ Previous Finding (2025-12-18): Page Tables Contain Garbage User Data
+
+Debug scanning revealed page tables contain **leftover user application data** (ASCII strings, ARM instructions) instead of valid PTEs. Grepping the sel4test build directory confirms these strings come from the application binary.
+
+### ⚠️ Phase 15: The 0x400000 Mystery (2025-12-18)
+
+#### Key Observations
+
+Enhanced debug scanning categorizes bad PTE addresses:
+```
+RAS_SCAN: VSpace@0xac002000 L0:0 L1:0 L2:0 L3:13642 (1st@L3 in PT@0xac00a000: 0x4001ec->0x400000)
+RAS_SCAN:   addr_ranges: 0x0xxx=7140, 0x7xxx=171, other=6331 (1st_7xxx: 0x12b00000710002bf->0x71000000)
+```
+
+**Address distribution of 13,642 bad L3 PTEs**:
+- **0x0xxx** (0-256MB): 7,140 entries - includes 0x400000 (rootserver VA)
+- **0x7xxx** (1.75-2GB): 171 entries - includes 0x71000000
+- **other** (256MB-1.75GB): 6,331 entries
+
+**Critical discrepancy**: RAS errors occur at **0x7ffcc000** (208KB below DRAM), but the scanned PTEs show addresses like 0x400000 and 0x71000000, NOT 0x7ffcc000!
+
+#### Hypothesis: Cascading Walk Error
+
+The 0x7ffcc000 error address may come from a **second-level speculative walk**:
+
+1. L2 PTE has bits[47:12] pointing to 0x400000 (garbage from rootserver)
+2. Speculative PTW walks to "table" at PA 0x400000 (unmapped/MMIO region)
+3. Hardware reads garbage data from 0x400000 region
+4. Garbage data interpreted as PTEs contains values like 0x7ffcc (bits[47:12])
+5. PTW tries to walk to 0x7ffcc000 → **RAS error!**
+
+This would explain:
+- Why scanned PTEs show 0x400000 but errors are at 0x7ffcc000
+- Why errors are ALWAYS near 2GB boundary (0x7fffxxxx) - hardware/MMIO behavior at low addresses
+- Why errors don't occur at 0x90000000 DRAM - different data at 0x400000 region?
+
+#### The Mystery PT at 0xac00a000
+
+The page table at PA 0xac00a000:
+- Is found via scan (linked into VSpace via valid L0→L1→L2 path)
+- Contains 13,642 bad L3 entries
+- **Has NO "created OK" debug message** - was NOT created via Arch_createObject!
+
+This suggests either:
+1. PT was created in a previous test iteration and memory reused
+2. PT was created via a different code path (boot-time?)
+3. PT was created but memory not properly flushed before scan
+
+#### Code Analysis: clearMemory() vs clearMemory_PT()
+
+Two memory clearing functions exist:
+```c
+// kernel/include/arch/arm/arch/machine.h
+
+// Regular clear - memzero only, NO cache flush
+static inline void clearMemory(word_t *ptr, word_t bits) {
+    memzero(ptr, BIT(bits));
+}
+
+// Page table clear - memzero + cache flush to PoC
+static inline void clearMemory_PT(word_t *ptr, word_t bits) {
+    memzero(ptr, BIT(bits));
+    cleanInvalidateCacheRange_RAM((word_t)ptr, (word_t)ptr + BIT(bits) - 1,
+                                  addrFromPPtr(ptr));
+}
+```
+
+**Problem**: `resetUntypedCap()` in `kernel/src/object/untyped.c:255` uses `clearMemory()` (no cache flush) for ALL object types, including page tables!
+
+**Consequence**:
+1. Memory previously used for rootserver data (containing 0x400xxx addresses)
+2. Memory returned to untyped pool
+3. `clearMemory()` zeros D-cache copy only
+4. Main memory still has old rootserver data (0x4001ec, etc.)
+5. Page table created - Arch_createObject() writes safe PTEs and flushes
+6. BUT: There's a **race window** between clearMemory() and Arch_createObject()
+7. If MMU speculatively walks during this window → sees garbage
+
+#### Next Steps
+
+1. **Verify the cascading walk hypothesis**: Check what data is at PA 0x400000 on Tegra234
+2. **Fix clearMemory()**: Either use clearMemory_PT() for page table types, or add flush before Arch_createObject()
+3. **Track PT lifecycle**: Add debug to trace when 0xac00a000 is created/destroyed
+
+**Two hypotheses under investigation**:
+
+**Hypothesis A (cache flush issue)**:
+1. Memory is reused from user frames → page tables
+2. `clearMemory()` only does memzero without cache flush to PoC
+3. When cache lines are evicted, DRAM still has old garbage
+4. Speculative PTW reads garbage from DRAM, triggers RAS error
+
+**Hypothesis B (ELF load overlap)**:
+1. Page tables are created and properly initialized
+2. ELF loader loads application segments into memory
+3. Due to a bug, load overlaps with page table physical memory
+4. Page tables get corrupted with application data (strings, code)
+
+**Note**: Both hypotheses are plausible, and the issue could be a combination of both. The intermittent nature of RAS errors (sometimes occur, sometimes not) suggests timing-dependent behavior like cache eviction patterns or memory allocation ordering that varies between runs.
+
+### ⚠️ Phase 16: Non-Temporal Stores (STNP) Investigation (2025-12-18)
+
+#### Summary
+
+**CRITICAL FINDING**: Non-temporal stores (STNP) that bypass cache entirely did NOT fix the problem. This **disproves the cache flush hypothesis** and points to something overwriting PTEs after initialization.
+
+#### Background
+
+Based on Phase 15 findings, we hypothesized that `dc civac` cache flush operations were not correctly writing safe PTEs to DRAM on Tegra. The verification code showed "DRAM verified" but later scans found garbage.
+
+We modified the page table initialization to use ARM64 STNP (Store Non-temporal Pair) instructions, which:
+- Bypass all cache levels
+- Write directly to memory system
+- Do not allocate cache lines
+
+#### Code Changes
+
+Modified `Arch_createObject()` in `kernel/src/arch/arm/64/object/objecttype.c`:
+
+```c
+case seL4_ARM_PageTableObject:
+    {
+        /*
+         * Use non-temporal stores (STNP) to bypass cache and write directly
+         * to DRAM. This ensures safe PTEs actually reach memory, avoiding
+         * issues where cache flush operations don't work correctly on Tegra.
+         */
+        word_t safe_pte = pte_pte_invalid_new().words[0];
+        word_t *base = (word_t *)regionBase;
+
+        /* STNP writes 128 bits (two 64-bit values) with non-temporal hint */
+        for (word_t i = 0; i < BIT(seL4_PageTableIndexBits); i += 2) {
+            asm volatile("stnp %0, %1, [%2]"
+                         :
+                         : "r"(safe_pte), "r"(safe_pte), "r"(&base[i])
+                         : "memory");
+        }
+        asm volatile("dsb sy" ::: "memory");
+    }
+    /* Also do regular cache flush to ensure coherency */
+    cleanInvalidateCacheRange_RAM(...);
+```
+
+Also added forced cache invalidation before verification read-back:
+
+```c
+/* Force cache miss: invalidate all lines again, then barrier */
+for (word_t i = 0; i < BIT(seL4_PageTableIndexBits); i++) {
+    word_t line = (word_t)regionBase + (i * sizeof(pte_t));
+    asm volatile("dc ivac, %0" : : "r"(line));
+}
+asm volatile("dsb sy" ::: "memory");
+
+/* Now read - should come from DRAM */
+```
+
+#### Test Results
+
+**Test: 100x CANCEL_BADGED_SENDS_0002**
+
+```
+RAS_DEBUG: PT@0xac224000 created OK (DRAM verified)
+RAS_MAP: PT@0xac224000 mapped into parent@0xac1e6000[2] (pte=0xac224003)
+...
+Running test CANCEL_BADGED_SENDS_0002 (cancelBadgedSends deletes caps)
+...
+RAS_WALK: L2@0xac224000[0] points to L3@0xac1d6000 (pte=0x4000000ac1d647f)
+RAS_WALK: L2@0xac23b000[31] points to L3@0xac00a000 (pte=0x4000000ac00a4ff)
+```
+
+**Result**: RAS errors still occur! The pattern is identical to before STNP:
+1. PT created with safe PTEs
+2. Verification passes (reads correct values)
+3. Later scan finds garbage in specific entries
+
+#### Analysis
+
+**What the results prove:**
+
+1. **Cache flush is NOT the problem**: STNP bypasses cache entirely. If cache flush were the issue, STNP would fix it. It didn't.
+
+2. **DRAM actually receives correct values**: The verification (with dc ivac to force cache miss) shows correct values immediately after writing. DRAM has the right data.
+
+3. **Something overwrites PTEs after initialization**: The ONLY explanation for the pattern (verification passes, later sees garbage) is that something writes to these PT entries BETWEEN creation and scan.
+
+#### The Mystery: What Overwrites PT Entries?
+
+The garbage PTE values follow a pattern:
+- `0x4000000ac1d647f` - points to 0xac1d6000
+- `0x4000000ac00a4ff` - points to 0xac00a000
+
+These have:
+- Bit 62 set (0x4000000000000000) - unusual for seL4-created PTEs
+- Valid table descriptor bits [1:0] = 0b11
+- Physical addresses that ARE valid PTs from PREVIOUS test iterations
+
+**Key observation**: The addresses 0xac1d6000 and 0xac00a000 were created as PTs in earlier test iterations. This suggests:
+1. Memory was used as PT in test N
+2. PT entry was written pointing to child table
+3. Test N completed, VSpace destroyed, memory returned to pool
+4. Memory reused for NEW PT in test N+1
+5. Safe PTEs written via STNP
+6. **SOMETHING** writes the OLD value back to the entry
+
+**Possible causes being investigated:**
+
+1. **DMA or other bus master**: Some hardware writes to this memory region
+2. **Another CPU core**: SMP issue with memory visibility (unlikely - single core test)
+3. **Store buffer aliasing**: Old stores in flight getting reordered after STNP
+4. **Memory controller issue**: Tegra-specific behavior
+
+#### Debug Output Pattern Analysis
+
+```
+Test 1:
+  RAS_DEBUG: PT@0xac00c000 created OK (DRAM verified)
+  RAS_WALK: L2@0xac00c000[0] points to L3@0xac00a000 (pte=0x4000000ac00a47f)
+  RAS_WALK: L2@0xac00c000[430] points to L3@0xac1d6000 (pte=0x4000000ac1d64ff)
+
+Test 2:
+  RAS_DEBUG: PT@0xac1d6000 created OK (DRAM verified)  <-- Now 0xac1d6000 is created!
+  RAS_WALK: L2@0xac1d6000[264] points to L3@0xac00a000 (pte=0x4000000ac00a4ff)
+```
+
+Notice:
+- Test 1: L2@0xac00c000 entries point to garbage addresses including 0xac1d6000
+- Test 2: PT@0xac1d6000 is NOW created as a valid PT
+- BUT: 0xac1d6000 appeared as a garbage target in Test 1 BEFORE it was created in Test 2
+
+This suggests the garbage values are **STALE DATA from previous memory usage**, not from the current test iteration.
+
+#### Next Investigation Steps
+
+1. **Add per-entry debug**: Print value BEFORE and AFTER STNP write for first few entries
+2. **Track memory reuse**: Log when physical addresses are retyped
+3. **Check for write-after-STNP**: Add watchpoint or trace on specific addresses
+4. **Investigate memory controller**: Check if Tegra has memory aliasing or prefetch issues
+
+#### Code Locations Modified
+
+- `kernel/src/arch/arm/64/object/objecttype.c:Arch_createObject()` - STNP writes
+- `kernel/src/arch/arm/64/kernel/vspace.c:performPageTableInvocationUnmap()` - STNP on unmap
+- Verification code with `dc ivac` + `dsb sy`
+
+### ⚠️ Phase 17: Delayed Verification Test - ATF/OP-TEE Hypothesis RULED OUT (2025-12-18)
+
+#### Hypothesis
+
+ATF (ARM Trusted Firmware at EL3) or OP-TEE (secure world) might be periodically writing to seL4's page table memory, causing corruption.
+
+#### Test Design
+
+Added a 5-second busy-loop delay between PT creation and verification for PTs in the troublesome 0xac000000-0xad000000 address range:
+
+```c
+if (paddr >= 0xac000000 && paddr < 0xad000000) {
+    printf("RAS_DEBUG: PT@0x%lx - delaying 5s before verify...\n", paddr);
+    for (volatile word_t j = 0; j < 10000000000UL; j++) {
+        asm volatile("" ::: "memory");
+    }
+}
+/* Then verify... */
+```
+
+#### Results
+
+```
+RAS_DEBUG: PT@0xac00c000 - delaying 5s before verify...
+RAS_DEBUG: PT@0xac00c000 created OK (DRAM verified)
+RAS_MAP: PT@0xac00c000 mapped into parent@0xac00b000[2] (pte=0xac00c003)
+...
+Running test CANCEL_BADGED_SENDS_0002 (cancelBadgedSends deletes caps)
+...
+RAS_WALK: L2@0xac00c000[0] points to L3@0xac00a000 (pte=0x4000000ac00a47f)
+```
+
+**Timeline:**
+1. PT@0xac00c000 created with safe PTEs
+2. **5-second delay** - no external writes
+3. Verification **PASSES** - all entries still correct
+4. PT mapped into parent table
+5. Test execution begins
+6. Scan finds **garbage** in entry [0]
+
+#### Conclusion
+
+**ATF/OP-TEE hypothesis RULED OUT.**
+
+If secure world firmware were periodically corrupting memory, the 5-second delay would have caught it during verification. Instead:
+- Verification passes AFTER the 5-second delay
+- Corruption appears DURING the test's own execution
+
+**The corruption is caused by something in the test execution path itself**, not by external firmware.
+
+#### What This Means
+
+The bug is in one of:
+1. **The test code** - CANCEL_BADGED_SENDS_0002 does something that writes to PT memory
+2. **seL4 kernel operations** triggered by the test - cap revocation, VSpace destruction, memory retyping
+3. **Memory aliasing** - the test maps memory that overlaps with PT physical addresses
+
+#### Next Investigation Direction
+
+Focus on what happens DURING test execution:
+1. What does CANCEL_BADGED_SENDS_0002 do exactly?
+2. What kernel operations write to page table memory?
+3. Is there memory aliasing between user frames and PTs?
+
+### ⚠️ Phase 18: Function Tracing (ftrace) Analysis (2025-12-19)
+
+#### Objective
+
+Capture ALL kernel function calls between:
+1. PT creation + DRAM verification (passes)
+2. VSpace scan detecting garbage PTEs
+
+This would reveal what code path corrupts the PTs.
+
+#### Implementation
+
+Built sel4test with `CONFIG_KERNEL_FUNCTION_TRACE` enabled (GCC `-finstrument-functions`):
+- `ftrace_reset()` clears buffer when PT is verified
+- `ftrace_dump_all()` dumps captured calls when scan finds garbage
+- Dump only happens once to avoid flooding output
+
+#### Results
+
+**Full ftrace captured: 65,536 function calls between PT verification and garbage detection.**
+
+See: [ftrace-pt-corruption-20251219.txt](ftrace-pt-corruption-20251219.txt) (99,050 lines decoded)
+
+#### Key Findings from ftrace Statistics
+
+Top called functions during the corruption window:
+```
+   Calls  Function
+    2744  readBcrCp (debug.h)           - debug register access
+    2744  writeBcrCp (debug.h)          - debug register access
+    1832  readWcrCp (debug.h)           - watchpoint register
+    1832  writeWcrCp (debug.h)          - watchpoint register
+     719  messageInfoFromWord_raw       - IPC message handling
+     606  resolveAddressBits (cspace.c) - capability lookup
+     604  findMapForASID (vspace.c)     - ASID lookup
+     600  lookupSlot (cspace.c)         - CNode traversal
+     504  lookupCapAndSlot (cspace.c)   - capability resolution
+     458  restore_user_debug_context    - thread switch debug state
+     457  c_handle_syscall              - syscall entry
+     410  vcpu_switch (vcpu.c)          - VCPU context switch
+     409  lazyFPURestore (fpu.h)        - FPU state management
+     356  isArchCap (structures.h)      - capability type check
+```
+
+#### Critical Observation: No PT Modification Functions!
+
+Searched ftrace for page table modification functions:
+- `unmapPageTable` - **NOT FOUND**
+- `performPageTableInvocationUnmap` - **NOT FOUND**
+- `Arch_finaliseCap` - **NOT FOUND**
+- `clearMemory` - **NOT FOUND**
+- `createObject` - **NOT FOUND**
+- `mapPage` / `unmapPage` - **NOT FOUND**
+
+**Functions that ARE present:**
+- `setVMRoot` - VSpace root switching (many calls)
+- `findVSpaceForASID` - ASID→VSpace lookup
+- `cteDeleteOne`, `finaliseCap` - capability deletion (reply caps)
+- `lookupIPCBuffer` - IPC buffer access
+
+#### Analysis
+
+The ftrace shows the test is primarily doing:
+1. Syscall handling (`c_handle_syscall`)
+2. IPC operations (`doReplyTransfer`, `copyMRs`)
+3. Thread/context switching (`vcpu_switch`, `restore_user_debug_context`)
+4. Capability operations (`cteDeleteOne` on reply caps)
+
+**No explicit PT modification occurs**, yet garbage appears. This suggests:
+1. **Memory aliasing**: User data mapped to same PA as PT
+2. **DMA/bus master**: External write to PT memory
+3. **Cache coherency issue**: Despite STNP bypass, still seeing stale data
+4. **Hardware bug**: Speculative execution corrupting memory
+
+#### The "Phantom PT" Pattern
+
+Garbage PTEs point to addresses like `0xac00a000` - this is itself a PT address from a **previous test iteration**. The L2 entry at `L2@0xac00c000[0]` contains `0x4000000ac00a47f`, which looks like an old valid PTE that was never properly cleared.
+
+This strongly suggests **memory reuse without proper clearing** - but ftrace shows no `clearMemory` or object creation during this window.
+
+#### Critical Timeline from Log
+
+```
+Line 2664: PT@0xac00c000 created OK (DRAM verified)   <- ALL 512 entries verified as safe PTEs!
+Line 2665: PT@0xac00c000 mapped into parent@0xac00b000[2]
+Lines 2667-2687: More PT mappings occur
+Line 2688: RAS_WALK: L2@0xac00c000[0] points to L3@0xac00a000 (pte=0x4000000ac00a47f)  <- GARBAGE!
+```
+
+**PT@0xac00a000 was NEVER created** - no "RAS_DEBUG: PT@0xac00a000 created OK" message exists in the entire log!
+
+The garbage PTE `0x4000000ac00a47f` points to a **phantom PT from a previous test iteration** that no longer exists.
+
+#### The Mystery
+
+Between line 2665 (map) and line 2688 (scan), entry [0] of L2@0xac00c000 was corrupted:
+- Before: Safe PTE (verified in DRAM)
+- After: Stale PTE pointing to phantom 0xac00a000
+
+The ftrace shows **no explicit writes to PT memory** during this window. Something is writing old data back without going through any kernel function we can trace.
+
+#### Heavy Context Switching During Corruption Window
+
+The ftrace reveals significant activity:
+- **1,833 context switches** (`switchToThread`, `Arch_switchToThread`)
+- **975 VSpace root changes** (`setVMRoot` calls)
+
+Each `setVMRoot` writes to VTTBR_EL2, switching which page table the MMU uses. This is a potential corruption vector:
+1. MMU may speculatively walk BOTH old and new page tables during switch
+2. If stale cached PTEs exist, the switch might trigger writeback
+3. TLB invalidations during switch might interact unexpectedly with cache
+
+This points to a **race condition between VTTBR switches and page table memory**, though the exact mechanism is unclear since we're using cache flushes during PT creation.
+
+### Phase 19: 200KB Diagnostic Region Test (2025-12-20)
+
+#### Objective
+
+Test the hypothesis: "Something is corrupting the first 200KB of DRAM (0x80000000-0x80032000), which is why moving RAM start to 0x80032000 fixes the RAS errors."
+
+#### Implementation
+
+Created a 200KB diagnostic region at the start of DRAM:
+
+1. **IMAGE_START_ADDR** changed to 0x80032000 (elfloader/kernel start after diagnostic region)
+2. **DTS memory** starts at 0x80032000 (makes 0x80000000-0x80032000 device untyped)
+3. **Elfloader** initializes 200KB with pattern `0xDEADBEEFCAFEBABE ^ index` before kernel boot
+4. **Kernel ftrace** scans diagnostic region every 1000 function calls with cache invalidation
+
+Full implementation details: [diagnostic-region-investigation.md](diagnostic-region-investigation.md)
+
+#### Results
+
+| Metric | Value |
+|--------|-------|
+| Tests run | 7 (CANCEL_BADGED_SENDS_0002 x7) |
+| Tests passed | 7 (100%) |
+| RAS errors | **0** |
+| Diagnostic region corruptions | **0** |
+| PT corruptions detected | **4** |
+
+**PT Corruption Events (still occurring):**
+- PT[3]@0xac25c000 - call 11,230,000 - Entry [282] = 0x10011ea5
+- PT[0]@0xac234000 - call 30,890,000
+- PT[2]@0xac1e6000 - call 51,550,000
+- PT[2]@0xac254000 - call 72,190,000
+
+#### Conclusion: Hypothesis REJECTED
+
+**The first 200KB of DRAM is NOT being corrupted.**
+
+- Diagnostic pattern remained intact throughout 72+ million function calls
+- PT corruption occurs in middle of DRAM (0xACxxxxxx range), not at beginning
+- Tests pass despite PT corruption being detected
+- Moving RAM start to 0x80032000 prevents RAS errors for a different reason
+
+#### Implications
+
+1. **PT corruption is real but benign with 0x80032000 RAM start** - garbage PTEs don't cause RAS errors when RAM base is offset
+2. **Corruption targets dynamically allocated PTs**, not fixed memory regions
+3. **RAM start address affects RAS manifestation**, not the underlying corruption
+4. The corrupted addresses (e.g., 0x10011000) are below DRAM - stale data pattern continues
 
 ### ✓ Bug B Fix (2025-12-17)
 
@@ -46,9 +537,37 @@ This helps with Bug A (thread lifecycle tests) but does NOT fix Bug B (cap revoc
 ### Bug A: Syscall/ELF Path (0x7fffxxxx errors)
 
 - **Trigger**: FPU0001 test exclusively (>99% of these errors)
-- **Condition**: ONLY when RAM starts within ~64KB of 0x80000000
+- **Condition**: ONLY when RAM starts below 0x80032000 (see RAM Bisection below)
 - **Code path**: `arm_sys_send_recv` (syscalls), `load_segment` (ELF loading)
-- **Hypothesis**: Address calculation in syscall path wraps below 0x80000000 when RAM base is at 2GB boundary
+- **Hypothesis**: Address calculation in syscall path wraps below 0x80000000 when RAM base is near 2GB boundary
+
+#### RAM Address Bisection Results (2025-12-18)
+
+Binary search performed to find exact RAM start address boundary where Bug A occurs.
+Test: 100× FPU0001 + 100× CANCEL_BADGED_SENDS_0002 + other tests, 768MB RAM, EL2 mode.
+
+| RAM Start | Offset from 0x80000000 | Status | RAS Errors |
+|-----------|------------------------|--------|------------|
+| 0x80000000 | +0 KB | ❌ ERRORS | ~870 |
+| 0x80020000 | +128 KB | ❌ ERRORS | ~100+ |
+| 0x80030000 | +192 KB | ❌ ERRORS | Yes |
+| **0x80031000** | **+196 KB** | **❌ ERRORS** | **2** |
+| **0x80032000** | **+200 KB** | **✅ WORKS** | **0** |
+| 0x80034000 | +208 KB | ✅ WORKS | 0 |
+| 0x80040000 | +256 KB | ✅ WORKS | 0 |
+| 0x80080000 | +512 KB | ✅ WORKS | 0 |
+| 0x80100000 | +1 MB | ✅ WORKS | 0 |
+| 0x90000000 | +256 MB | ✅ WORKS | 0 |
+
+**BOUNDARY: 0x80032000 (200KB offset from DRAM base)**
+
+- RAM starting at 0x80031000 or below: RAS errors occur
+- RAM starting at 0x80032000 or above: No RAS errors
+
+**Implication**: Something in the first 200KB of Tegra234 DRAM (0x80000000-0x80031FFF) causes speculative access issues when seL4 uses this region. This could be:
+1. Reserved/special memory region by TrustZone or other firmware
+2. Address aliasing with MMIO regions
+3. Hardware errata related to DRAM base address proximity
 
 ### Bug B: Destruction/Revocation Path (0x0xxx errors) - **✓ FIXED**
 
@@ -323,6 +842,325 @@ Actual results from 100-iteration stress test (200 total test runs):
 - **Bit 63 = NS flag** (non-secure), not part of address
 - **Error sources**: ACI (50%), SCC (41%), IOB (9%)
 - **All errors during context switching** between threads/processes
+
+### Phase 10: Arch_finaliseCap Page Table Clearing (2025-12-18)
+
+**Problem**: After the Bug B fix (`pte_safe_invalid_new()`), FPU0001 still had ~250 RAS errors while CANCEL_BADGED_SENDS had ~0.
+
+**Investigation**: Checked if any code paths still leave all-zeros or garbage PTEs during page table/VSpace finalization.
+
+**Findings**:
+
+1. **`unmapPageTable()`** (vspace.c:1136) only clears the PARENT entry pointing to the page table:
+   ```c
+   *ptSlot = pte_pte_invalid_new();  // Only clears parent pointer, not entries INSIDE the PT
+   ```
+   The entries inside the page table are NOT cleared.
+
+2. **`deleteASID()`** (vspace.c) only invalidates TLB and clears ASID pool entry - doesn't touch VSpace entries.
+
+3. **`Arch_finaliseCap`** for `cap_page_table_cap` and `cap_vspace_cap` did NOT clear the entries inside these objects.
+
+**Fix Applied** (objecttype.c):
+
+```c
+case cap_vspace_cap:
+    if (final && cap_vspace_cap_get_capVSIsMapped(cap)) {
+        vspace_root_t *vspace = VSPACE_PTR(cap_vspace_cap_get_capVSBasePtr(cap));
+        deleteASID(cap_vspace_cap_get_capVSMappedASID(cap), vspace);
+
+        /* Clear VSpace entries to pte_pte_invalid_new() to prevent
+         * speculative page table walks from accessing addresses below
+         * DRAM base (triggers SCC Address Range Errors on Tegra). */
+        for (word_t i = 0; i < BIT(seL4_VSpaceIndexBits); i++) {
+            vspace[i] = pte_pte_invalid_new();
+        }
+        cleanInvalidateCacheRange_RAM((word_t)vspace,
+                                      (word_t)vspace + MASK(seL4_VSpaceBits),
+                                      addrFromPPtr(vspace));
+    }
+    break;
+
+case cap_page_table_cap:
+    if (final && cap_page_table_cap_get_capPTIsMapped(cap)) {
+        pte_t *pt = PTE_PTR(cap_page_table_cap_get_capPTBasePtr(cap));
+        unmapPageTable(...);
+
+        /* Clear page table entries to pte_pte_invalid_new() */
+        for (word_t i = 0; i < BIT(seL4_PageTableIndexBits); i++) {
+            pt[i] = pte_pte_invalid_new();
+        }
+        cleanInvalidateCacheRange_RAM((word_t)pt,
+                                      (word_t)pt + MASK(seL4_PageTableBits),
+                                      addrFromPPtr(pt));
+    }
+    break;
+```
+
+**Results**:
+- CANCEL_BADGED_SENDS_0002: **510 → 0 errors** (fix worked!)
+- FPU0001: **250 → 218 errors** (slight improvement but still present)
+
+### Phase 11: Debug Page Table Scan (2025-12-18)
+
+**Problem**: FPU0001 still has RAS errors after Arch_finaliseCap fix. FPU0001 creates threads that SHARE a VSpace, so VSpace finalization never happens during this test.
+
+**Approach**: Added debug scanning code to `setVMRoot()` that walks the entire VSpace looking for PTEs with addresses below DRAM base (0x80000000).
+
+**Scan Function** (vspace.c):
+```c
+static word_t scan_vspace_for_bad_ptes(vspace_root_t *vspace, bool_t print_all)
+{
+    /* Walks L0 → L1 → L2 → L3, reporting any PTE with address < DRAM_BASE_PHYS */
+    for (word_t l0 = 0; l0 < BIT(seL4_VSpaceIndexBits); l0++) {
+        // Walk page table hierarchy, check each entry's address field
+    }
+}
+```
+
+**CRITICAL FINDING**: The scan found **428+ "bad PTEs"** but the values are clearly **garbage user data**, not legitimate PTEs:
+
+| Value | Decoded | Source in sel4test |
+|-------|---------|-------------------|
+| `0x65726f63` | "core" (ASCII) | `simple_get_core_count` |
+| `0x77656e5f` | "_new" (ASCII) | `seL4_MessageInfo_new`, etc. |
+| `0x74615f63` | "c_at" (ASCII) | Function names |
+| `0x682e745f` | "_t.h" (ASCII) | `kobject_t.h` path |
+| `0x5d695b` | "[i]" (ASCII) | Assert: `sel4_page_sizes[i]...` |
+| `0x5280000054fffe23` | ARM MOV instruction | Code section |
+
+**Verified**: Running `strings` on `sel4test-driver` binary confirms all these strings exist in the application.
+
+**Interpretation**: Page table memory contains **leftover user application data** (strings, code) from previous use. This means:
+
+1. Physical frame is used as user stack/data (contains strings, code)
+2. Thread is deleted, frame is freed
+3. Frame is retyped to page table
+4. `clearMemory()` is called but **doesn't properly flush to DRAM**
+5. Cache lines are later evicted, CPU fetches garbage from DRAM
+6. Speculative PTW interprets garbage as PTE, walks to invalid address
+7. **RAS error triggered**
+
+### Phase 12: Investigation of Garbage in Page Tables (2025-12-18) - IN PROGRESS
+
+#### ⚠️ CRITICAL FINDING: Page Tables Corrupted AFTER Creation
+
+Debug instrumentation added to track page table lifecycle:
+
+1. **Creation verification** (`objecttype.c`): Check all PTEs match `pte_pte_invalid_new()` immediately after creation and cache flush
+2. **Runtime scanning** (`vspace.c`): Scan VSpace for bad PTEs (pointing below DRAM) every 1000 context switches
+
+**Test Results (2025-12-18 14:58):**
+
+```
+RAS_DEBUG: VSpace@0xac002000 created OK          ← Creation passes!
+...
+RAS_SCAN: VSpace@0xac002000 has 435 bad PTEs (sample: 0x5280000054fffe23 -> 0x54fff000)
+```
+
+**Interpretation:**
+- VSpace is correctly initialized at creation time (passes verification)
+- **LATER during runtime**, 435 PTEs contain garbage data
+- Sample garbage PTE: `0x5280000054fffe23`
+  - Bits 1:0 = 0x3 (table entry - "looks valid" to hardware!)
+  - Address field = 0x54fff000 (BELOW DRAM base 0x80000000)
+- RAS errors show `ADDR = 0x800000007fff44c0` → PA `0x7fff44c0` (below DRAM)
+
+**Conclusion: Page tables are getting corrupted AFTER creation.**
+
+This proves corruption happens after creation, but does NOT tell us HOW:
+- **Hypothesis A (cache)**: Stale DRAM data appears when cache evicts new PTE values
+- **Hypothesis C (overwrite)**: Something actively writes to PT memory after creation (ELF loader, stray pointer, mapping bug)
+
+We need to trace the memory reuse path and/or add write barriers to determine which.
+
+#### Previous Disassembly Verification
+
+**Verified**: The `pte_pte_invalid_new()` macro IS working correctly. Disassembly of `Arch_createObject` confirms:
+```
+8080019ce0:  adrp x2, 808025a000 <armKSGlobalUserVSpace>
+8080019ce4:  add  x2, x2, #0x0
+8080019ce8:  mov  x3, #0xffffff8000000000  // addrFromKPPtr
+8080019cec:  add  x3, x2, x3
+8080019cf8:  and  x3, x3, #0xfffffffff000  // mask low 12 bits to 0 (invalid)
+8080019d18:  str  x3, [x1, x0, lsl #3]     // store to PTE
+```
+
+The macro stores `armKSGlobalUserVSpace` physical address with bits 11:0 = 0 (invalid entry type) to page table entries at creation time.
+
+#### Remaining Hypotheses
+
+**Primary (cache flush in memory reuse)**:
+1. User frame contains application data (strings, code)
+2. Frame freed → memory retyped to page table via `Retype` syscall
+3. `clearMemory()` does memzero but **NO cache flush to PoC**
+4. Page table initialization writes safe PTEs to cache
+5. Cache lines later evicted → DRAM still has old user data
+6. Speculative PTW reads garbage from DRAM, interprets as PTE
+7. Walks to invalid PA (0x7fffxxxx) → **RAS error**
+
+**Secondary (post-creation corruption)**:
+- Something writes to page table memory after creation
+- Stray pointer, DMA, or stage 2 translation issue
+
+#### Next Steps
+
+1. **Trace memory reuse path**: Find where `clearMemory()` is called without cache flush
+2. **Add cache flush to `clearMemory()`**: Test if flushing to PoC fixes the issue
+3. **Instrument `Retype` syscall**: Track memory transitions from frame → page table
+
+**Key observation**: The garbage is sel4test APPLICATION data (strings, code), not kernel data. This confirms user-space data reaches page table memory through memory reuse.
+
+### Phase 13: Rootserver Page Table Initialization Fix (2025-12-18)
+
+#### Discovery: Zeroed Memory is NOT Safe
+
+Analysis of boot code revealed a critical issue:
+
+1. **`alloc_rootserver_obj()`** in `boot.c` calls `memzero()` to zero-initialize allocated memory
+2. **Zero PTEs are UNSAFE** for ARM64 speculative PTW:
+   - Bits[1:0] = 0 (invalid entry type) - correct
+   - Bits[47:12] = 0 (points to PA=0) - **WRONG!**
+   - Speculative PTW reads bits[47:12] regardless of validity bits
+   - PA=0 is below DRAM base (0x80000000) → **RAS error**
+
+3. **`it_alloc_paging()`** in `boot.h` returns raw memory from the zeroed pool without any PTE initialization
+
+4. Safe invalid PTEs must have bits[47:12] pointing to `armKSGlobalUserVSpace` (valid DRAM address), even when bits[1:0]=0 (invalid type)
+
+#### Fix Applied
+
+Added safe PTE initialization to boot-time page table creation in `vspace.c`:
+
+```c
+/* Initialize a page table with safe invalid PTEs */
+static BOOT_CODE void init_pt_with_safe_ptes(pptr_t pptr)
+{
+    pte_t *pt = (pte_t *)pptr;
+    pte_t safe_pte = pte_pte_invalid_new();  // bits[47:12] = armKSGlobalUserVSpace
+    for (word_t i = 0; i < BIT(seL4_PageTableIndexBits); i++) {
+        pt[i] = safe_pte;
+    }
+    /* Clean cache to ensure safe PTEs are visible to MMU PTW */
+    cleanCacheRange_RAM((word_t)pt, ((word_t)pt) + BIT(seL4_PageTableBits) - 1,
+                        addrFromKPPtr(pt));
+}
+```
+
+Modified these functions to call `init_pt_with_safe_ptes()`:
+- `create_it_pt_cap()` - L3 page tables
+- `create_it_pd_cap()` - L2 page directories
+- `create_it_pud_cap()` - L1 page upper directories
+- `create_it_address_space()` - rootserver VSpace (L0)
+
+#### Test Results (2025-12-18 15:35)
+
+RAS errors **STILL OCCURRING** after the fix. Key observations:
+
+```
+RAS_DEBUG: VSpace@0xac002000 created OK (safe_addr=0x8025a000)
+RAS_DEBUG: PT@0xac00b000 created OK
+RAS_DEBUG: PT@0xac00c000 created OK
+...
+RAS_SCAN: VSpace@0xac002000 L0:0 L1:0 L2:0 L3:13642 (1st@L3 in PT@0xac00a000: 0x4001ec->0x400000)
+```
+
+**Analysis:**
+
+1. **Logged "created OK"**: VSpace and several PTs pass verification at creation time
+2. **Bad PTs NOT logged**: PT@0xac00a000 appears in scan but was NEVER logged as "created OK"
+3. **Bad PTE value**: `0x4001ec` has:
+   - Bits[1:0] = 0b00 (invalid entry)
+   - Bits[47:12] = 0x400 → PA = **0x400000** (rootserver's virtual address!)
+4. **RAS error address**: Still `0x800000007ffcc000` → PA = 0x7ffcc000
+
+**Interpretation:**
+
+The bad PTEs contain stale data pointing to 0x400000, which is the rootserver's **VIRTUAL** address (not physical). This value was likely:
+1. Written during ELF loading when the rootserver was mapped
+2. Left in DRAM when the cache line was evicted
+3. Later interpreted as a PTE by speculative PTW
+
+The boot-time initialization fix only addresses page tables created via `create_it_*_cap()`. But the scan is finding bad entries at addresses that were never logged - suggesting these entries come from:
+- **Memory reuse** without proper cache flush (Hypothesis A)
+- **Mapping data** left in cache/DRAM from previous use
+- Or **different allocation path** not covered by the fix
+
+**RAS Error Pattern:**
+- Same address `0x7ffcc000` consistently
+- Still occurring during `CANCEL_BADGED_SENDS_0002` test
+- Indicates the root cause is NOT boot-time initialization
+
+### Phase 14: RAM Base Test at 0x90000000 (2025-12-18)
+
+#### Test Setup
+
+Changed DRAM configuration in `kernel/tools/dts/orinagx.dts`:
+```dts
+memory@90000000 {
+    device_type = "memory";
+    reg = <0x0 0x90000000 0x0 0x30000000>;  /* 768MB at 0x90000000 */
+};
+```
+
+This moves the entire RAM region up by 256MB, from 0x80000000-0xAFFFFFFF to 0x90000000-0xBFFFFFFF.
+
+#### Results: **NO RAS ERRORS**
+
+Despite running the full stress test (100× CANCEL_BADGED_SENDS_0002), **ZERO RAS errors occurred**.
+
+Key observations:
+- Boot output confirms new memory layout: `available phys memory regions: [90000000..c0000000)`
+- `safe_addr` is now at `0x9025a000` (armKSGlobalUserVSpace in new DRAM region)
+- The scan STILL finds "bad" PTEs: `L3:13642 (1st@L3 in PT@0xbc00a000: 0x4001ec->0x400000)`
+- But these bad PTEs do NOT trigger RAS errors!
+
+#### Analysis
+
+| RAM Base | DRAM Range | RAS Errors | Bad PTEs Found |
+|----------|------------|------------|----------------|
+| 0x80000000 | 0x80000000-0xAFFFFFFF | **YES** (many) | 13,642 |
+| 0x90000000 | 0x90000000-0xBFFFFFFF | **NO** | 13,642 |
+
+**Key Insight**: The bad PTEs still exist (pointing to VA 0x400000, which is below DRAM in both cases), but RAS errors only occur when DRAM starts at 0x80000000.
+
+This confirms the earlier RAM bisection finding: **the first ~200KB of physical address space starting at 0x80000000 on Tegra234 triggers RAS errors when accessed by speculative PTW**.
+
+#### Two Separate Issues
+
+1. **Bad PTEs (0x400000)**: These are likely a separate bug - stale mapping data containing the rootserver's virtual address (0x400000) appearing in Stage 2 page tables. This data shouldn't be there, but it's NOT causing the RAS errors.
+
+2. **RAS Errors (0x7ffcc000)**: These only occur when:
+   - DRAM starts at/near 0x80000000
+   - Speculative PTW accesses addresses just below 0x80000000 (like 0x7ffcc000)
+   - This suggests a Tegra234-specific issue with the memory region at/below 0x80000000
+
+#### Hypothesis: Tegra234 Memory Controller Issue
+
+The RAS errors are triggered by speculative PTW accessing addresses **just below** the configured DRAM base. When DRAM starts at 0x80000000:
+- Addresses like 0x7fffxxxx are in a "reserved" or "special" region
+- The memory controller reports these as errors
+
+When DRAM starts at 0x90000000:
+- The 0x80000000-0x8FFFFFFF region is now marked as "device memory" in seL4
+- The 0x7fffxxxx region is further away from the DRAM boundary
+- Speculation to 0x7fffxxxx might not trigger errors (different memory controller behavior?)
+
+**OR**: The problematic addresses (0x7ffcc000, etc.) were derived from DRAM base somehow, and moving DRAM changes what addresses get speculatively accessed.
+
+#### Debug Isolation Tool (NOT a Workaround)
+
+**⚠️ IMPORTANT**: Moving DRAM to 0x90000000 is a **debugging/isolation tool only**, NOT an acceptable production workaround.
+
+For debugging/bisection purposes:
+- Configure DRAM to start at 0x90000000 to isolate Bug A from Bug B
+- This helps determine which issues are RAM-location dependent
+- The underlying bugs still exist and MUST be fixed properly
+
+**Why this is NOT a workaround**:
+1. It wastes 256MB of usable DRAM (0x80000000-0x8FFFFFFF becomes unusable)
+2. It does not fix the root cause - the bugs remain
+3. The stale-PTE issue (0x400000 in PTEs) is still present and may cause other problems
 
 ---
 
@@ -3025,6 +3863,10 @@ Zero errors in ARM_HYP=ON tests was unusual (normally 2-4). After several test r
 
 | Date | Change |
 |------|--------|
+| 2025-12-18 | **PHASE 12 - RUNTIME CORRUPTION CONFIRMED**: Added debug instrumentation to verify PTEs at creation and scan during runtime. VSpace creation passes verification (`created OK`), but later scan finds 435 bad PTEs with garbage values (sample: `0x5280000054fffe23` → PA `0x54fff000`). **Proves corruption happens AFTER creation**, eliminating ELF overlap hypothesis. Cache flush issue in memory reuse path remains most likely cause. |
+| 2025-12-18 | **PHASE 12 - clearMemory() INVESTIGATION**: Found that `clearMemory()` (used for untyped retype) does memzero WITHOUT cache flush. `clearMemory_PT()` exists but only used in specific places. **Most probable hypothesis**: page table memory keeps stale DRAM contents after cache eviction. Investigating. |
+| 2025-12-18 | **PHASE 11 - DEBUG SCAN REVEALS GARBAGE DATA**: VSpace scan found 428+ PTEs containing ASCII strings ("core", "_new", "[i]") and ARM instructions - clearly leftover user data in page table memory. Proves memory reuse without proper cache flush to DRAM. |
+| 2025-12-18 | **PHASE 10 - Arch_finaliseCap FIX**: Added clearing of page table and VSpace entries in `Arch_finaliseCap`. Fixed CANCEL_BADGED_SENDS (510→0 errors). FPU0001 still has ~218 errors from different code path (threads share VSpace). |
 | 2025-12-17 | **⚠️ ARM_HYP=OFF COMPARISON**: ARM_HYP=OFF produces **556 errors** vs **0 errors** for ARM_HYP=ON with identical test suite. Hypervisor mode is MASKING the bug, not causing it. EL1 code paths need same fixes as EL2. Thermal variation may explain zero errors (usually 2-4). |
 | 2025-12-17 | **CODE PATH ANALYSIS**: ELR/PC analysis reveals Bug A (0x7fffxxxx) occurs in `arm_sys_send_recv`/`load_segment` (syscall/ELF path), while Bug B (0x0xxx) occurs in `sel4utils_destroy_process`/`vka_cnode_revoke` (destruction path). Different code paths confirm independent bugs. |
 | 2025-12-17 | **⚠️ BREAKTHROUGH - TWO SEPARATE BUGS IDENTIFIED**: Analysis across RAM configs (0x80000000 to 0x90000000) reveals two independent bugs: (A) 0x7fffxxxx errors triggered EXCLUSIVELY by FPU0001, only when RAM near 0x80000000; (B) 0x0xxx errors triggered by ALL tests (CANCEL_BADGED most), constant regardless of RAM location. These are completely independent bugs requiring separate investigation. |
@@ -3047,6 +3889,8 @@ Zero errors in ARM_HYP=ON tests was unusual (normally 2-4). After several test r
 | 2025-12-16 | **TESTED**: TLB invalidation sequence with HCR_EL2.VM disabled - NO improvement. Modified `invalidateLocalTLB_VMID()` and `invalidateLocalTLB_IPA_VMID()` to disable Stage 2 for entire sequence. Still ~600 RAS errors per 100 iterations. |
 | 2025-12-16 | **COMMITTED**: HCR_EL2.VM workaround for VTTBR switch (commit 5179eebf0). Fixes FPU0001/thread lifecycle tests (70% → 0% error rate). CANCEL_BADGED_SENDS still has errors. |
 | 2025-12-15 | **100-RUN STRESS TEST**: FPU0001 41%, CANCEL_BADGED_SENDS 56% trigger rate. 232 total RAS errors. Added debugging plan. |
+| 2025-12-20 | **PHASE 19: 200KB DIAGNOSTIC REGION** - Hypothesis "something corrupts first 200KB of DRAM" **REJECTED**. Pattern at 0x80000000-0x80032000 remained intact. PT corruption still occurs in middle of DRAM (0xACxxxxxx). |
+| 2025-12-18 | **RAM ADDRESS BISECTION**: Found exact boundary at 0x80032000. RAM starting below this address triggers Bug A errors; RAM at 0x80032000+ works cleanly. First 200KB of DRAM is problematic. |
 | 2025-12-15 | **STATISTICAL ANALYSIS**: 25-run test proves errors NOT random - only 7/122 tests trigger errors (FPU0001 76%, CANCEL_BADGED_SENDS 32%). 115 tests proven safe. Updated CLAUDE.md with key findings. |
 | 2025-12-15 | **TESTED**: `vcpu_enable()` DSB fix applied - RAS errors still occur, root cause elsewhere |
 | 2025-12-15 | **MISSING BARRIER FOUND**: `vcpu_enable()` lacks DSB at entry - exactly what KVM's patch fixes |

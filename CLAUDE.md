@@ -21,6 +21,7 @@ This guide links to all investigation documents and contains:
 | `orin-ras-error-investigation.md` | 167KB investigation log - READ SUMMARY FIRST |
 | `sel4-memory-layout-orinagx.md` | Physical memory layout, kernel load addresses |
 | `tegra-cache-operations.md` | CRITICAL: dc civac vs dc cisw |
+| `kernel/docs/ftrace.md` | Function tracing for kernel debugging |
 
 ## Project Overview
 
@@ -306,6 +307,14 @@ print(f"Completed: {logs['summary']['completed_runs']}/{logs['summary']['total_r
 - Filtered seL4 output: `/home/hlyytine/pkvm/autopilot/results/<timestamp>/sel4.log`
 - Raw UART capture: `/home/hlyytine/pkvm/autopilot/results/<timestamp>/uart-raw.log`
 - Multi-run logs: `/home/hlyytine/pkvm/autopilot/results/<timestamp>/run_N/sel4.log`
+
+### UART Reliability
+
+**IMPORTANT: The UART connection does NOT drop bits or bytes.** Any data corruption issues in ftrace/binary transfers are due to encoding bugs, not UART unreliability. The autopilot's UART capture is reliable.
+
+If you encounter LZ4 decompression failures in ftrace data, the issue is in the encoder, not UART corruption. The LZ4 encoder in `kernel/src/benchmark/lz4.c` must respect the decoder's safety constraints:
+- No matches within 12 bytes of uncompressed end (MFLIMIT check)
+- Last 5 bytes must be literals (LASTLITERALS check)
 
 ### MANDATORY: Build and Test Workflow for Orin AGX
 

@@ -9,6 +9,7 @@
 | [RAS Error Investigation](orin-ras-error-investigation.md) | **Main investigation log** - 167KB of findings | Active |
 | [Memory Layout](sel4-memory-layout-orinagx.md) | Physical memory layout, kernel load addresses | Reference |
 | [Tegra Cache Operations](tegra-cache-operations.md) | **CRITICAL**: dc civac vs dc cisw | Reference |
+| [Firmware Shared Memory](orin-firmware-shared-memory.md) | UEFI/ATF/OP-TEE memory regions - **no conflicts** | Reference |
 
 ## Current Status (2025-12-20)
 
@@ -27,15 +28,33 @@
 
 1. **Cache operations work correctly** - dc civac flushes data to DRAM
 2. **ATF/OP-TEE not corrupting memory** - 5-second delay test proves this
-3. **Corruption happens during test execution** - not at boot or idle
-4. **Only 7 of 122 tests trigger errors** - specific code paths involved
-5. **Primary triggers**: FPU0001 (76%), CANCEL_BADGED_SENDS_0002 (32%)
+3. **Firmware memory regions don't conflict** - see details below
+4. **Corruption happens during test execution** - not at boot or idle
+5. **Only 7 of 122 tests trigger errors** - specific code paths involved
+6. **Primary triggers**: FPU0001 (76%), CANCEL_BADGED_SENDS_0002 (32%)
+
+### Firmware Memory Layout (Verified 2025-12-20)
+
+| Region | Address | Size | Notes |
+|--------|---------|------|-------|
+| TZDRAM (ATF+OP-TEE) | 0x50000000 | 4MB | **NOT at 0x80000000** |
+| seL4 kernel | 0x80000000 | ~3MB | Normal DRAM |
+| UEFI runtime | ~32GB | varies | Well above seL4 |
+| BPMP IPC | SYSRAM (0x40000000 range) | 8KB | Different region |
+
+**Key insight**: Despite OP-TEE source showing `CFG_TZDRAM_START=0x80000000`, the actual TZDRAM is at **0x50000000** per ATF platform config (`PLAT_BL31_BASE`). Linux `/proc/iomem` confirms System RAM starts at 0x80000000.
+
+**ATF SMC handling**: Does NOT access NS DRAM. All cache operations during PSCI are on TZDRAM only.
+
+See [Firmware Shared Memory](orin-firmware-shared-memory.md) for complete details.
 
 ### What NOT to investigate
 
 - Cache flush operations (proven working)
 - Arch_createObject() initialization (verified correct)
 - ATF/OP-TEE memory corruption (disproven)
+- Firmware memory conflicts (TZDRAM at 0x50000000, not 0x80000000)
+- ATF SMC handlers accessing NS DRAM (they don't)
 - Basic IPC, scheduling, CNode ops (never trigger errors)
 
 ## Documentation Index
@@ -54,6 +73,7 @@
 | Document | Description |
 |----------|-------------|
 | [sel4-memory-layout-orinagx.md](sel4-memory-layout-orinagx.md) | Physical memory layout, kernel load addresses, DTS configuration |
+| [orin-firmware-shared-memory.md](orin-firmware-shared-memory.md) | UEFI/ATF/OP-TEE shared memory - **no conflicts with seL4** |
 | [tegra-cache-operations.md](tegra-cache-operations.md) | **CRITICAL**: Why dc cisw doesn't work on Tegra, must use dc civac |
 | [tegra-whole-cache-operations.md](tegra-whole-cache-operations.md) | Whole-cache operations on ARM64 |
 | [arm64-cache-maintenance-barriers-smp.md](arm64-cache-maintenance-barriers-smp.md) | Cache maintenance and memory barriers |

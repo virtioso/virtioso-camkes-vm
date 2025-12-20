@@ -31,7 +31,11 @@ This proves:
 
 See Phase 16, Phase 17, Phase 18, and Phase 19 for full analysis.
 
-### ⚠️ Latest Finding (2025-12-20): First 200KB of DRAM NOT Corrupted
+### ⚠️ Latest Finding (2025-12-20): System is Functionally Correct
+
+**Phase 20 reframe**: sel4test passes 100% despite RAS errors and "garbage PTEs". The system works correctly - RAS errors come from **speculative** page table walks that don't affect architectural execution. The "garbage" is stale data from previous test iterations that speculative walkers hit but real execution never uses.
+
+**Key question**: Why do stale L2→L3 links persist after PT teardown? (See Phase 20)
 
 Phase 19 tested whether something corrupts the first 200KB of DRAM. A diagnostic pattern initialized at boot remained intact through 72+ million function calls. **PT corruption targets dynamically allocated PTs in the middle of DRAM**, not any fixed memory region. The RAM start address affects whether corruption manifests as RAS errors, not the corruption itself.
 
@@ -505,6 +509,147 @@ Full implementation details: [diagnostic-region-investigation.md](diagnostic-reg
 2. **Corruption targets dynamically allocated PTs**, not fixed memory regions
 3. **RAM start address affects RAS manifestation**, not the underlying corruption
 4. The corrupted addresses (e.g., 0x10011000) are below DRAM - stale data pattern continues
+
+### Phase 20: Functional Correctness Reframe (2025-12-20)
+
+#### Key Insight: The System Works Correctly
+
+Despite RAS errors and "garbage PTEs", sel4test passes 100% of the time (with RAM at 0x80032000). This reframes the problem:
+
+| Observation | Implication |
+|-------------|-------------|
+| sel4test passes 100% | Actual page table walks for real memory accesses are correct |
+| No kernel crashes | VSpace management, thread switching, IPC all work |
+| No memory corruption in test results | Applications read/write correct data |
+| Only symptom: RAS errors | Something triggers **speculative** accesses to bad addresses |
+
+#### The Real Problem
+
+**RAS errors come from speculative page table walks that don't affect architectural execution.**
+
+The MMU speculatively walks page tables. When it hits a PTE with bits[47:12] pointing below DRAM (e.g., 0x0xxx or 0x7ffcxxxx), hardware tries to fetch from that address → RAS error.
+
+But if the speculative result isn't actually used (branch misprediction, different VSpace activated, TLB hit), the test still passes.
+
+#### Why RAM Start Address Matters
+
+| RAM Start | Speculative walk hits garbage PTE | Result |
+|-----------|-----------------------------------|--------|
+| 0x80000000 | Garbage address like 0x7ffcc000 | **Below DRAM** → RAS error |
+| 0x80032000 | Same garbage address 0x7ffcc000 | Still below DRAM, but further from boundary |
+| 0x90000000 | Same garbage | May land in DRAM depending on offset calculation |
+
+The garbage PTEs contain the same stale data regardless of RAM start. What changes is **whether the resulting speculative address triggers a RAS error**.
+
+#### What the "Garbage" Actually Is
+
+The "phantom PT at 0xac00a000" scenario:
+1. Previous test iteration created PT at 0xac00a000
+2. Test finished, PT memory was freed
+3. Memory reused for user data (rootserver strings)
+4. Some stale L2 entry still points to 0xac00a000
+5. **Speculative walker** follows the stale link → sees garbage → tries to access 0x400000 → RAS
+
+The test works because the **architecturally active** VSpace doesn't use that stale path.
+
+#### The Remaining Question
+
+**Why do stale L2→L3 links persist after PT teardown?**
+
+Possible causes:
+1. **Teardown order**: L3 freed before L2 entry cleared → speculative window
+2. **Missing TLB invalidation**: Stale TLB entry causes speculative walk on old path
+3. **VTTBR switch race**: During 975 VSpace switches, old VSpace briefly active
+4. **armKSGlobalUserVSpace accumulates stale entries** between test iterations
+
+#### Implications for Fix Strategy
+
+If the system is **functionally correct**, options include:
+
+| Approach | Description |
+|----------|-------------|
+| **Suppress RAS for speculative accesses** | Configure RAS to ignore non-architectural errors (if hardware supports) |
+| **Always use safe addresses in stale PTEs** | Ensure ALL PTEs point to valid DRAM even during/after teardown |
+| **Serialize speculation during VSpace switches** | More aggressive barriers |
+| **Accept 0x80032000 workaround** | First 200KB reserved; system works correctly |
+
+### Phase 21: Stale L2→L3 Link Analysis (2025-12-20)
+
+#### The Core Mystery
+
+The scan finds garbage in PT@0xac00a000, but **PT@0xac00a000 was never created in this test iteration**. The L2 entry pointing to it is a **stale link** from a previous iteration.
+
+```
+Iteration N:
+  Create L2@0xac00c000, L3@0xac00a000
+  L2[x] = valid pointer to L3@0xac00a000
+  Test runs
+  Teardown: L2[x] cleared, L3 entries cleared, memory freed
+
+Iteration N+1:
+  Memory at 0xac00c000 reused for NEW L2
+  Arch_createObject: writes safe PTEs, flushes, VERIFIES in DRAM ✓
+  ...65,536 kernel calls, 975 VSpace switches...
+  Scan finds: L2[x] = 0x4000000ac00a47f (valid pointer to phantom L3!)
+```
+
+The stale pointer **reappeared** after we verified the memory contained safe PTEs.
+
+#### What Code Was Running?
+
+Ftrace captured 65,536 kernel function calls between verification and garbage detection:
+- **1,833 context switches** (`switchToThread`, `Arch_switchToThread`)
+- **975 VSpace root changes** (`setVMRoot` → VTTBR_EL2 writes)
+- **No PT modification functions** (no unmapPageTable, no clearMemory, no createObject)
+
+#### Hypotheses Investigated and Status
+
+| Hypothesis | Status | Evidence |
+|------------|--------|----------|
+| Cache flush not working | ❌ Disproven | STNP bypasses cache - still fails (Phase 16) |
+| ATF/OP-TEE writes to memory | ❌ Disproven | 5-second delay - corruption happens DURING test (Phase 17) |
+| clearMemory overwrites safe PTEs | ❌ Disproven | ftrace shows no clearMemory calls |
+| Memory aliasing (PT and frame overlap) | ❓ Not found | Would cause functional failures - tests pass |
+| TLB writeback | ❌ Impossible | ARM TLB is read-only, doesn't write to memory |
+| MMU translation cache writeback | ❌ Impossible | ARM translation caches are read-only |
+| VTTBR switch race | ❓ Possible | Heavy VTTBR switching during corruption window |
+| Speculative store from CPU | ❓ Unknown | Would require hardware bug |
+| DMA/bus master | ❓ Unknown | No active DMA on bare metal seL4 |
+
+#### The VTTBR Switch Hypothesis
+
+Each VSpace switch involves:
+1. Write new VTTBR_EL2 (page table base + VMID)
+2. MMU switches to new translation tables
+3. Old TLB entries invalidated (eventually)
+
+With 975 VTTBR switches during the corruption window, there's significant MMU activity. Potential issues:
+- MMU speculatively walks BOTH old and new tables during transition
+- Stale TLB entries might cause speculative fetches from old page table locations
+- Some unknown interaction between VMID switching and memory coherency
+
+#### What Could Write Stale Data?
+
+We need something that:
+1. Writes to PT memory (0xac00c000)
+2. Without going through any kernel function (ftrace shows none)
+3. Writes data from a PREVIOUS iteration (stale L3 pointer)
+4. Happens during test execution (not boot, not idle)
+
+Possibilities remaining:
+1. **CPU speculative store buffer** - unlikely, dsb sy should drain
+2. **Hardware memory controller bug** - Orin-specific?
+3. **Cache eviction race** - evicting old dirty line that we thought was clean
+4. **Translation table caching** - hardware caching PTE values and writing back?
+
+#### Why RAM Start Address Matters
+
+Even with the same stale data in PTEs, the RAS behavior differs by RAM start:
+- **0x80000000**: Stale address 0x7ffcc000 is 200KB below DRAM → RAS error
+- **0x80032000**: Same stale address, still below DRAM, but errors don't occur (unknown why)
+- **0x90000000**: Stale addresses map to different region, possibly in DRAM
+
+The mystery is why 0x80032000 specifically avoids the errors while 0x80000000 triggers them.
 
 ### ✓ Bug B Fix (2025-12-17)
 

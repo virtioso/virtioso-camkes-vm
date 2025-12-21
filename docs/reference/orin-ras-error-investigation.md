@@ -651,6 +651,63 @@ Even with the same stale data in PTEs, the RAS behavior differs by RAM start:
 
 The mystery is why 0x80032000 specifically avoids the errors while 0x80000000 triggers them.
 
+### Phase 22: Syscall and VSpace Switch Tracing (2025-12-20)
+
+#### New Ftrace Markers Added
+
+Extended ftrace with two new inline markers to correlate RAS errors with kernel operations:
+
+| Marker | Format | Purpose |
+|--------|--------|---------|
+| `SYSCALL` | 0xFFFC + syscall_num | Records syscall type (Call, Send, Recv, Reply, etc.) |
+| `VSPACE` | 0xFFFA + 48-bit paddr | Records VSpace physical address during armv_contextSwitch |
+
+#### Key Findings from 20251220-234335 Run
+
+**Test results**: 50 RAS errors, 19,369 syscalls, 4,353 VSpace switches
+
+| Finding | Data | Implication |
+|---------|------|-------------|
+| All RAS errors use VTTBR_EL2=0xaffc0000 | 50/50 errors | **VMID 0 vspace is the problematic one** |
+| Very few switches to 0xaffc0000 | 17 switches | Each switch may cause ~3 errors on average |
+| Most switches are to 0xac002000 | 4,334 switches | VMID 1 vspace never triggers errors |
+| Garbage addresses all 0x7ffffXXX | All 50 errors | Consistent stale data pattern |
+| Syscall type is mostly "Call" | 13,421 + 3,800 = 17,221 Call syscalls | IPC operations dominate |
+
+#### VSpace Address Analysis
+
+```
+VSpace switches by address:
+   4334 × 0xac002000 (VMID 1) → 0 RAS errors
+     16 × 0xaffc0000 (VMID 0) → 50 RAS errors
+      2 × 0xac002000 (VMID 0) → 0 errors
+      1 × 0xaffc0000 (VMID 1) → 0 errors
+```
+
+**Key insight**: VSpace at 0xaffc0000 is used for VMID 0 (initial/root thread). This vspace has corrupted PTEs that cause speculative page table walks to access garbage addresses in 0x7ffffXXX range.
+
+#### RAS Error Context During Syscalls
+
+The ELR_EL2 values during RAS errors:
+- 34 errors: 0x47808c (unknown, possibly test binary data section)
+- 21 errors: 0x40c664 (arm_sys_send_recv - syscall entry point)
+- 20 errors: 0x46fc74 (unknown)
+
+This confirms errors occur during or after syscall handling, when returning to userspace.
+
+#### Implications
+
+1. **VMID 0 VSpace is special**: Only vspace at 0xaffc0000 triggers errors
+2. **High error rate per switch**: ~3 errors per switch to VMID 0 vspace
+3. **Syscalls involved**: Errors happen during IPC (Call syscalls)
+4. **VMID 1 VSpace is clean**: 4,334 switches with zero errors
+
+#### Next Steps
+
+1. Investigate why VMID 0 vspace (0xaffc0000) has garbage PTEs but VMID 1 (0xac002000) doesn't
+2. Check if VMID 0 is the rootserver VSpace and if it persists across tests
+3. Look at page table teardown order for VMID 0 vs VMID 1
+
 ### ✓ Bug B Fix (2025-12-17)
 
 **Root cause**: `pte_pte_invalid_new()` returns all zeros. During PTE clearing in `unmapPage()` / `unmapPageTable()`, speculative PTW reads the zero PTE and interprets bits[47:12] as PA=0, causing RAS errors at 0x0fc0/0x0ff0.
@@ -1316,6 +1373,57 @@ The errors report ADDR values like `0x8000000000000000`, which decode to **PA=0x
 **Previous Hypothesis**: seL4's TLB invalidation code may have set VTTBR_EL2 with a NULL base address (0) when switching VMIDs. This was partially fixed but errors persist.
 
 **Current Hypothesis**: The bug is in FPU context switching or thread deletion paths, causing speculative PTW to access invalid/stale page table entries during context switches.
+
+## seL4 Page Table Management Model
+
+Understanding who owns and writes to page tables is critical for this investigation.
+
+### Stage-1 Page Tables for User Threads
+
+In seL4, memory management follows a capability-based model:
+
+**User space** is responsible for *constructing* the virtual address space, but the **kernel** actually creates and maintains the page table data structures.
+
+The workflow:
+1. User space requests Untyped memory from kernel
+2. User space invokes `seL4_Untyped_Retype()` to create page table objects (VSpace, PageTable, Page capabilities)
+3. User space invokes `seL4_*_Map()` to install mappings
+4. **Kernel performs all actual writes** to page table entries
+
+### Where Are Page Tables Located?
+
+Page tables are **kernel objects** stored in kernel memory. User threads:
+- **Cannot directly read or write** page table entries
+- Can only manipulate them through capability invocations
+- Hold capabilities (tokens) that reference the page table objects
+
+### Why This Matters for RAS Investigation
+
+```
+User Space                          Kernel
+    │                                  │
+    │  seL4_ARM_PageTable_Map()        │
+    ├─────────────────────────────────>│
+    │                                  │ ← Validates capability
+    │                                  │ ← Checks permissions
+    │                                  │ ← Writes PTE to page table
+    │         success/error            │
+    │<─────────────────────────────────┤
+```
+
+The kernel is the **sole writer** of PTEs. This is fundamental to seL4's security model - user space cannot forge mappings or bypass access controls by directly modifying page tables.
+
+**Implication**: If garbage appears in page tables, it must be:
+1. Written by kernel code (legitimate or buggy)
+2. Stale data from memory reuse (memory not properly cleared)
+3. Cache coherency issues (data in cache not flushed to DRAM)
+4. External agent (DMA, firmware, hardware bug)
+
+In hypervisor mode (EL2), there are two stages:
+- **Stage-1**: Guest virtual → Guest physical (managed by guest OS or seL4 for user threads)
+- **Stage-2**: Guest physical → Host physical (managed by seL4 hypervisor)
+
+For seL4 user threads, both stages are ultimately controlled by the kernel through capability invocations.
 
 ## Error Pattern
 
@@ -4034,6 +4142,7 @@ Zero errors in ARM_HYP=ON tests was unusual (normally 2-4). After several test r
 | 2025-12-16 | **TESTED**: TLB invalidation sequence with HCR_EL2.VM disabled - NO improvement. Modified `invalidateLocalTLB_VMID()` and `invalidateLocalTLB_IPA_VMID()` to disable Stage 2 for entire sequence. Still ~600 RAS errors per 100 iterations. |
 | 2025-12-16 | **COMMITTED**: HCR_EL2.VM workaround for VTTBR switch (commit 5179eebf0). Fixes FPU0001/thread lifecycle tests (70% → 0% error rate). CANCEL_BADGED_SENDS still has errors. |
 | 2025-12-15 | **100-RUN STRESS TEST**: FPU0001 41%, CANCEL_BADGED_SENDS 56% trigger rate. 232 total RAS errors. Added debugging plan. |
+| 2025-12-20 | **PHASE 22: SYSCALL & VSPACE TRACING** - Added ftrace markers for syscalls and VSpace switches. **Key findings**: (1) All 50 RAS errors occur with VTTBR_EL2=0xaffc0000 (VMID 0 vspace); (2) Only 17 vspace switches to 0xaffc0000 but 50 errors; (3) All garbage PTE addresses follow 0x7ffffXXX pattern; (4) Most syscalls are "Call" (IPC); (5) 4334 switches to 0xac002000 (VMID 1) with zero errors. |
 | 2025-12-20 | **PHASE 19: 200KB DIAGNOSTIC REGION** - Hypothesis "something corrupts first 200KB of DRAM" **REJECTED**. Pattern at 0x80000000-0x80032000 remained intact. PT corruption still occurs in middle of DRAM (0xACxxxxxx). |
 | 2025-12-18 | **RAM ADDRESS BISECTION**: Found exact boundary at 0x80032000. RAM starting below this address triggers Bug A errors; RAM at 0x80032000+ works cleanly. First 200KB of DRAM is problematic. |
 | 2025-12-15 | **STATISTICAL ANALYSIS**: 25-run test proves errors NOT random - only 7/122 tests trigger errors (FPU0001 76%, CANCEL_BADGED_SENDS 32%). 115 tests proven safe. Updated CLAUDE.md with key findings. |

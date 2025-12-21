@@ -326,11 +326,13 @@ If you encounter LZ4 decompression failures in ftrace data, the issue is in the 
 - `mcp__sel4-autopilot__test_sel4_multi_run` - Run N iterations for stress testing
 - `mcp__sel4-autopilot__get_sel4_log` - Get console output from a test
 - `mcp__sel4-autopilot__list_sel4_tests` - List pending/completed/failed tests
+- `mcp__sel4-autopilot__query_ftrace` - Query indexed ftrace data (for el2-ftrace builds)
 
 **Workflow:**
 1. **Build** - Use `mcp__sel4-autopilot__build_sel4test` with mode `el2` (default) or `el1`
    - `el2` = hypervisor mode (`orinagx_defconfig`) - **DEFAULT**
    - `el1` = no hypervisor (`orinagx_nohyp_defconfig`)
+   - `el2-ftrace` = hypervisor with function tracing (for debugging)
    - Returns `binary_path` on success
 
 2. **Test** - Use `mcp__sel4-autopilot__test_sel4_binary` with the binary path
@@ -356,6 +358,37 @@ If you encounter LZ4 decompression failures in ftrace data, the issue is in the 
 
 4. Compare results against baseline to determine if fix helped:
    - Baseline (2025-12-16): 645 SCC errors, CANCEL_BADGED_SENDS_0002: 510, FPU0001: 126
+
+### Ftrace Analysis Workflow
+
+When debugging with function tracing enabled:
+
+1. **Build with ftrace** - Use `mcp__sel4-autopilot__build_sel4test` with mode `el2-ftrace`
+
+2. **Run test** - Ftrace data is automatically extracted and indexed after each test
+
+3. **Query ftrace** - Use `mcp__sel4-autopilot__query_ftrace`:
+   ```python
+   # Summary statistics
+   query_ftrace(request_id="20251221-163258", summary=True)
+
+   # Filter by event type
+   query_ftrace(request_id="...", event_type="KERNEL_ENTRY", limit=50)
+
+   # Random access with context
+   query_ftrace(request_id="...", event_index=51517274, context=10)
+   ```
+
+4. **Manual query** - For complex analysis:
+   ```bash
+   # Fast indexed query (O(1) access, 35ms filtering)
+   kernel/tools/ftrace_indexed.py results/*/ftrace.idx --type KERNEL_ENTRY --limit 100
+
+   # Decode with symbol resolution
+   kernel/tools/decode_ftrace_binary.py results/*/sel4.log --kernel orinagx_sel4test/kernel/kernel.elf
+   ```
+
+See `kernel/docs/ftrace.md` for complete documentation.
 
 ## External Dependencies
 

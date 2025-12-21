@@ -1419,6 +1419,31 @@ The kernel is the **sole writer** of PTEs. This is fundamental to seL4's securit
 3. Cache coherency issues (data in cache not flushed to DRAM)
 4. External agent (DMA, firmware, hardware bug)
 
+### Exception Levels in seL4 with ARM_HYP=on
+
+| Component | Exception Level | Notes |
+|-----------|-----------------|-------|
+| seL4 kernel | **EL2** | Hypervisor mode |
+| User threads (sel4test) | **EL0** | Same as non-HYP mode |
+| vCPU guests | **EL1** | Only when you create a vCPU object |
+
+Key points:
+
+1. **Regular user threads always run at EL0** - regardless of whether ARM_HYP is enabled. sel4test threads are normal seL4 threads, not VMs.
+
+2. **vCPU is a separate kernel object** - You must explicitly create a `seL4_ARM_VCPU` capability and associate it with a TCB to run code at EL1. sel4test doesn't do this (except in VM-specific tests).
+
+3. **Stage-2 translation still applies to EL0** - Even though user threads run at EL0, when ARM_HYP=on the kernel sets up stage-2 page tables (VTTBR_EL2). The two-stage walk is:
+   ```
+   EL0 VA → Stage-1 (TTBR0_EL1) → IPA → Stage-2 (VTTBR_EL2) → PA
+   ```
+
+4. **HCR_EL2.VM bit** - Controls whether stage-2 translation is active. When set, all EL0/EL1 accesses go through stage-2.
+
+This is relevant to RAS investigation because speculative page table walks can traverse both stage-1 and stage-2 tables, even for EL0 threads.
+
+### Two-Stage Address Translation
+
 In hypervisor mode (EL2), there are two stages:
 - **Stage-1**: Guest virtual → Guest physical (managed by guest OS or seL4 for user threads)
 - **Stage-2**: Guest physical → Host physical (managed by seL4 hypervisor)

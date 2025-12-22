@@ -320,6 +320,116 @@ Based on 4+ test runs with consistent results:
 2. Memory reuse race between free and reallocation
 3. Missing TLB invalidation when VSpace memory is recycled
 
+## Phase 25: PTE_ACCESS Tracing - Captured Corruption (2025-12-22)
+
+### Major Breakthrough
+
+Added `PTE_ACCESS` ftrace events to capture the exact PTE values being read during page table walks. This revealed the **exact corruption pattern**.
+
+### Test Run: 20251222-023341
+
+| Metric | Value |
+|--------|-------|
+| Request ID | 20251222-023341 |
+| Build mode | el2-ftrace |
+| Total ftrace events | 301,641 |
+| PTE_ACCESS_ADDR events | 8,851 |
+| PTE_ACCESS_VAL events | 8,851 |
+| RAS error index | 301,636 |
+
+### The Corrupted Page Table Walk
+
+The RAS error occurred during this page table walk in `lookupPTSlot`:
+
+```
+Level 2: @0x80ac003ff0 → 0x0000000080edf003  ✓ Valid table → 0x80edf000
+Level 1: @0x8080edf000 → 0x0000000080000003  ✓ Valid table → 0x80000000
+Level 0: @0x8080000068 → 0x04000000aff164ff  ✗ GARBAGE!
+```
+
+The Level 0 page table at physical address `0x80000000` was created and properly initialized, but entry 13 (offset 0x68) contains garbage.
+
+### The Corruption Evidence
+
+| When | Index | Address | PTE Value | Valid? |
+|------|-------|---------|-----------|--------|
+| After creation | 55,272 | 0x8080000068 | `0x0000000080a9e000` | NO (bits 1:0 = 00) |
+| At RAS error | 301,634 | 0x8080000068 | `0x04000000aff164ff` | YES (bits 1:0 = 11) but GARBAGE! |
+
+**Key Insight**: The corruption changed an **invalid** PTE (bits 1:0 = 00) to look **valid** (bits 1:0 = 11), but with a garbage address. This caused the MMU to try to use address `0x04000000aff16xxx` which triggered the SCC Address Range Error.
+
+### Page Table Lifecycle
+
+```
+[52873] SAFE_PTE - initialization started
+[52874] CREATE_OBJ paddr=0x80000000 type=9 (page table)
+[52875-52878] INIT_PT phases 0-3 - filled with safe PTEs
+[52886] PT_MAP pt=0x80000000 parent=0x80edf000 slot=0
+[55271] PTE_ACCESS @0x8080000068 = 0x0000000080a9e000 (invalid entry, expected)
+
+... ~246,000 events of CANCEL_BADGED_SENDS_0002 test execution ...
+
+[301633] PTE_ACCESS @0x8080000068 = 0x04000000aff164ff (CORRUPTED!)
+[301636] RAS_ERROR
+```
+
+### Analysis of the Garbage Value
+
+The corrupted value `0x04000000aff164ff`:
+- Lower 32 bits: `0xaff164ff`
+- Upper 32 bits: `0x04000000`
+- Bits 1:0 = `0b11` = valid page descriptor
+- Address bits (47:12): `0x04000000aff16` - invalid physical address!
+
+The value `0xaff16` is suspiciously close to legitimate page table addresses seen in the trace (like `0xaff1b000`). This suggests the garbage might be:
+1. A stale PTE from a different page table
+2. Data from a previous test iteration
+3. Memory that was reused before being properly cleared
+
+### Call Chain at Error
+
+```
+cteDelete (cnode.c:558)
+  └→ finaliseSlot (cnode.c:621)
+       └→ isFinalCapability (cnode.c:852)
+            └→ ...
+                 └→ Arch_finaliseCap (objecttype.c:143)
+                      └→ finaliseCap (objecttype.c:105)
+                           └→ unmapPage (vspace.c:1470)
+                                └→ lookupPTSlot (vspace.c:745)
+                                     └→ RAS ERROR reading garbage PTE
+```
+
+### Key Findings
+
+1. **Page table properly initialized**: The page table at 0x80000000 was created with safe PTEs
+2. **Entry was initially invalid**: At index 55,272, entry 0x68 contained an invalid PTE (expected)
+3. **Corruption window**: ~246,000 events between valid read and corrupted read
+4. **Corruption makes invalid → valid**: The garbage has valid descriptor bits set
+5. **Garbage contains stale data**: The `0xaff16` fragment suggests data from elsewhere
+
+### Implications
+
+This proves:
+- **Corruption is NOT in initialization** - the page table was created correctly
+- **Corruption happens during test execution** - confirmed by the 246K event gap
+- **Something writes to page table memory** - either directly or through memory aliasing
+- **The write sets valid bits** - making an invalid entry look valid
+
+### Possible Causes
+
+1. **Memory aliasing**: Two different virtual addresses mapping to the same physical page
+2. **Use-after-free**: Page table memory deallocated and reused, but parent PTE not cleared
+3. **Stale DMA**: Some bus master writing to old cached address
+4. **Stack/heap corruption**: Kernel writes to wrong address due to bug
+
+### Next Steps
+
+1. **Track memory lifecycle**: Add ftrace events when page table memory is freed/retyped
+2. **Add memory watchpoint**: Trigger on write to 0x8080000068
+3. **Scan for aliases**: Check if any other PTE points to physical 0x80000000
+4. **Check retype operations**: Verify page table isn't being retyped while still referenced
+
 ## Related Documents
 
 - [FPU Pattern](ras-fpu-pattern.md) - The other reproducible RAS trigger (thread creation/resume)

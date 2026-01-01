@@ -1836,3 +1836,417 @@ static memory_fault_result_t handle_gicd_fault(vm_t *vm, vm_vcpu_t *vcpu,
 | Fault return values | Always `FAULT_HANDLED`, `FAULT_ERROR` for bugs only | Low |
 
 All design decisions maintain consistency with the existing GICv2 implementation.
+
+## 18. Phase 1 Implementation Roadmap
+
+This section breaks down Phase 1 into small, reviewable commits. Each commit is self-contained and builds on the previous one.
+
+### Commit 1: Add GICv3 register definitions header
+
+**Files**: `libsel4vm/src/arch/arm/vgic/vgicv3_defs.h`
+
+Create header with GICv3 register offset definitions:
+
+```c
+// GICD offsets
+#define GICD_CTLR           0x0000
+#define GICD_TYPER          0x0004
+#define GICD_IIDR           0x0008
+#define GICD_IGROUPR(n)     (0x0080 + (n) * 4)
+#define GICD_ISENABLER(n)   (0x0100 + (n) * 4)
+#define GICD_ICENABLER(n)   (0x0180 + (n) * 4)
+#define GICD_ISPENDR(n)     (0x0200 + (n) * 4)
+#define GICD_ICPENDR(n)     (0x0280 + (n) * 4)
+#define GICD_ISACTIVER(n)   (0x0300 + (n) * 4)
+#define GICD_ICACTIVER(n)   (0x0380 + (n) * 4)
+#define GICD_IPRIORITYR(n)  (0x0400 + (n) * 4)
+#define GICD_ITARGETSR(n)   (0x0800 + (n) * 4)  // GICv2 compat, not used
+#define GICD_ICFGR(n)       (0x0C00 + (n) * 4)
+#define GICD_IGRPMODR(n)    (0x0D00 + (n) * 4)
+#define GICD_IROUTER(n)     (0x6000 + (n) * 8)  // 64-bit per SPI
+
+// GICD_CTLR bits
+#define GICD_CTLR_ENABLE_G0     BIT(0)
+#define GICD_CTLR_ENABLE_G1NS   BIT(1)
+#define GICD_CTLR_ENABLE_G1S    BIT(2)
+#define GICD_CTLR_ARE_S         BIT(4)
+#define GICD_CTLR_ARE_NS        BIT(5)
+#define GICD_CTLR_DS            BIT(6)
+#define GICD_CTLR_RWP           BIT(31)
+
+// GICR RD_base offsets (frame 0)
+#define GICR_CTLR           0x0000
+#define GICR_IIDR           0x0004
+#define GICR_TYPER          0x0008  // 64-bit
+#define GICR_WAKER          0x0014
+#define GICR_PROPBASER      0x0070  // 64-bit, LPI
+#define GICR_PENDBASER      0x0078  // 64-bit, LPI
+
+// GICR SGI_base offsets (frame 1, +0x10000)
+#define GICR_SGI_BASE       0x10000
+#define GICR_IGROUPR0       (GICR_SGI_BASE + 0x0080)
+#define GICR_ISENABLER0     (GICR_SGI_BASE + 0x0100)
+#define GICR_ICENABLER0     (GICR_SGI_BASE + 0x0180)
+#define GICR_ISPENDR0       (GICR_SGI_BASE + 0x0200)
+#define GICR_ICPENDR0       (GICR_SGI_BASE + 0x0280)
+#define GICR_ISACTIVER0     (GICR_SGI_BASE + 0x0300)
+#define GICR_ICACTIVER0     (GICR_SGI_BASE + 0x0380)
+#define GICR_IPRIORITYR(n)  (GICR_SGI_BASE + 0x0400 + (n) * 4)
+#define GICR_ICFGR0         (GICR_SGI_BASE + 0x0C00)
+#define GICR_ICFGR1         (GICR_SGI_BASE + 0x0C04)
+
+// GICR_TYPER bits
+#define GICR_TYPER_PLPIS        BIT(0)
+#define GICR_TYPER_VLPIS        BIT(1)
+#define GICR_TYPER_LAST         BIT(4)
+```
+
+**Test**: Compiles (header-only, no functional test)
+
+---
+
+### Commit 2: Add GICv3 platform addresses header
+
+**Files**: `libsel4vm/src/arch/arm/vgic/gicv3.h`
+
+Create header with platform-specific GIC addresses:
+
+```c
+#pragma once
+
+#if defined(CONFIG_PLAT_ORINAGX)
+    #define GIC_V3_DIST_PADDR       0x0F400000
+    #define GIC_V3_DIST_SIZE        0x10000      /* 64KB */
+    #define GIC_V3_REDIST_PADDR     0x0F440000
+    #define GIC_V3_REDIST_SIZE      0x200000     /* 2MB */
+    #define GIC_V3_REDIST_STRIDE    0x20000      /* 128KB per CPU */
+#elif defined(CONFIG_PLAT_QEMU_ARM_VIRT)
+    /* QEMU virt with GICv3 */
+    #define GIC_V3_DIST_PADDR       0x08000000
+    #define GIC_V3_DIST_SIZE        0x10000
+    #define GIC_V3_REDIST_PADDR     0x080A0000
+    #define GIC_V3_REDIST_SIZE      0x100000
+    #define GIC_V3_REDIST_STRIDE    0x20000
+#else
+    #error "GICv3 addresses not defined for this platform"
+#endif
+```
+
+**Test**: Compiles (header-only)
+
+---
+
+### Commit 3: Update build system for GICv3 selection
+
+**Files**: `libsel4vm/CMakeLists.txt`
+
+Update to conditionally compile vgic_v2.c or vgic_v3.c:
+
+```cmake
+if(KernelArchARM)
+    if(KernelArmGicV3)
+        list(APPEND sources src/arch/arm/vgic/vgic_v3.c)
+        target_compile_definitions(sel4vm PRIVATE CONFIG_ARM_GIC_V3)
+    else()
+        list(APPEND sources src/arch/arm/vgic/vgic_v2.c)
+    endif()
+endif()
+```
+
+**Test**: Builds for GICv2 platform (rpi4) - no vgic_v3.c yet, so GICv3 builds will fail until Commit 4
+
+---
+
+### Commit 4: Add vgic_v3.c skeleton with memory reservations
+
+**Files**: `libsel4vm/src/arch/arm/vgic/vgic_v3.c`
+
+Create minimal vgic_v3.c that:
+- Includes headers
+- Defines vgic_t structure for GICv3
+- Implements `vm_install_vgic_v3()` that reserves GICD and GICR memory regions
+- Implements stub fault handlers that log and return RAZ/WI
+- Implements `vm_vgic_v3_maintenance_handler()` stub
+
+```c
+int vm_install_vgic_v3(vm_t *vm) {
+    // Allocate vgic state
+    // Reserve GICD region with handle_gicd_fault
+    // Reserve GICR region with handle_gicr_fault
+    // Return 0 on success
+}
+
+static memory_fault_result_t handle_gicd_fault(...) {
+    ZF_LOGW("GICD access at 0x%lx - stub", paddr);
+    if (fault_is_read(vcpu)) {
+        fault_set_data(vcpu, 0);  // RAZ
+    }
+    return advance_fault(vcpu);
+}
+
+static memory_fault_result_t handle_gicr_fault(...) {
+    ZF_LOGW("GICR access at 0x%lx - stub", paddr);
+    if (fault_is_read(vcpu)) {
+        fault_set_data(vcpu, 0);  // RAZ
+    }
+    return advance_fault(vcpu);
+}
+```
+
+**Test**: Builds for Orin AGX. VM starts but Linux guest hangs at GIC init (expected - all reads return 0).
+
+---
+
+### Commit 5: Implement GICD_CTLR, GICD_TYPER, GICD_IIDR
+
+**Files**: `libsel4vm/src/arch/arm/vgic/vgic_v3.c`
+
+Add distributor state structure and implement key ID registers:
+
+```c
+struct vgic_v3_dist {
+    uint32_t ctlr;      // Force ARE_NS=1, DS=1
+    uint32_t typer;     // Report SPI count, CPU count
+    uint32_t iidr;      // Implementer ID
+};
+
+// GICD_CTLR: Force ARE_NS=1, DS=1, allow EnableGrp1NS writes
+// GICD_TYPER: ITLinesNumber, CPUNumber=0 (use GICR), IDbits=9
+// GICD_IIDR: Return fixed implementer ID
+```
+
+**Test**: Linux GIC driver reads GICD_TYPER successfully, proceeds to GICR init.
+
+---
+
+### Commit 6: Implement GICR_TYPER and GICR_WAKER
+
+**Files**: `libsel4vm/src/arch/arm/vgic/vgic_v3.c`
+
+Add per-vCPU redistributor state and implement key registers:
+
+```c
+struct vgic_v3_redist {
+    uint64_t typer;     // Affinity, Last bit, Processor_Number
+    uint32_t waker;     // Always 0 (awake)
+};
+
+// GICR_TYPER: Construct from vCPU MPIDR, set Last bit for last vCPU
+// GICR_WAKER: Always return 0, ignore writes
+```
+
+**Test**: Linux GIC driver reads GICR_TYPER, GICR_WAKER and proceeds.
+
+---
+
+### Commit 7: Implement GICD interrupt enable/pending registers
+
+**Files**: `libsel4vm/src/arch/arm/vgic/vgic_v3.c`
+
+Add SPI state arrays and implement enable/pending registers:
+
+```c
+struct vgic_v3_dist {
+    // ... existing ...
+    uint32_t igroupr[32];       // Group (all Group 1 NS)
+    uint32_t isenabler[32];     // Enable state
+    uint32_t ispendr[32];       // Pending state
+    uint32_t ipriorityr[256];   // Priority
+    uint32_t icfgr[64];         // Edge/level config
+};
+
+// GICD_ISENABLER: Set enable bits
+// GICD_ICENABLER: Clear enable bits
+// GICD_ISPENDR: Set pending (read returns pending state)
+// GICD_ICPENDR: Clear pending
+// GICD_IPRIORITYR: Priority per IRQ
+// GICD_ICFGR: Edge vs level trigger
+// GICD_IGROUPR: All Group 1 NS (read-only 0xFFFFFFFF)
+```
+
+**Test**: Linux can enable SPIs. Timer interrupt setup proceeds.
+
+---
+
+### Commit 8: Implement GICR SGI/PPI registers
+
+**Files**: `libsel4vm/src/arch/arm/vgic/vgic_v3.c`
+
+Add SGI/PPI state to redistributor:
+
+```c
+struct vgic_v3_redist {
+    // ... existing ...
+    uint32_t igroupr0;          // Group for SGI/PPI
+    uint32_t isenabler0;        // Enable SGI/PPI
+    uint32_t ispendr0;          // Pending SGI/PPI
+    uint32_t ipriorityr[8];     // Priority for IRQ 0-31
+    uint32_t icfgr[2];          // Config for SGI/PPI
+};
+
+// GICR_ISENABLER0: Enable SGI/PPI
+// GICR_ICENABLER0: Disable SGI/PPI
+// GICR_ISPENDR0: Set pending
+// GICR_ICPENDR0: Clear pending
+// GICR_IPRIORITYR: Priority for IRQ 0-31
+// GICR_ICFGR0/1: Edge/level config
+```
+
+**Test**: Linux enables timer PPI (27). Timer interrupt pending can be set.
+
+---
+
+### Commit 9: Implement IRQ injection via vm_inject_irq
+
+**Files**: `libsel4vm/src/arch/arm/vgic/vgic_v3.c`
+
+Connect vGIC state to actual interrupt injection:
+
+```c
+int vm_inject_irq(vm_vcpu_t *vcpu, int irq) {
+    // Check if IRQ is enabled in vgic state
+    // If SPI (>=32): check GICD_ISENABLER
+    // If PPI/SGI (<32): check GICR_ISENABLER0
+    // Call seL4_ARM_VCPU_InjectIRQ()
+}
+
+int vm_set_irq_level(vm_vcpu_t *vcpu, int irq, int level) {
+    // Update pending state
+    // If level && enabled: inject
+}
+```
+
+**Test**: Timer interrupt delivered to guest. Guest receives and acknowledges IRQ.
+
+---
+
+### Commit 10: Implement maintenance interrupt handler
+
+**Files**: `libsel4vm/src/arch/arm/vgic/vgic_v3.c`
+
+Handle EOI from guest:
+
+```c
+int vm_vgic_v3_maintenance_handler(vm_vcpu_t *vcpu) {
+    int idx = seL4_GetMR(seL4_VGICMaintenance_IDX);
+    // Clear pending state in vgic
+    // Call virq_ack() callback if registered
+    // Handle level-triggered re-injection
+    seL4_Reply(seL4_MessageInfo_new(0, 0, 0, 0));
+    return VM_EXIT_HANDLED;
+}
+```
+
+**Test**: Guest can EOI interrupts. Timer works continuously.
+
+---
+
+### Commit 11: Wire up virq registration and callbacks
+
+**Files**: `libsel4vm/src/arch/arm/vgic/vgic_v3.c`
+
+Implement virq_handle management:
+
+```c
+int vm_register_irq(vm_vcpu_t *vcpu, int irq, irq_ack_fn_t ack, void *cookie) {
+    // Store virq_handle in vgic state
+    // For SPIs: store in vgic->vspis[irq - 32]
+    // For PPIs: store in vgic->vcpu[n].local_virqs[irq]
+}
+
+// Update vm_inject_irq to use virq_handle
+// Update maintenance handler to call ack callback
+```
+
+**Test**: Physical IRQs can be forwarded to guest with ACK callbacks.
+
+---
+
+### Commit 12: Integration test with Linux guest
+
+**Files**: None (test only)
+
+Test complete flow:
+1. Build vm_minimal for Orin AGX
+2. Boot Linux guest
+3. Verify:
+   - GIC driver initializes without errors
+   - Timer interrupts work (check /proc/interrupts)
+   - Console works (TCU via HSP)
+
+**Test**: Linux boots to shell prompt.
+
+---
+
+### 18.1 Commit Dependency Graph
+
+```
+Commit 1 (vgicv3_defs.h)
+    │
+    ▼
+Commit 2 (gicv3.h)
+    │
+    ▼
+Commit 3 (CMakeLists.txt) ◄── Commit 4 depends on 1,2,3
+    │
+    ▼
+Commit 4 (vgic_v3.c skeleton)
+    │
+    ├──► Commit 5 (GICD_CTLR/TYPER/IIDR)
+    │        │
+    │        ▼
+    │    Commit 7 (GICD enable/pending)
+    │        │
+    │        ▼
+    │    Commit 9 (vm_inject_irq)
+    │        │
+    │        ▼
+    │    Commit 10 (maintenance handler)
+    │        │
+    │        ▼
+    │    Commit 11 (virq registration)
+    │
+    └──► Commit 6 (GICR_TYPER/WAKER)
+             │
+             ▼
+         Commit 8 (GICR SGI/PPI)
+             │
+             ▼
+         (merges into Commit 9)
+
+Commit 12 (integration test) ◄── All commits complete
+```
+
+### 18.2 Estimated Lines of Code per Commit
+
+| Commit | Description | Est. LOC |
+|--------|-------------|----------|
+| 1 | vgicv3_defs.h | ~80 |
+| 2 | gicv3.h | ~25 |
+| 3 | CMakeLists.txt | ~10 |
+| 4 | vgic_v3.c skeleton | ~150 |
+| 5 | GICD ID registers | ~80 |
+| 6 | GICR_TYPER/WAKER | ~60 |
+| 7 | GICD enable/pending | ~150 |
+| 8 | GICR SGI/PPI | ~100 |
+| 9 | vm_inject_irq | ~80 |
+| 10 | maintenance handler | ~60 |
+| 11 | virq registration | ~100 |
+| 12 | Integration test | 0 |
+| **Total** | | **~895** |
+
+### 18.3 Risk Mitigation
+
+**If Linux hangs during GIC init**:
+- Add `ZF_LOGD` in fault handlers to trace register accesses
+- Compare access sequence with Linux KVM vgic-mmio-v3.c
+- Check GICR_TYPER.Affinity_Value matches VMPIDR_EL2
+
+**If timer interrupt doesn't work**:
+- Verify GICR_ISENABLER0 bit 27 is set
+- Check maintenance interrupt is being handled
+- Verify ICH_LRn_EL2 is being loaded (kernel side)
+
+**If guest hangs after boot**:
+- Check for interrupt storms (maintenance not clearing pending)
+- Verify virq_ack callbacks are being called

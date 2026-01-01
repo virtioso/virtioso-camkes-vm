@@ -561,22 +561,151 @@ VMM: Decode ICC_* register, emulate read/write
 
 **Recommendation**: Start with Option A (hardware vCPU mode) as it closely matches the existing GICv2 model and requires minimal VMM changes.
 
+## 13. Additional Implementation Details
+
+### 13.1 ICC_SRE_EL2 Register Layout
+
+**Bits**:
+- Bit 0: **SRE** - System Register Enable (enables ICC_* system registers for this EL)
+- Bit 1: **DFB** - Disable FIQ Bypass
+- Bit 2: **DIB** - Disable IRQ Bypass
+- Bit 3: **Enable** - Enables lower EL access to ICC_SRE_EL1
+
+**For hardware vCPU mode (recommended)**: No ICC_SRE_EL2 changes needed! The redirection happens via HCR_EL2.IMO/FMO.
+
+**For full trap mode**: Clear ICC_SRE_EL2.Enable (bit 3) to trap guest ICC_SRE_EL1 accesses.
+
+Sources: [ARM Developer Documentation](https://developer.arm.com/documentation/ddi0595/2021-06/AArch64-Registers/ICC-SRE-EL2--Interrupt-Controller-System-Register-Enable-register--EL2-), [Linux KVM vgic-v3.c](https://github.com/torvalds/linux/blob/master/arch/arm64/kvm/vgic/vgic-v3.c)
+
+### 13.2 Hardware vCPU Mode (ICC→ICV Redirection)
+
+**Key insight**: GICv3 provides automatic redirection of guest ICC_* accesses!
+
+When `HCR_EL2.IMO=1` (already set by seL4 for VCPU virtualization):
+- Guest executes `MRS x0, ICC_IAR1_EL1`
+- Hardware automatically redirects to `ICV_IAR1_EL1`
+- ICV registers interact with ICH_LRn_EL2 list registers
+- **No trap to hypervisor** - hardware manages state
+
+**seL4 kernel already sets HCR_EL2.IMO and HCR_EL2.FMO** (`vcpu.h:18`):
+```c
+#define HCR_COMMON ( HCR_VM | HCR_RW | HCR_AMO | HCR_IMO | HCR_FMO | HCR_TSC)
+```
+
+This means **hardware vCPU mode works out of the box** - no kernel changes needed for basic GICv3 support!
+
+Sources: [ARM GICv3 Overview](https://developer.arm.com/-/media/Arm%20Developer%20Community/PDF/Learn%20the%20Architecture/GICv3_v4_overview.pdf), [OSDev Wiki](https://wiki.osdev.org/Generic_Interrupt_Controller_versions_3_and_4)
+
+### 13.3 GICR_TYPER Register Layout
+
+For redistributor emulation, GICR_TYPER must be constructed:
+
+| Bits | Field | Value |
+|------|-------|-------|
+| [63:32] | Affinity_Value | MPIDR[23:0] of the vCPU |
+| [23:8] | Processor_Number | vcpu_id (0-65535) |
+| [4] | DPGS | 0 (no GICR_CTLR.DPG* support) |
+| [0] | PLPIS | 1 if ITS/LPI supported, else 0 |
+| [4] | Last | 1 if last redistributor in chain |
+
+**Affinity must match MPIDR**: The guest's MPIDR_EL1 affinity levels must match GICR_TYPER.Affinity_Value.
+
+**Example for single-vCPU VM**:
+```c
+uint64_t gicr_typer = 0;
+gicr_typer |= ((uint64_t)(mpidr & 0xFFFFFF) << 32);  // Affinity
+gicr_typer |= ((vcpu_id & 0xFFFF) << 8);              // Processor_Number
+gicr_typer |= GICR_TYPER_LAST;                        // Last (single CPU)
+// PLPIS = 0 (no LPI support initially)
+```
+
+Sources: [Linux KVM vgic-mmio-v3.c](https://lxr.missinglinkelectronics.com/linux+v5.16/arch/arm64/kvm/vgic/vgic-mmio-v3.c), [Kernel VGICv3 docs](https://www.kernel.org/doc/html/v5.6/virt/kvm/devices/arm-vgic-v3.html)
+
+### 13.4 LPI/ITS for MSI Support
+
+**LPIs (Locality-specific Peripheral Interrupts) are OPTIONAL in GICv3.**
+
+| Feature | Required? | Notes |
+|---------|-----------|-------|
+| Basic GICv3 vGIC | No | SPIs/SGIs/PPIs work without LPIs |
+| MSI-X passthrough | Yes | Requires ITS emulation |
+| GICv4 direct inject | Hardware | Eliminates hypervisor involvement |
+
+**For initial Orin AGX support**: Skip LPIs. Add ITS later if PCIe passthrough needed.
+
+**GICD_TYPER.LPIS** indicates if LPIs are supported - set to 0 for no LPI support.
+
+Sources: [Linaro KVM MSI Passthrough](https://old.linaro.org/blog/kvm-pciemsi-passthrough-armarm64/), [ARM GICv3 LPI Challenges](https://www.systemonchips.com/arm-gicv3-lpi-passthrough-challenges-and-priority-management/)
+
+### 13.5 ICH_VTR_EL2 and Number of List Registers
+
+**seL4 kernel already handles this dynamically!**
+
+```c
+// vcpu.c:21-25
+gic_vcpu_num_list_regs = VGIC_VTR_NLISTREGS(get_gic_vcpu_ctrl_vtr());
+if (gic_vcpu_num_list_regs > GIC_VCPU_MAX_NUM_LR) {
+    gic_vcpu_num_list_regs = GIC_VCPU_MAX_NUM_LR;  // 16 for GICv3
+}
+```
+
+**ICH_VTR_EL2.ListRegs**: bits [4:0], value 0-15 means 1-16 actual LRs.
+
+The VMM should query this dynamically or use a safe default (4 is common minimum).
+
+**VMM hardcoded value** (`virq.h:53`):
+```c
+#define NUM_LIST_REGS 4  // TODO: query from kernel
+```
+
+**Recommendation**: Add seL4 API to query `gic_vcpu_num_list_regs` or assume minimum of 4.
+
+Sources: [Xen GICv3 fix](https://www.mail-archive.com/xen-devel@lists.xenproject.org/msg176781.html), [LKML vGIC helper](https://lkml.org/lkml/2025/12/17/656)
+
+### 13.6 Revised Kernel Changes Summary
+
+**Great news: Even fewer kernel changes needed than initially thought!**
+
+| Change | Required? | Notes |
+|--------|-----------|-------|
+| ICC_SRE_EL2 configuration | **NO** | HCR_EL2.IMO already redirects ICC→ICV |
+| ICH_LRn_EL2 access | Already done | `set_gic_vcpu_ctrl_lr()` in gic_v3.h |
+| ICH_VTR_EL2 query | Already done | `gic_vcpu_num_list_regs` at boot |
+| HCR_EL2.IMO/FMO | Already done | Set in HCR_COMMON |
+| API for LR count | Optional | VMM currently hardcodes 4 |
+
+**The seL4 kernel is already ready for GICv3 vGIC!** Only VMM changes are needed.
+
 ## Conclusion
 
-GICv3 vGIC support is more tractable than initially expected:
+GICv3 vGIC support is **even more tractable than initially expected**:
 
-**Good news:**
-- seL4 kernel already has ICH_* (hypervisor GIC) register access for virtual IRQ injection
-- VCPU fault forwarding already works - VMM receives full ESR for system register traps
-- Only ~15 lines of kernel code needed to enable ICC_* trapping (ICC_SRE_EL2 configuration)
-- Existing `vm_reserve_memory_at()` API works for GICR registration
-- virq_t and injection path already support GICv3 (64-bit ICH_LRn_EL2)
-- vGIC state machine (enqueue/dequeue/maintenance) is GIC-version agnostic
+**Excellent news - NO kernel changes required for basic support:**
+- seL4 kernel already sets HCR_EL2.IMO/FMO → hardware redirects guest ICC_* to ICV_*
+- ICH_LRn_EL2 access functions already implemented in gic_v3.h
+- `gic_vcpu_num_list_regs` already queried from ICH_VTR_EL2 at boot
+- virq_t format already supports GICv3 64-bit layout
+- VCPU fault forwarding works for any ICC_* that might trap
+- Maintenance interrupts already handled via `seL4_Fault_VGICMaintenance`
 
-**Remaining work:**
-- New GICR (Redistributor) emulation in VMM (~1000 LOC)
-- GICD updates for affinity routing (GICD_IROUTER instead of GICD_ITARGETSR)
-- Kernel: Configure ICC_SRE_EL2 (~15 lines)
-- Decide: Hardware vCPU mode (recommended) vs full trap mode
+**VMM-only work remaining:**
+1. **GICR (Redistributor) emulation** (~800-1000 LOC)
+   - Per-vCPU state for SGI/PPI enable, pending, priority
+   - GICR_TYPER with correct Affinity_Value and Last bit
+   - Two 64KB frames per vCPU (RD_base + SGI_base)
 
-The Linux KVM and Xen implementations can serve as references. The seL4 kernel's existing GICv3 support significantly reduces the scope of required kernel changes.
+2. **GICD updates for GICv3** (~200 LOC)
+   - GICD_IROUTER instead of GICD_ITARGETSR
+   - GICD_CTLR.ARE_NS = 1 (affinity routing enabled)
+   - GICD_TYPER updated for GICv3 features
+
+3. **Platform configuration**
+   - Define GICR base address and size for Orin AGX
+   - Build system to select GICv2 vs GICv3
+
+**Not required for initial support:**
+- LPI/ITS (optional, needed only for MSI-X passthrough)
+- Full ICC_* trap mode (hardware vCPU mode is simpler and faster)
+- Kernel patches (everything needed is already there!)
+
+The Linux KVM and Xen implementations can serve as references. **Total estimated VMM work: ~1200 LOC.**

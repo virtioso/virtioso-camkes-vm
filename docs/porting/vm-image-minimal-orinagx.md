@@ -519,13 +519,37 @@ The BPMP co-processor runs its own firmware that must be compatible with the L4T
 
 **Impact**: Cannot upgrade BPMP driver independently of firmware.
 
-### 2. Interrupt Virtualization
+### 2. Interrupt Virtualization (GICv3 vGIC)
 
-The GICv3 interrupt controller requires proper virtualization support. Some HSP interrupts may need to be:
-- Trapped and emulated by VMM
-- Or directly injected to guest
+The Orin AGX uses GICv3, which requires a new vGIC implementation in libsel4vm. The current libsel4vm only supports GICv2.
 
-**Status**: Needs testing to verify interrupt delivery to guest.
+**Implementation Plan**: See [gicv3-vgic-implementation-plan.md](gicv3-vgic-implementation-plan.md) for detailed design.
+
+**Key differences from GICv2**:
+- **GICR (Redistributor)**: New per-CPU component at 0x0F440000 (128KB per vCPU)
+- **CPU Interface**: Uses system registers (ICC_*), not memory-mapped - but hardware handles via HCR_EL2.IMO redirection
+- **GICD changes**: IROUTER replaces ITARGETSR for SPI routing
+
+**What works without vGIC changes**:
+- Physical interrupts to seL4 kernel (already working with sel4test)
+- HSP doorbell interrupts (SPIs 176, 133-136)
+
+**What requires GICv3 vGIC**:
+- Timer interrupt (PPI 27) delivery to guest
+- Any interrupt injection to guest via `vm_inject_irq()`
+- Guest reading GICD_TYPER, GICR_TYPER (Linux GIC driver init)
+
+**libsel4vm changes required**:
+
+| File | Change |
+|------|--------|
+| `vgic/gicv3.h` | New - platform addresses (GICD 0x0F400000, GICR 0x0F440000) |
+| `vgic/vgicv3_defs.h` | New - GICv3 register offset definitions |
+| `vgic/vgic_v3.c` | New - GICD and GICR fault handlers (~1000 LOC) |
+| `vgic/vgic.c` | New - compile-time v2/v3 dispatcher |
+| `CMakeLists.txt` | Add `KernelArmGicV3` conditional for vgic source selection |
+
+**Status**: Implementation planned, not yet started. See Phase 1 in the implementation plan.
 
 ### 3. Memory-Mapped Device Access
 

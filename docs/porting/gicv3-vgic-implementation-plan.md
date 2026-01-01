@@ -4,6 +4,22 @@
 
 The seL4 VMM currently only supports GICv2 virtual interrupt controller emulation. Platforms with GICv3 (like NVIDIA Orin AGX/Tegra234) cannot run guest VMs until GICv3 vGIC support is implemented.
 
+### Related Documents
+
+| Document | Purpose |
+|----------|---------|
+| [vm-image-minimal-orinagx.md](vm-image-minimal-orinagx.md) | CAmkES VM porting for Orin AGX - references this plan |
+| `kernel/tools/dts/orinagx.dts` | Platform device tree with GIC addresses |
+| `projects/vm/components/VM_Arm/plat_include/orinagx/plat/vmlinux.h` | Guest DT node filtering |
+
+### Integration with CAmkES VM
+
+The GICv3 vGIC implementation is in **libsel4vm** (`projects/sel4_projects_libs/libsel4vm/`). CAmkES VM applications (like vm_minimal) call `vm_create_default_irq_controller()` which invokes `vm_install_vgic()`.
+
+**No changes required to CAmkES VM applications** - the API remains the same. Only libsel4vm internals change:
+- New `vgic_v3.c` replaces `vgic_v2.c` for GICv3 platforms
+- Build system selects v2 or v3 based on `KernelArmGicV3`
+
 ## Current GICv2 Implementation
 
 Location: `projects/sel4_projects_libs/libsel4vm/src/arch/arm/vgic/`
@@ -889,3 +905,934 @@ endif()
 3. GICR SGI_base: Enable/pending/priority for SGI/PPI
 4. GICD updates: IROUTER, ARE_NS bit
 5. VMPIDR fix: Set proper Aff0 = vcpu_id
+
+## 15. LPI/ITS for MSI Support
+
+### 15.1 Overview: LPI and ITS Architecture
+
+**LPIs (Locality-specific Peripheral Interrupts)** are message-based interrupts introduced in GICv3:
+- INTID range: 8192+ (configurable via GICD_TYPER.IDbits)
+- Always edge-triggered, always Group 1 Non-secure
+- Two states only: inactive or pending (no active state)
+- Configuration stored in memory tables, not registers
+
+**ITS (Interrupt Translation Service)** translates MSI writes to LPIs:
+```
+Device writes MSI → GITS_TRANSLATER (doorbell register)
+                 ↓
+ITS uses (DeviceID, EventID) to look up:
+  Device Table → ITT → ITE → (LPI INTID, Collection ID)
+                              ↓
+                Collection Table → Redistributor target
+                              ↓
+                LPI delivered to target CPU
+```
+
+Sources: [ARM GICv3/v4 LPI Overview](https://documentation-service.arm.com/static/65ba2901c2052a35156cc629), [OSDev GICv3 Wiki](https://wiki.osdev.org/Generic_Interrupt_Controller_versions_3_and_4)
+
+### 15.2 CRITICAL: Tegra234 Has NO ITS!
+
+**Live system verification on Orin AGX:**
+```
+$ dmesg | grep ITS
+(no output)
+
+$ ls /proc/device-tree/bus@0/interrupt-controller@f400000/
+compatible  interrupts  reg  ...  (no gic-its subnode!)
+
+$ cat /proc/device-tree/bus@0/interrupt-controller@f400000/compatible
+arm,gic-v3
+```
+
+**Tegra234 uses PCIe controller-integrated MSI instead:**
+- DesignWare/Synopsys PCIe IP has built-in MSI controller
+- MSI writes to PCIe controller → converted to GIC SPI interrupts
+- No LPIs involved; MSI appears as normal SPI to software
+
+```
+$ dmesg | grep tegra.*pcie
+tegra194-pcie 14100000.pcie: host bridge /bus@0/pcie@14100000 ranges:
+
+$ cat /proc/interrupts | grep MSI
+254:  PCI-MSI 134742016 Edge  rtl88x2ce
+```
+
+The kernel config has `CONFIG_ARM_GIC_V3_ITS=y` but no ITS hardware exists on Tegra234.
+
+Sources: [pcie-tegra194.c](https://github.com/torvalds/linux/blob/master/drivers/pci/controller/dwc/pcie-tegra194.c), [NVIDIA PCIe DT Bindings](https://www.kernel.org/doc/Documentation/devicetree/bindings/pci/nvidia,tegra194-pcie.txt)
+
+### 15.3 MSI Support Options for Tegra234 VMs
+
+#### Option A: PCIe Controller Passthrough (Native Tegra)
+
+Pass the PCIe controller (including MSI domain) directly to guest:
+- Guest owns entire PCIe root complex
+- MSI handled by PCIe controller hardware
+- Requires IOMMU (SMMUv2 on Tegra234) for DMA isolation
+
+**Pros**: No ITS emulation needed, hardware MSI performance
+**Cons**: Entire PCIe controller dedicated to one VM
+
+#### Option B: Virtual ITS Emulation (Generic GICv3)
+
+Emulate ITS in VMM software for guest VMs:
+```
+Guest PCIe device writes MSI → trap to VMM
+VMM: Emulated ITS translates (DeviceID, EventID) → virtual LPI
+VMM: Inject vLPI via ICH_LRn_EL2
+```
+
+**Pros**: Multiple VMs can share PCIe, full control
+**Cons**: Software overhead, complex implementation (~2000 LOC)
+
+#### Option C: GICv2m Emulation (Current Approach)
+
+The existing tii-sel4-vm uses GICv2m for MSI (see `src/msi.c`):
+- Emulates GICv2m MSI frame at fixed address
+- MSI writes converted to SPI injection
+- Works with GICv3 in GICv2 compatibility mode
+
+**Pros**: Already implemented and working
+**Cons**: Limited to 128 MSI vectors, GICv2 style
+
+**Recommendation**: Start with Option C (already working), add Option B later for full GICv3 MSI support.
+
+### 15.4 ITS Register Layout (for Option B)
+
+If implementing virtual ITS, these registers need emulation:
+
+| Register | Offset | Purpose |
+|----------|--------|---------|
+| GITS_CTLR | 0x0000 | ITS control (enable/disable) |
+| GITS_IIDR | 0x0004 | Implementer ID |
+| GITS_TYPER | 0x0008 | ITS type (64-bit, device/collection bits) |
+| GITS_CBASER | 0x0080 | Command queue base address |
+| GITS_CWRITER | 0x0088 | Command queue write pointer |
+| GITS_CREADR | 0x0090 | Command queue read pointer |
+| GITS_BASER[0-7] | 0x0100-0x0138 | Device/Collection/vPE table bases |
+| GITS_TRANSLATER | 0x10040 | MSI doorbell (write triggers translation) |
+
+**Memory map**: ITS requires 128KB (64KB control + 64KB translation).
+
+### 15.5 ITS Commands
+
+Commands are 32-byte structures in the command queue:
+
+| Command | Purpose |
+|---------|---------|
+| MAPD | Map device: DeviceID → ITT base address |
+| MAPC | Map collection: CollectionID → Redistributor |
+| MAPTI | Map trigger: (DeviceID, EventID) → (LPI INTID, CollectionID) |
+| MAPI | Map interrupt: EventID == INTID (simplified MAPTI) |
+| INV | Invalidate cached LPI configuration |
+| INVALL | Invalidate all cached configurations |
+| SYNC | Synchronize command completion |
+| CLEAR | Clear pending state of LPI |
+| DISCARD | Discard interrupt mapping |
+
+**Command queue flow**:
+1. Guest writes commands to queue (via GITS_CBASER)
+2. Guest advances GITS_CWRITER
+3. ITS processes commands, advances GITS_CREADR
+4. GITS_CREADR == GITS_CWRITER means queue empty
+
+Sources: [Linux KVM Virtual ITS](https://docs.kernel.org/virt/kvm/devices/arm-vgic-its.html), [QEMU arm_gicv3_its.c](https://github.com/qemu/qemu/blob/master/hw/intc/arm_gicv3_its.c)
+
+### 15.6 LPI Configuration Tables
+
+**LPI Configuration Table (via GICR_PROPBASER)**:
+- One byte per LPI INTID
+- Global: shared by all Redistributors
+- Alignment: 4KB
+
+```
+Byte format for each LPI:
+  [7:2] Priority (6 bits of 8-bit priority)
+  [1]   Reserved
+  [0]   Enable (1 = enabled)
+```
+
+**LPI Pending Table (via GICR_PENDBASER)**:
+- One bit per LPI INTID
+- Per-Redistributor: each CPU has its own
+- Alignment: 64KB
+
+**Configuration changes**:
+1. Update byte in PROPBASER table
+2. Issue INV or INVALL command to ITS
+3. ITS invalidates cached configuration
+
+### 15.7 Virtual ITS Implementation Strategy
+
+If implementing virtual ITS (Option B):
+
+**Phase 1: Basic ITS (no LPI delivery)**
+1. Emulate GITS registers (CTLR, TYPER, CBASER, etc.)
+2. Parse command queue (MAPD, MAPC, MAPTI)
+3. Build internal DeviceID → LPI mapping tables
+4. Trap GITS_TRANSLATER writes
+
+**Phase 2: LPI Delivery**
+1. On GITS_TRANSLATER write:
+   - Look up (DeviceID, EventID) in tables
+   - Find target LPI and Collection
+   - Find target Redistributor from Collection
+2. Set pending bit in virtual pending table
+3. Inject LPI via ICH_LRn_EL2 (like any other virtual IRQ)
+
+**Phase 3: LPI Configuration**
+1. Emulate GICR_PROPBASER, GICR_PENDBASER
+2. Handle INV/INVALL commands
+3. Respect priority from configuration table
+
+**Estimated effort**: ~2000-2500 LOC for full ITS emulation
+
+### 15.8 GICv4 Direct LPI Injection (Future)
+
+GICv4 adds hardware support for directly injecting virtual LPIs:
+- vPE (virtual PE) tables in Redistributor
+- Hardware looks up vLPI → physical LPI mapping
+- No hypervisor trap on MSI delivery
+
+**Not available on Tegra234** (GICv3 only), but relevant for future platforms.
+
+### 15.9 Summary: MSI Support on Tegra234
+
+| Approach | Complexity | Performance | Use Case |
+|----------|------------|-------------|----------|
+| GICv2m emulation | Low (done) | Good | Current implementation |
+| PCIe passthrough | Medium | Best | Single VM per PCIe |
+| Virtual ITS | High | Good | Multi-VM MSI sharing |
+
+**For Orin AGX VMs**:
+1. Use existing GICv2m emulation for now (works with GICv3)
+2. Add virtual ITS later if more MSI vectors needed
+3. PCIe passthrough for performance-critical devices
+
+## 16. vhost Acceleration Requirements
+
+### 16.1 Overview: vhost and MSI
+
+vhost acceleration moves virtio data plane processing from QEMU userspace into the Device VM kernel, dramatically reducing I/O latency. The interrupt path for vhost uses irqfd (eventfd) to signal completion:
+
+```
+vhost-net (Device VM kernel)
+    ↓ eventfd write
+kmod-sel4-virt (sel4_irqfd_wakeywakey)
+    ↓ sel4_vm_set_irqline(vm, virq, PULSE)
+RPC: QEMU_OP_SET_IRQ
+    ↓
+VMM: handle_msi() → v2m_inject_irq()
+    ↓
+vm_inject_irq() → vGIC → Guest IRQ handler
+```
+
+**Key insight**: MSI injection for vhost is **RPC-based**, not a memory-mapped doorbell write. The kmod-sel4-virt sends the SPI number via RPC, and the VMM injects it through the vGIC.
+
+### 16.2 GICv2m Compatibility with GICv3
+
+**Good news: The existing GICv2m emulation works with GICv3!**
+
+Linux supports `arm,gic-v2m-frame` with a GICv3 parent node. The device tree looks like:
+
+```dts
+/ {
+    gic: interrupt-controller@f400000 {
+        compatible = "arm,gic-v3";
+        /* ... */
+    };
+
+    v2m: v2m@8020000 {
+        compatible = "arm,gic-v2m-frame";
+        msi-controller;
+        msi-parent = <&gic>;
+        arm,msi-base-spi = <144>;
+        arm,msi-num-spis = <32>;
+    };
+};
+```
+
+The MSI mechanism remains the same - guest writes to GICv2m frame, which triggers an SPI. For vhost/irqfd, the RPC path bypasses the frame entirely and directly injects SPIs.
+
+### 16.3 What Changes Between GICv2 and GICv3 for vhost
+
+| Aspect | GICv2 vGIC | GICv3 vGIC | vhost Impact |
+|--------|------------|------------|--------------|
+| MSI mechanism | GICv2m frame | GICv2m frame (same!) | None |
+| SPI injection | ICH_LR*_EL2 | ICH_LR*_EL2 (same!) | None |
+| SPI routing | GICD_ITARGETSR (8-bit CPU mask) | GICD_IROUTER (64-bit affinity) | **Multi-vCPU only** |
+| Per-queue vectors | Works | Works | None |
+| Edge triggering | Works | Works | None |
+
+**For single-vCPU VMs: No changes needed!**
+
+### 16.4 Multi-vCPU SPI Routing (Future)
+
+For multi-queue virtio-net with per-CPU MSI affinity (the main vhost performance case), GICv3 uses `GICD_IROUTER[N]` instead of `GICD_ITARGETSR[N]`:
+
+**Current GICv2 vGIC** (`vgic_v2.c:169-171`):
+```c
+// All SPIs hardcoded to CPU 0
+for (int i = 0; i < ARRAY_SIZE(gic_dist->targets); i++) {
+    gic_dist->targets[i] = 0x1010101;  // CPU 0 for all
+}
+```
+
+**GICv3 vGIC needs**:
+```c
+// GICD_IROUTER[N] - 64-bit per SPI
+// Bits [39:32] = Aff3, [23:16] = Aff2, [15:8] = Aff1, [7:0] = Aff0
+// Must match VMPIDR_EL2 of target vCPU
+uint64_t irouter[988];  // SPIs 32-1019
+```
+
+Guest Linux would configure:
+```
+GICD_IROUTER[148] = 0x00000000  // MSI vector 0 → vCPU 0 (Aff0=0)
+GICD_IROUTER[149] = 0x00000001  // MSI vector 1 → vCPU 1 (Aff0=1)
+GICD_IROUTER[150] = 0x00000002  // MSI vector 2 → vCPU 2 (Aff0=2)
+GICD_IROUTER[151] = 0x00000003  // MSI vector 3 → vCPU 3 (Aff0=3)
+```
+
+**Implementation requirements**:
+1. Emulate GICD_IROUTER reads/writes (offset 0x6100-0x7FD8)
+2. Store 64-bit affinity value per SPI
+3. Modify `vm_inject_irq()` to route to correct vCPU based on IROUTER
+4. Ensure VMPIDR_EL2 is properly set (see Section 14.2)
+
+### 16.5 Current vhost Code Path
+
+**kmod-sel4-virt** (`sel4_irqfd.c:30-37`):
+```c
+static void sel4_irqfd_inject(struct sel4_irqfd *irqfd)
+{
+    u64 cnt;
+    eventfd_ctx_do_read(irqfd->eventfd, &cnt);
+    /* Pulse irq */
+    sel4_vm_set_irqline(irqfd->vm, irqfd->virq, SEL4_IRQ_OP_PULSE);
+}
+```
+
+**VMM MSI handler** (`src/plat/rpi4/msi.c:20-41`):
+```c
+int msi_irq_set(uint32_t irq, uint32_t op)
+{
+    if (!v2m_irq_valid(&v2m, irq)) {
+        return RPCMSG_RC_NONE;  // Not MSI, try other handlers
+    }
+    switch (op) {
+    case RPC_IRQ_SET:
+    case RPC_IRQ_PULSE:
+        v2m_inject_irq(&v2m, irq);  // → irq_line_pulse()
+        break;
+    }
+    return RPCMSG_RC_HANDLED;
+}
+```
+
+**IRQ injection** (`src/irq_line.c:36-43`):
+```c
+int irq_line_pulse(irq_line_t *line)
+{
+    int err = vm_set_irq_level(line->vcpu, line->irq, true);
+    if (err) return err;
+    return vm_set_irq_level(line->vcpu, line->irq, false);
+}
+```
+
+Note: Currently `irq_line_init()` binds the IRQ to `BOOT_VCPU` (vCPU 0). For multi-vCPU routing, this would need to dynamically select the target vCPU based on IROUTER.
+
+### 16.6 Implementation Phases for vhost Support
+
+**Phase 1: Basic GICv3 vGIC (single-vCPU)**
+- Keep GICv2m emulation unchanged
+- Implement basic GICR (Redistributor) for PPIs
+- All SPIs still go to vCPU 0
+- **vhost works with no changes**
+
+**Phase 2: Multi-vCPU SPI Routing**
+- Add GICD_IROUTER[N] emulation (64-bit per SPI)
+- Modify `vm_inject_irq()` to route based on affinity
+- Update `irq_line_t` to support dynamic vCPU targeting
+- Fix VMPIDR_EL2 to set proper Aff0 = vcpu_id
+- **Enables full multi-queue vhost performance**
+
+**Phase 3: Virtual ITS (optional)**
+- Only if >32 MSI vectors needed
+- Implements LPI translation (DeviceID, EventID) → virtual LPI
+- ~2000-2500 LOC additional (see Section 15)
+
+### 16.7 Summary: vhost and GICv3
+
+| Configuration | vhost Works? | Changes Needed |
+|---------------|--------------|----------------|
+| GICv3 + single vCPU | ✓ Yes | None - GICv2m works as-is |
+| GICv3 + multi vCPU (all IRQs to vCPU 0) | ✓ Yes | None |
+| GICv3 + multi vCPU (per-CPU affinity) | Needs IROUTER | Phase 2 |
+| GICv3 + >32 MSI vectors | Needs virtual ITS | Phase 3 |
+
+**Recommendation**: Start with Phase 1. The existing GICv2m + basic GICv3 vGIC gives full vhost functionality for single-vCPU VMs. Add multi-vCPU routing when needed.
+
+## 17. Phase 1 Implementation Details
+
+This section documents the previously unclear items for Phase 1 (basic GICv3 vGIC for single-vCPU VMs).
+
+### 17.1 Guest Device Tree Generation
+
+**Question**: How does the guest get its GICv3 device tree node?
+
+**Answer**: The CAmkES VM framework **keeps the GIC node from the platform device tree**.
+
+The `plat_keep_devices[]` array in `plat_include/<platform>/plat/vmlinux.h` specifies which nodes to preserve:
+
+```c
+// projects/vm/components/VM_Arm/plat_include/orinagx/plat/vmlinux.h
+#define GIC_NODE_PATH "/interrupt-controller@f400000"
+
+static const char *plat_keep_devices[] = {
+    "/timer",
+    "/psci",
+    GIC_NODE_PATH,  // GIC node is kept from platform DTB
+};
+```
+
+**For Orin AGX**: The GICv3 node at `/interrupt-controller@f400000` is preserved from the Tegra234 device tree. The guest sees:
+
+```dts
+interrupt-controller@f400000 {
+    compatible = "arm,gic-v3";
+    reg = <0x0 0x0f400000 0x0 0x10000>,   /* GICD */
+          <0x0 0x0f440000 0x0 0x200000>;  /* GICR */
+    interrupt-controller;
+    #interrupt-cells = <3>;
+    /* ... */
+};
+```
+
+**No generation code needed** - the device tree comes from the platform. However, the VMM must:
+1. Intercept MMIO accesses to GICD (0x0F400000) and GICR (0x0F440000)
+2. Emulate the registers instead of passing through to hardware
+
+**Key properties for GICv3**:
+- `compatible = "arm,gic-v3"` - identifies GICv3
+- `reg` - must include both GICD and GICR regions
+- `#redistributor-regions = <1>` - optional, defaults to 1
+
+Sources: [Linux GICv3 DT bindings](https://www.kernel.org/doc/Documentation/devicetree/bindings/interrupt-controller/arm,gic-v3.yaml)
+
+### 17.2 SGI Generation Mechanism
+
+**Question**: How do SGIs work in GICv3 vGIC? Does hardware handle them?
+
+**Answer**: **ICC_SGI*R_EL1 does NOT have an ICV counterpart - it TRAPS to EL2!**
+
+Unlike other ICC_* registers (which redirect to ICV_* when HCR_EL2.IMO=1), the SGI generation registers **always trap**:
+
+| Register | When HCR_EL2.IMO=1 | Notes |
+|----------|-------------------|-------|
+| ICC_IAR1_EL1 | Redirects to ICV_IAR1_EL1 | Hardware handles |
+| ICC_EOIR1_EL1 | Redirects to ICV_EOIR1_EL1 | Hardware handles |
+| ICC_PMR_EL1 | Redirects to ICV_PMR_EL1 | Hardware handles |
+| **ICC_SGI1R_EL1** | **Traps to EL2** | VMM must handle! |
+| **ICC_SGI0R_EL1** | **Traps to EL2** | VMM must handle! |
+| **ICC_ASGI1R_EL1** | **Traps to EL2** | VMM must handle! |
+
+From [Linux KVM SGI trapping patch](https://patchwork.kernel.org/project/linux-arm-kernel/patch/1403171152-24067-13-git-send-email-andre.przywara@arm.com/):
+> "While the injection of a (virtual) inter-processor interrupt (SGI) on a GICv2 works by writing to a MMIO register, GICv3 uses system registers to trigger them. The appropriate registers are trapped on both ARM and ARM64 machines and call the SGI handler function in the vGICv3 emulation code."
+
+**For Phase 1 (single-vCPU)**: SGIs are not relevant!
+- Self-SGI (sending to own CPU) is the only possible use case
+- Can be handled by simply injecting the SGI to the same vCPU
+- No cross-vCPU routing needed
+
+**For Phase 2 (multi-vCPU)**:
+1. Trap ICC_SGI1R_EL1 writes via ESR decoding
+2. Parse affinity and target list from register value:
+   ```
+   ICC_SGI1R_EL1 format:
+   [55:48] Aff3, [39:32] Aff2, [23:16] Aff1, [15:0] TargetList
+   [40] IRM (Interrupt Routing Mode: 0=use TargetList, 1=all-but-self)
+   [27:24] INTID (SGI number 0-15)
+   ```
+3. Find target vCPUs by matching affinity
+4. Inject SGI to each target via `vm_inject_irq()`
+
+**seL4 kernel already forwards SGI traps**: The ESR contains EC=0x18 (MSR/MRS trap) with the register encoding. VMM receives this via `seL4_Fault_VCPUFault`.
+
+Sources: [ARM Community Forum](https://community.arm.com/support-forums/f/architectures-and-processors-forum/45594/aarch64-gicv3-icc_sgi1r_el1-aff1), [KVM SGI Patch](https://patchwork.kernel.org/project/linux-arm-kernel/patch/1414776414-13426-18-git-send-email-andre.przywara@arm.com/)
+
+### 17.3 GICD_CTLR Initialization
+
+**Question**: What should the GICD_CTLR reset value be?
+
+**Answer**: Force `ARE_NS=1` and `DS=1`, enable Group 1 interrupts.
+
+From [Linux KVM vgic-mmio-v3.c](https://lxr.missinglinkelectronics.com/linux+v5.16/arch/arm64/kvm/vgic/vgic-mmio-v3.c):
+> "The GICv3 emulation is limited to a model enforcing a single security state, with SRE==1 (forcing system register access) and ARE==1 (allowing more than 8 VCPUs)."
+
+**GICD_CTLR layout for GICv3**:
+
+| Bit | Field | Value | Notes |
+|-----|-------|-------|-------|
+| 0 | EnableGrp0 | 0 | Group 0 disabled (optional) |
+| 1 | EnableGrp1NS | 1 | Group 1 Non-secure enabled |
+| 2 | EnableGrp1S | 0 | Group 1 Secure (not used) |
+| 4 | ARE_S | 1 | Affinity routing (secure) - forced |
+| 5 | ARE_NS | 1 | Affinity routing (non-secure) - forced |
+| 6 | DS | 1 | Disable Security - forced |
+| 31 | RWP | 0 | Register Write Pending (RO) |
+
+**Implementation**:
+```c
+// GICv3 vGIC distributor reset
+void vgic_v3_dist_reset(struct gic_dist_map *gic_dist) {
+    memset(gic_dist, 0, sizeof(*gic_dist));
+
+    // GICD_CTLR: Force ARE_NS=1, DS=1, enable Group 1 NS
+    gic_dist->ctlr = GICD_CTLR_ARE_NS | GICD_CTLR_DS | GICD_CTLR_ENABLE_G1NS;
+
+    // GICD_TYPER: Report GICv3 features
+    // ITLinesNumber = (MAX_SPI / 32) - 1
+    // CPUNumber = 0 (use GICR for CPU count)
+    // IDbits = 9 (10-bit INTID, up to 1020)
+    gic_dist->typer = ((MAX_SPI / 32) - 1) | (9 << 19);
+
+    // Other initializations similar to GICv2...
+}
+```
+
+**Guest writes to GICD_CTLR**: ARE_NS and DS bits should be RAO/WI (read-as-one, write-ignored). KVM enforces this by always ORing in these bits on read.
+
+Sources: [LWN KVM GICv3 emulation](https://lwn.net/Articles/620979/), [KVM vgic-mmio-v3.c](https://zerodayengineering.com/content/kvm-docs/v6.8.0-38-arm64/vgic-mmio-v3_8c_source.html)
+
+### 17.4 GICR Memory Reservation Strategy
+
+**Question**: How should GICR memory regions be reserved?
+
+**Answer**: Single reservation for entire GICR region with internal offset calculation.
+
+**GICR layout** (from Section 14.5):
+```
+GICR_BASE + (vcpu_id * 0x20000) + 0x00000: RD_base (64KB)
+GICR_BASE + (vcpu_id * 0x20000) + 0x10000: SGI_base (64KB)
+```
+
+**For Orin AGX**:
+- GICR_BASE = 0x0F440000
+- GICR_SIZE = 0x200000 (2MB, supports up to 16 CPUs)
+- Per-vCPU size = 0x20000 (128KB)
+
+**Implementation approach**:
+
+```c
+// Single reservation for entire GICR region
+vm_memory_reservation_t *gicr_reservation;
+
+int vgic_v3_init_gicr(vm_t *vm, uintptr_t gicr_base, size_t gicr_size) {
+    // Reserve entire GICR region with single fault handler
+    gicr_reservation = vm_reserve_memory_at(
+        vm,
+        gicr_base,      // 0x0F440000
+        gicr_size,      // 0x200000
+        handle_gicr_fault,
+        (void *)vgic
+    );
+    return gicr_reservation ? 0 : -1;
+}
+
+// Fault handler calculates which vCPU and frame
+memory_fault_result_t handle_gicr_fault(vm_t *vm, vm_vcpu_t *vcpu,
+                                         uintptr_t paddr, size_t len,
+                                         void *cookie) {
+    vgic_t *vgic = cookie;
+    uintptr_t offset = paddr - GICR_BASE;
+
+    // Calculate vCPU index and frame
+    int vcpu_idx = offset / 0x20000;
+    uintptr_t frame_offset = offset % 0x20000;
+
+    bool is_sgi_base = (frame_offset >= 0x10000);
+    uintptr_t reg_offset = frame_offset & 0xFFFF;
+
+    if (is_sgi_base) {
+        return handle_gicr_sgi_fault(vgic, vcpu, vcpu_idx, reg_offset, len);
+    } else {
+        return handle_gicr_rd_fault(vgic, vcpu, vcpu_idx, reg_offset, len);
+    }
+}
+```
+
+**Why single reservation**:
+- Simpler than per-vCPU reservations
+- Linear address space matches hardware layout
+- Fault handler can easily compute target vCPU
+
+Sources: [Linux KVM GICR](https://lxr.missinglinkelectronics.com/linux+v5.16/arch/arm64/kvm/vgic/vgic-mmio-v3.c)
+
+### 17.5 Testing Strategy
+
+**Question**: How do we verify GICv3 vGIC works?
+
+**Answer**: Use timer interrupt (PPI 27) for minimal test, Linux guest for comprehensive test.
+
+**Test 1: Timer Interrupt (Minimal)**
+
+The ARM virtual timer generates PPI 27. If vGIC works, the guest receives timer interrupts:
+
+```c
+// Minimal test in guest (or sel4test with VCPU)
+void test_vgic_timer(void) {
+    // Enable timer
+    uint64_t cval = read_cntpct_el0() + 1000000;  // 1M cycles
+    write_cntp_cval_el0(cval);
+    write_cntp_ctl_el0(1);  // Enable
+
+    // Wait for interrupt
+    wfi();
+
+    // If we get here, timer interrupt was delivered
+    // Read IAR, write EOIR
+}
+```
+
+For this to work:
+1. GICR must emulate GICR_ISENABLER0 (enable PPI 27)
+2. GICR must emulate GICR_IPRIORITYR (set priority)
+3. ICH_LRn_EL2 must be loaded with pending interrupt
+4. Maintenance interrupt must be handled on EOI
+
+**Test 2: Linux Guest (Comprehensive)**
+
+Linux exercises GIC during boot:
+1. Reads GICD_TYPER, GICD_IIDR
+2. Configures GICD_IGROUPR, GICD_ISENABLER
+3. For each CPU: reads GICR_TYPER, writes GICR_WAKER
+4. Enables timer interrupt (PPI 27)
+5. If all works, reaches userspace
+
+**Test sequence**:
+```bash
+# Build vm_minimal for Orin AGX
+make orinagx_defconfig
+make vm_minimal
+
+# Boot and check console output
+# Success: "Welcome to Linux" or shell prompt
+# Failure: Hang at "Booting Linux..." or GIC error messages
+```
+
+**Debug checklist if Linux hangs**:
+1. Add printf in GICD fault handler - is it being called?
+2. Check GICR fault handler - is GICR_WAKER read returning 0?
+3. Check GICR_TYPER - does Affinity_Value match MPIDR?
+4. Check timer interrupt - is PPI 27 enabled and injected?
+
+**sel4test vCPU tests**: Currently minimal (VCPU0001 only tests injection without TCB). Could be extended to test GICv3 vGIC.
+
+### 17.6 File Structure and API
+
+**Question**: What files and functions are needed for vgic_v3.c?
+
+**Answer**: Same API as vgic_v2.c with additional GICR handling.
+
+**New files**:
+```
+libsel4vm/src/arch/arm/vgic/
+├── vgic_v3.c           # Main GICv3 emulation (~800 LOC)
+├── vgicv3_defs.h       # GICv3 register definitions
+├── gicv3.h             # Platform addresses
+└── vgicr.h             # Redistributor state (optional)
+```
+
+**Public API** (unchanged from GICv2):
+```c
+// Install vGIC for a VM
+int vm_install_vgic(vm_t *vm);
+
+// Handle maintenance interrupt
+int vm_vgic_maintenance_handler(vm_vcpu_t *vcpu);
+
+// Inject IRQ to guest
+int vm_inject_irq(vm_vcpu_t *vcpu, int irq);
+
+// Set IRQ level (for level-triggered)
+int vm_set_irq_level(vm_vcpu_t *vcpu, int irq, int level);
+
+// Register IRQ with ack callback
+int vm_register_irq(vm_vcpu_t *vcpu, int irq, irq_ack_fn_t ack, void *cookie);
+```
+
+**Internal structures**:
+```c
+// GICv3 distributor state
+struct gic_v3_dist_map {
+    uint32_t ctlr;              // GICD_CTLR
+    uint32_t typer;             // GICD_TYPER
+    uint32_t iidr;              // GICD_IIDR
+    uint32_t igroupr[32];       // GICD_IGROUPR
+    uint32_t isenabler[32];     // GICD_ISENABLER
+    uint32_t icenabler[32];     // GICD_ICENABLER
+    uint32_t ispendr[32];       // GICD_ISPENDR
+    uint32_t icpendr[32];       // GICD_ICPENDR
+    uint32_t ipriorityr[256];   // GICD_IPRIORITYR
+    uint32_t icfgr[64];         // GICD_ICFGR
+    uint64_t irouter[988];      // GICD_IROUTER (SPIs 32-1019)
+};
+
+// Per-vCPU redistributor state
+struct gic_v3_redist_map {
+    uint32_t ctlr;              // GICR_CTLR
+    uint64_t typer;             // GICR_TYPER
+    uint32_t waker;             // GICR_WAKER (always 0)
+    // SGI_base registers
+    uint32_t igroupr0;          // GICR_IGROUPR0
+    uint32_t isenabler0;        // GICR_ISENABLER0
+    uint32_t icenabler0;        // GICR_ICENABLER0
+    uint32_t ispendr0;          // GICR_ISPENDR0
+    uint32_t icpendr0;          // GICR_ICPENDR0
+    uint32_t ipriorityr[8];     // GICR_IPRIORITYR (SGI/PPI)
+    uint32_t icfgr[2];          // GICR_ICFGR0/1
+};
+```
+
+**Build system** (CMakeLists.txt update):
+```cmake
+if(KernelArchARM)
+    if(KernelArmGicV3)
+        list(APPEND sources src/arch/arm/vgic/vgic_v3.c)
+    else()
+        list(APPEND sources src/arch/arm/vgic/vgic_v2.c)
+    endif()
+endif()
+```
+
+**Platform detection**: `KernelArmGicV3` is set in kernel CMake based on platform config. For Orin AGX, this is already true.
+
+### 17.7 Phase 1 Implementation Checklist
+
+| Task | Complexity | Status |
+|------|------------|--------|
+| Create vgicv3_defs.h with register offsets | Low | TODO |
+| Create gicv3.h with platform addresses | Low | TODO |
+| Implement GICD fault handler (ARE_NS=1, DS=1) | Medium | TODO |
+| Implement GICR RD_base handler (TYPER, WAKER) | Medium | TODO |
+| Implement GICR SGI_base handler (enable, priority) | Medium | TODO |
+| Update CMakeLists.txt for GICv3 selection | Low | TODO |
+| Test with timer interrupt | Medium | TODO |
+| Test with Linux guest | High | TODO |
+
+**Estimated LOC**: ~800-1000 for basic GICv3 vGIC
+
+**Not needed for Phase 1**:
+- GICD_IROUTER (all SPIs go to vCPU 0)
+- ICC_SGI*R trapping (single vCPU, no cross-vCPU SGIs)
+- LPI/ITS support (GICv2m works for MSI)
+- Multi-vCPU VMPIDR fix
+
+### 17.8 Clarifications for Phase 1 Implementation
+
+This section documents design decisions for previously unclear aspects of Phase 1.
+
+#### 17.8.1 Platform Address Source
+
+**Decision**: Define in platform-specific header `gicv3.h` with compile-time `#ifdef`.
+
+```c
+// libsel4vm/src/arch/arm/vgic/gicv3.h
+
+#ifndef __VGIC_GICV3_H__
+#define __VGIC_GICV3_H__
+
+#if defined(CONFIG_PLAT_ORINAGX)
+    #define GIC_DIST_PADDR      0x0F400000
+    #define GIC_DIST_SIZE       0x10000      /* 64KB */
+    #define GIC_REDIST_PADDR    0x0F440000
+    #define GIC_REDIST_SIZE     0x200000     /* 2MB */
+    #define GIC_REDIST_STRIDE   0x20000      /* 128KB per CPU */
+#elif defined(CONFIG_PLAT_QEMU_ARM_VIRT)
+    #define GIC_DIST_PADDR      0x08000000
+    #define GIC_DIST_SIZE       0x10000
+    #define GIC_REDIST_PADDR    0x080A0000
+    #define GIC_REDIST_SIZE     0x100000
+    #define GIC_REDIST_STRIDE   0x20000
+#else
+    #error "GICv3 addresses not defined for this platform"
+#endif
+
+#endif /* __VGIC_GICV3_H__ */
+```
+
+**Rationale**:
+- Matches GICv2 pattern (`gicv2.h` has similar `#ifdef` blocks)
+- Compile-time constants enable optimization
+- Device tree parsing is complex and not needed for fixed-address platforms
+
+#### 17.8.2 Unimplemented Register Behavior
+
+**Decision**: RAZ/WI (Read-As-Zero, Write-Ignored) with optional debug logging.
+
+```c
+// In handle_vgic_dist_fault():
+default:
+    // RAZ/WI for unimplemented registers
+    if (fault_is_read(vcpu)) {
+        fault_set_data(vcpu, 0);  // RAZ
+    }
+    // Writes silently ignored (WI)
+
+#ifdef CONFIG_DEBUG_BUILD
+    ZF_LOGW("GICD: unhandled %s at offset 0x%lx",
+            fault_is_read(vcpu) ? "read" : "write", offset);
+#endif
+    break;
+```
+
+**Specific register handling**:
+
+| Register | Behavior | Rationale |
+|----------|----------|-----------|
+| `GICD_IGRPMODR` | RAZ/WI | Security extension, DS=1 makes it irrelevant |
+| `GICR_PROPBASER` | RAZ/WI | LPI not supported in Phase 1 |
+| `GICR_PENDBASER` | RAZ/WI | LPI not supported in Phase 1 |
+| Reserved offsets | RAZ/WI | ARM recommends RAZ/WI for reserved |
+| `GICD_IROUTER[n]` | Return 0 | Phase 1 routes all SPIs to vCPU 0 |
+
+**Rationale**: RAZ/WI is the ARM-recommended behavior for unimplemented features and matches Linux KVM's approach.
+
+#### 17.8.3 vm_install_vgic() Entry Point Architecture
+
+**Decision**: Single entry point with compile-time selection via `#ifdef`.
+
+```c
+// libsel4vm/src/arch/arm/vgic/vgic.c (new dispatcher file)
+
+#include <sel4vm/guest_vm.h>
+
+#ifdef CONFIG_ARM_GIC_V3
+extern int vm_install_vgic_v3(vm_t *vm);
+extern int vm_vgic_v3_maintenance_handler(vm_vcpu_t *vcpu);
+#else
+extern int vm_install_vgic_v2(vm_t *vm);
+extern int vm_vgic_v2_maintenance_handler(vm_vcpu_t *vcpu);
+#endif
+
+// Single public API - implementation selected at compile time
+int vm_install_vgic(vm_t *vm) {
+#ifdef CONFIG_ARM_GIC_V3
+    return vm_install_vgic_v3(vm);
+#else
+    return vm_install_vgic_v2(vm);
+#endif
+}
+
+int vm_vgic_maintenance_handler(vm_vcpu_t *vcpu) {
+#ifdef CONFIG_ARM_GIC_V3
+    return vm_vgic_v3_maintenance_handler(vcpu);
+#else
+    return vm_vgic_v2_maintenance_handler(vcpu);
+#endif
+}
+```
+
+**CMakeLists.txt update**:
+```cmake
+if(KernelArchARM)
+    list(APPEND sources src/arch/arm/vgic/vgic.c)  # Common entry point
+    if(KernelArmGicV3)
+        list(APPEND sources src/arch/arm/vgic/vgic_v3.c)
+        target_compile_definitions(sel4vm PRIVATE CONFIG_ARM_GIC_V3)
+    else()
+        list(APPEND sources src/arch/arm/vgic/vgic_v2.c)
+    endif()
+endif()
+```
+
+**Rationale**:
+- Platform is known at build time; runtime detection adds complexity with no benefit
+- Avoids linking both v2 and v3 code
+- Matches seL4 kernel's compile-time GIC version selection
+
+#### 17.8.4 List Register Count
+
+**Decision**: Keep hardcoded value (4) for Phase 1, document as technical debt.
+
+```c
+// libsel4vm/src/arch/arm/vgic/virq.h
+
+/*
+ * Number of list registers (ICH_LRn_EL2) available for virtual IRQ injection.
+ *
+ * The actual count is in kernel's gic_vcpu_num_list_regs (read from ICH_VTR_EL2).
+ * ARM GICv3 guarantees minimum of 4, maximum of 16.
+ *
+ * TODO: Add seL4 API to query actual LR count. For now, use conservative minimum.
+ */
+#define NUM_LIST_REGS 4
+```
+
+**Rationale**:
+- 4 is the ARM-guaranteed minimum for GICv3
+- Adding a new seL4 syscall is out of scope for Phase 1
+- Real workloads rarely need >4 concurrent pending interrupts
+- Overflow is handled by software queue in VMM (already implemented)
+
+**Future enhancement** (Phase 2+): Add `seL4_ARM_VCPU_GetNumListRegs()` syscall.
+
+#### 17.8.5 Fault Handler Return Values
+
+**Decision**: Always return `FAULT_HANDLED` after advancing PC; use `FAULT_ERROR` only for fatal errors.
+
+```c
+// Fault handling pattern for GICv3 vGIC
+
+static memory_fault_result_t handle_gicd_fault(vm_t *vm, vm_vcpu_t *vcpu,
+                                                uintptr_t paddr, size_t len,
+                                                void *cookie) {
+    vgic_t *vgic = (vgic_t *)cookie;
+    uintptr_t offset = paddr - GIC_DIST_PADDR;
+
+    // Validate alignment
+    if (offset & 0x3) {
+        ZF_LOGE("GICD: unaligned access at 0x%lx", paddr);
+        return FAULT_ERROR;  // Unaligned MMIO is a guest bug
+    }
+
+    // Handle the access (known or unknown register)
+    if (fault_is_read(vcpu)) {
+        uint32_t value = gicd_read(vgic, offset);
+        fault_set_data(vcpu, value);
+    } else {
+        uint32_t value = fault_get_data(vcpu);
+        gicd_write(vgic, offset, value);
+    }
+
+    // Advance PC past the faulting instruction
+    return advance_fault(vcpu);  // Returns FAULT_HANDLED
+}
+```
+
+**Return value semantics**:
+
+| Return Value | When to Use |
+|--------------|-------------|
+| `FAULT_HANDLED` | Normal case - fault emulated, PC advanced |
+| `FAULT_UNHANDLED` | **Never for vGIC** - we own the entire GICD/GICR region |
+| `FAULT_ERROR` | Fatal error: unaligned access, internal bug, should-not-happen |
+
+**Rationale**:
+- `FAULT_UNHANDLED` is for regions where multiple handlers might apply
+- vGIC exclusively owns GICD and GICR address ranges
+- Any access within those ranges must be handled by vGIC
+- Unknown offsets get RAZ/WI treatment (see 17.8.2)
+
+### 17.9 Phase 1 Design Decisions Summary
+
+| Item | Decision | Complexity |
+|------|----------|------------|
+| Platform addresses | Compile-time `#ifdef` in `gicv3.h` | Low |
+| Unimplemented registers | RAZ/WI with debug logging | Low |
+| Entry point architecture | Single `vm_install_vgic()` with compile-time selection | Low |
+| List register count | Keep hardcoded 4, document as TODO | None |
+| Fault return values | Always `FAULT_HANDLED`, `FAULT_ERROR` for bugs only | Low |
+
+All design decisions maintain consistency with the existing GICv2 implementation.

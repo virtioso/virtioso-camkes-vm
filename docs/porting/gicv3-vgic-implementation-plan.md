@@ -340,6 +340,227 @@ Based on code analysis, kernel changes are simpler than initially estimated:
 
 3. **Direct IRQ Injection**: For simple cases, bypass full GIC emulation and directly inject interrupts. Limited functionality.
 
+## 12. Detailed Implementation Findings
+
+### 12.1 Guest Register Write-back (for MRS/MSR Emulation)
+
+When emulating ICC_* system register accesses, VMM needs to read/write guest general registers:
+
+**Location**: `libsel4vm/src/sel4_arch/aarch64/fault.c:13-85`
+
+```c
+// Get pointer to guest register Xn from fault context
+seL4_Word *decode_rt(int reg, seL4_UserContext *c)
+{
+    switch (reg) {
+    case  0: return &c->x0;
+    case  1: return &c->x1;
+    // ... up to x30
+    case 31: return &wzr;  // zero register (reads 0, writes discard)
+    }
+}
+
+// Usage pattern for MRS emulation:
+seL4_UserContext *ctx = fault_get_ctx(fault);  // Calls seL4_TCB_ReadRegisters
+int rt = get_rt(fault);                        // Extract Xt from ESR[9:5]
+seL4_Word *reg_ctx = decode_rt(rt, ctx);
+*reg_ctx = emulated_value;                     // Write return value
+ignore_fault(fault);                           // Calls seL4_TCB_WriteRegisters
+```
+
+**For AArch64**: `decode_vcpu_reg()` always returns `seL4_VCPUReg_Num` (no register banking).
+
+### 12.2 MMIO Fault Handler Registration
+
+**API**: `vm_reserve_memory_at()` from `libsel4vm/include/sel4vm/guest_memory.h`
+
+```c
+// Register MMIO fault handler for a memory region
+vm_memory_reservation_t *vm_reserve_memory_at(
+    vm_t *vm,
+    uintptr_t addr,      // Guest physical address
+    size_t size,         // Region size
+    memory_fault_callback_fn fault_callback,
+    void *cookie         // Passed to callback
+);
+
+// Callback signature
+typedef memory_fault_result_t (*memory_fault_callback_fn)(
+    vm_t *vm,
+    vm_vcpu_t *vcpu,
+    uintptr_t fault_addr,
+    size_t fault_length,
+    void *cookie
+);
+
+// Return values
+typedef enum {
+    FAULT_HANDLED,    // Fault handled, continue guest
+    FAULT_UNHANDLED,  // Not handled, try next handler
+    FAULT_ERROR       // Error, abort
+} memory_fault_result_t;
+```
+
+**Example from vgic_v2.c**:
+```c
+vm_memory_reservation_t *vgic_dist_res = vm_reserve_memory_at(
+    vm,
+    GIC_DIST_PADDR,          // 0x08000000 for qemu-arm-virt
+    PAGE_SIZE_4K,
+    handle_vgic_dist_fault,
+    (void *)vgic_dist
+);
+```
+
+### 12.3 virq_t Format for GICv3
+
+**VMM side** (`virq.h:33-38`):
+```c
+struct virq_handle {
+    int virq;            // Virtual IRQ number (0-1019)
+    int level;           // Current level (for level-triggered)
+    irq_ack_fn_t ack;    // Callback when guest EOIs
+    void *token;         // Opaque callback data
+};
+```
+
+**Kernel side** (`structures.bf:353-390` for GICv3):
+```
+block virq_pending {
+    field virqType      2     // bits 0-1:  0=invalid, 1=pending, 2=active
+    padding             1     // bit 2
+    field virqGroup     1     // bit 3:     interrupt group (0 or 1)
+    padding             4     // bits 4-7
+    field virqPriority  8     // bits 8-15: priority (0=highest)
+    padding             6     // bits 16-21
+    field virqEOIIRQEN  1     // bit 22:    EOI IRQ enable
+    padding             9     // bits 23-31
+    field virqIRQ       32    // bits 32-63: virtual INTID
+}
+```
+
+**Injection flow**:
+```
+VMM: seL4_ARM_VCPU_InjectIRQ(vcpu_cap, virq, priority, group, lr_idx)
+  ↓
+Kernel: invokeVCPUInjectIRQ() creates virq_t from parameters
+  ↓
+Kernel: set_gic_vcpu_ctrl_lr(idx, virq) writes to ICH_LRn_EL2
+```
+
+### 12.4 vGIC State Machine
+
+**States** (documented in vgic_v2.c:7-35):
+```
+b) ENABLING: Guest enables IRQ in GICD
+   - If not pending: ACK with seL4
+   - If pending: no action
+
+c) PIRQ: Physical IRQ received from seL4
+   - If IRQ enabled: set pending, inject to guest → state d
+   - If disabled: ignore → state b
+
+d) GUEST ACK: Guest acknowledges IRQ (reads ICC_IAR)
+   - Hardware transitions LR: pending → active
+   - No VMM involvement
+
+e) GUEST EOI: Guest writes ICC_EOIR
+   - Hardware clears LR, triggers maintenance interrupt
+   - Kernel sends seL4_Fault_VGICMaintenance to VMM
+   - VMM: clear pending, call ack callback, dequeue next IRQ
+
+g) DISABLE: Guest disables IRQ
+   - Allow in-flight IRQ to complete
+   - Block future injections
+```
+
+**Key data structures**:
+```c
+// Per-VCPU interrupt context
+typedef struct vgic_vcpu {
+    virq_handle_t lr_shadow[NUM_LIST_REGS];  // Mirrors ICH_LRn_EL2
+    struct irq_queue irq_queue;               // Overflow when LRs full
+    virq_handle_t local_virqs[32];            // SGI/PPI (per-CPU)
+} vgic_vcpu_t;
+
+// Global vGIC state
+typedef struct vgic {
+    struct gic_dist_map *dist;                // Emulated GICD registers
+    virq_handle_t vspis[200];                 // SPI virq handles
+    vgic_vcpu_t vgic_vcpu[MAX_CPUS];          // Per-VCPU state
+} vgic_t;
+```
+
+**Maintenance handler** (`vgic_v2.c:330-345`):
+```c
+int vm_vgic_maintenance_handler(vm_vcpu_t *vcpu)
+{
+    int idx = seL4_GetMR(seL4_VGICMaintenance_IDX);  // Which LR triggered
+    handle_vgic_maintenance(vcpu, idx);
+    // → clear pending bit
+    // → call virq_ack() callback
+    // → clear lr_shadow[idx]
+    // → dequeue next IRQ if any
+    seL4_Reply(seL4_MessageInfo_new(0, 0, 0, 0));
+    return VM_EXIT_HANDLED;
+}
+```
+
+### 12.5 GICv2 Hardware vCPU Interface (Key Insight)
+
+**Critical understanding**: GICv2 VMM does NOT emulate the CPU interface!
+
+The GIC hardware provides a "virtual CPU interface" (GICV) at a separate physical address. The VMM maps this to the guest at the GICC address:
+
+```c
+// vgic_v2.c:318-321
+vm_memory_reservation_t *vgic_vcpu_reservation = vm_reserve_memory_at(
+    vm, GIC_CPU_PADDR, PAGE_SIZE_4K, handle_vgic_vcpu_fault, NULL);
+vm_map_reservation(vm, vgic_vcpu_reservation, vgic_vcpu_iterator, vm);
+
+// vgic_vcpu_iterator returns physical frame at GIC_VCPU_PADDR
+// mapped to guest at GIC_CPU_PADDR
+```
+
+This means:
+- Guest reads GICC_IAR → hardware returns pending IRQ from ICH_LRn
+- Guest writes GICC_EOIR → hardware updates LR state, triggers maintenance
+- VMM only handles GICD emulation and maintenance interrupts
+
+### 12.6 GICv3 CPU Interface Options
+
+For GICv3, the CPU interface uses system registers (ICC_*), not MMIO. Two approaches:
+
+**Option A: Hardware vCPU mode (recommended)**
+```
+Configure ICC_SRE_EL2.Enable = 1 (allow guest ICC_* to reach hardware)
+Guest: MRS x0, ICC_IAR1_EL1
+   ↓
+Hardware: ICH machinery returns pending IRQ (no trap to VMM)
+   ↓
+VMM: Only handles maintenance interrupts (same as GICv2)
+```
+
+**Pros**: Low overhead, hardware manages LR state
+**Cons**: Less control over ICC_* emulation
+
+**Option B: Full trap mode**
+```
+Configure ICC_SRE_EL2.Enable = 0 (trap all guest ICC_*)
+Guest: MRS x0, ICC_IAR1_EL1
+   ↓
+EL2 trap: ESR.EC = 0x18 (MSR/MRS), ESR contains Op0/Op1/CRn/CRm/Op2
+   ↓
+Kernel: seL4_Fault_VCPUFault → VMM
+   ↓
+VMM: Decode ICC_* register, emulate read/write
+```
+
+**Pros**: Full control, can virtualize any ICC_* behavior
+**Cons**: Higher overhead (trap on every ICC_* access)
+
+**Recommendation**: Start with Option A (hardware vCPU mode) as it closely matches the existing GICv2 model and requires minimal VMM changes.
+
 ## Conclusion
 
 GICv3 vGIC support is more tractable than initially expected:
@@ -348,10 +569,14 @@ GICv3 vGIC support is more tractable than initially expected:
 - seL4 kernel already has ICH_* (hypervisor GIC) register access for virtual IRQ injection
 - VCPU fault forwarding already works - VMM receives full ESR for system register traps
 - Only ~15 lines of kernel code needed to enable ICC_* trapping (ICC_SRE_EL2 configuration)
+- Existing `vm_reserve_memory_at()` API works for GICR registration
+- virq_t and injection path already support GICv3 (64-bit ICH_LRn_EL2)
+- vGIC state machine (enqueue/dequeue/maintenance) is GIC-version agnostic
 
 **Remaining work:**
-- New GICR (Redistributor) emulation in VMM
-- ICC_* register emulation in VMM (decode ESR, handle read/write)
+- New GICR (Redistributor) emulation in VMM (~1000 LOC)
 - GICD updates for affinity routing (GICD_IROUTER instead of GICD_ITARGETSR)
+- Kernel: Configure ICC_SRE_EL2 (~15 lines)
+- Decide: Hardware vCPU mode (recommended) vs full trap mode
 
 The Linux KVM and Xen implementations can serve as references. The seL4 kernel's existing GICv3 support significantly reduces the scope of required kernel changes.

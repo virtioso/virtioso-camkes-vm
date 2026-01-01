@@ -709,3 +709,183 @@ GICv3 vGIC support is **even more tractable than initially expected**:
 - Kernel patches (everything needed is already there!)
 
 The Linux KVM and Xen implementations can serve as references. **Total estimated VMM work: ~1200 LOC.**
+
+## 14. Additional Technical Findings (Round 2)
+
+### 14.1 Guest ICC_SRE_EL1 Handling
+
+**Key insight: ICC_SRE_EL1 has NO ICV counterpart!**
+
+Unlike other ICC_* registers which redirect to ICV_* when HCR_EL2.IMO=1:
+- Guest reads ICC_SRE_EL1 → sees **actual hardware value** (not virtualized)
+- Hypervisor must save/restore ICC_SRE_EL1 per vCPU
+
+**From Linux KVM patches** ([Patchwork](https://patchwork.kernel.org/patch/4757661/)):
+- ICC_SRE_EL1 is a per-VM variable
+- Guest needs `ICC_SRE_EL1.SRE=1` to use system registers
+- If EL2 sets `ICC_SRE_EL2.SRE=0`, the guest's ICC_SRE_EL1.SRE becomes RAZ/WI
+
+**For our implementation**: Since HCR_EL2.IMO=1 redirects ICC→ICV automatically, and the kernel runs with SRE=1, guests will see SRE=1. No special handling needed.
+
+Sources: [ARM ICC_SRE_EL1 Docs](https://dflund.se/~getz/ARM/SysReg/AArch64-icc_sre_el1.html), [Linux KVM Patch](https://patchwork.kernel.org/patch/4757661/)
+
+### 14.2 Guest MPIDR_EL1 via VMPIDR_EL2
+
+**Already implemented in libsel4vm!** (`vm.c:164-190`)
+
+```c
+// vcpu_start() in projects/sel4_projects_libs/libsel4vm/src/arch/arm/vm.c
+if (vcpu->vcpu_id == BOOT_VCPU) {
+    // VMPIDR_EL2: BIT(24)=MT, BIT(31)=MP extensions
+    vmpidr_val = BIT(24) | BIT(31);  // = 0x81000000
+} else {
+    vmpidr_val = vcpu->target_cpu;
+}
+vm_set_arm_vcpu_reg(vcpu, seL4_VCPUReg_VMPIDR_EL2, vmpidr_val);
+```
+
+**Issue**: Current implementation doesn't set proper affinity levels!
+
+For GICv3, GICR_TYPER.Affinity_Value must match guest MPIDR. Current code sets 0x81000000 which means:
+- Aff0 = 0, Aff1 = 0, Aff2 = 0, Aff3 = 0
+
+**Recommended fix for multi-vCPU VMs**:
+```c
+// Proper VMPIDR for vcpu_id N:
+// Aff0 = vcpu_id & 0xFF, Aff1/2/3 = 0, MT=1, U=0
+vmpidr_val = BIT(31) | BIT(24) | (vcpu_id & 0xFF);
+```
+
+**seL4 kernel CHANGES.md warning**: "The default value of [VMPIDR_EL2] is 0 which isn't a legal value for MPIDR_EL1 on AArch64"
+
+### 14.3 GICR_WAKER Handling
+
+**seL4 kernel behavior** (`gic_v3.c:225-234`):
+```c
+// Kernel expects GICR_WAKER = 0 (redistributor awake)
+val = gic_rdist_map[core_id]->waker;
+if (val & GICR_WAKER_ChildrenAsleep) {
+    printf("GICv3: GICR_WAKER returned non-zero %x\n", val);
+    halt();
+}
+```
+
+**Register bits** (`gic_v3.h:63-64`):
+- `GICR_WAKER_ProcessorSleep` = BIT(1) - set to 0 (awake)
+- `GICR_WAKER_ChildrenAsleep` = BIT(2) - set to 0 (awake)
+
+**VMM emulation**: Always return 0 for GICR_WAKER reads. Writes can be ignored (redistributor always awake).
+
+### 14.4 ICH_VMCR_EL2 Bit Layout
+
+**Complete bit layout** (from [ARM Developer Docs](https://developer.arm.com/documentation/ddi0601/latest/AArch64-Registers/ICH-VMCR-EL2--Interrupt-Controller-Virtual-Machine-Control-Register)):
+
+| Bits | Field | Purpose |
+|------|-------|---------|
+| 0 | VENG0 | Virtual Enable Group 0 |
+| 1 | VENG1 | Virtual Enable Group 1 |
+| 2 | VACKCTL | Virtual AckCtl |
+| 3 | VFIQEN | Virtual FIQ Enable |
+| 4 | VCBPR | Virtual Common Binary Point Register |
+| 9 | VEOIM | Virtual EOI Mode (alias of ICV_CTLR_EL1.EOImode) |
+| 18-20 | VBPR1 | Virtual Binary Point Register Group 1 (3 bits) |
+| 21-23 | VBPR0 | Virtual Binary Point Register Group 0 (3 bits) |
+| 24-31 | VPMR | Virtual Priority Mask (8 bits) |
+
+**seL4 kernel already handles ICH_VMCR_EL2** (`vcpu.c`):
+```c
+vcpu->vgic.vmcr = get_gic_vcpu_ctrl_vmcr();  // On VCPU save
+set_gic_vcpu_ctrl_vmcr(vcpu->vgic.vmcr);     // On VCPU restore
+```
+
+**Initial value recommendation**: 0 is acceptable (all groups disabled, low priority mask). Guest Linux will configure properly during GIC init.
+
+Sources: [ARM ICH_VMCR_EL2](https://df.lth.se/~getz/ARM/SysReg/AArch64-ich_vmcr_el2.html), [Jailhouse GICv3](https://github.com/siemens/jailhouse/blob/master/hypervisor/arch/arm-common/gic-v3.c)
+
+### 14.5 GICR Frame Layout Details
+
+**From seL4 kernel** (`gic_v3.c:14-18`):
+```c
+#define RDIST_BANK_SZ       0x00010000   // 64KB per frame
+#define GICR_PER_CORE_SIZE  0x20000      // 128KB total (2 frames)
+#define GICR_SIZE           0x100000     // 1MB for up to 8 CPUs
+```
+
+**Frame addresses** (`gic_v3.c:222-223`):
+```c
+gic_rdist_map[core_id] = (void *)gicr;              // RD_base
+gic_rdist_sgi_ppi_map[core_id] = (void *)(gicr + RDIST_BANK_SZ);  // SGI_base
+```
+
+**Memory layout for vCPU N**:
+```
+GICR_BASE + (N * 0x20000) + 0x00000: RD_base (64KB)
+    0x0000: GICR_CTLR
+    0x0008: GICR_TYPER (64-bit)
+    0x0014: GICR_WAKER
+    0x0070: GICR_PROPBASER (LPI config)
+    0x0078: GICR_PENDBASER (LPI pending)
+
+GICR_BASE + (N * 0x20000) + 0x10000: SGI_base (64KB)
+    0x0080: GICR_IGROUPR0
+    0x0100: GICR_ISENABLER0
+    0x0180: GICR_ICENABLER0
+    0x0200: GICR_ISPENDR0
+    0x0400: GICR_IPRIORITYR[0-7]
+    0x0C00: GICR_ICFGR0/1
+```
+
+### 14.6 Tegra234 (Orin AGX) GIC Quirks
+
+**Good news: No specific GICv3 quirks for Tegra234!**
+
+Research findings:
+- **T241-FABRIC-4 erratum** exists but is for T241 server chips only, not Tegra234
+- The erratum affects multi-socket configurations (>2 chips) with GICv4
+- Workaround disables GICv4 features (has_rvpeid, has_vlpis, has_direct_lpi)
+
+**Tegra234 uses standard ARM GICv3** without known quirks. The GIC at 0xF400000 follows normal ARM GICv3 architecture.
+
+Sources: [NVIDIA T241 Errata PDF](https://developer.nvidia.com/docs/t241-fabric-4/nvidia-t241-fabric-4-errata.pdf), [Linux Kernel Patch](https://lore.kernel.org/lkml/20230306013148.3483335-1-sdonthineni@nvidia.com/T/)
+
+### 14.7 Build System for vGIC Selection
+
+**Current state** (`libsel4vm/CMakeLists.txt:55-57`):
+```cmake
+if(KernelArchARM)
+    list(APPEND sources src/arch/arm/vgic/vgic_v2.c)
+endif()
+```
+
+**Hardcoded to GICv2 only!** Need conditional selection:
+
+```cmake
+if(KernelArchARM)
+    if(KernelArmGICv3)
+        list(APPEND sources src/arch/arm/vgic/vgic_v3.c)
+    else()
+        list(APPEND sources src/arch/arm/vgic/vgic_v2.c)
+    endif()
+endif()
+```
+
+**Platform detection**: `KernelArmGICv3` is set in kernel CMake config based on platform DTS.
+
+### 14.8 Summary of Implementation Requirements
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| ICC_SRE_EL1 | ✓ Ready | Hardware handles via HCR_EL2.IMO |
+| VMPIDR_EL2 | ⚠️ Needs update | Add proper Aff0 for multi-vCPU |
+| GICR_WAKER | To implement | Always return 0 (awake) |
+| ICH_VMCR_EL2 | ✓ Ready | Kernel saves/restores |
+| GICR frames | To implement | 128KB per vCPU |
+| Tegra234 quirks | ✓ None | Standard GICv3 |
+| Build system | To update | Add KernelArmGICv3 check |
+
+**Priority order for implementation**:
+1. Build system: Add GICv3/v2 selection
+2. GICR RD_base: GICR_TYPER (with correct Affinity_Value), GICR_WAKER
+3. GICR SGI_base: Enable/pending/priority for SGI/PPI
+4. GICD updates: IROUTER, ARE_NS bit
+5. VMPIDR fix: Set proper Aff0 = vcpu_id

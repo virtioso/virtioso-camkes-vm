@@ -2250,3 +2250,158 @@ Commit 12 (integration test) ◄── All commits complete
 **If guest hangs after boot**:
 - Check for interrupt storms (maintenance not clearing pending)
 - Verify virq_ack callbacks are being called
+
+## 19. ICC_SGI*R System Register Trap Handling
+
+### 19.1 Problem Statement
+
+When a VM is idle, Linux sends IPIs (Inter-Processor Interrupts) via SGIs for housekeeping
+tasks like RCU callbacks, timer distribution, and scheduler IPIs. These writes to ICC_SGI1R_EL1
+trap to EL2 because **SGI generation registers have no ICV counterpart** - they always trap
+regardless of HCR_EL2.IMO setting.
+
+**Symptom**: VM crashes with unhandled VCPU fault:
+```
+======= Unhandled VCPU fault from [vm0] =======
+HSR Value: 0x623a3016
+HSR Exception Class: HSR_SYSREG_64_EXCEPTION [0x18]
+ISS Value: 0x3a3016
+```
+
+### 19.2 SGI Register Encodings
+
+| Register | Op0 | Op1 | CRn | CRm | Op2 | Purpose |
+|----------|-----|-----|-----|-----|-----|---------|
+| ICC_SGI1R_EL1 | 3 | 0 | 12 | 11 | 5 | Generate Group 1 SGI |
+| ICC_SGI0R_EL1 | 3 | 0 | 12 | 11 | 7 | Generate Group 0 SGI |
+| ICC_ASGI1R_EL1 | 3 | 0 | 12 | 11 | 6 | Generate Group 1 SGI (alias) |
+
+### 19.3 ICC_SGI1R_EL1 Register Format
+
+```
+63                   56 55      48 47      40 39  32
++---------------------+-----------+-----------+-----+
+|       Aff3          |   (res0)  |   Aff2    | IRM |
++---------------------+-----------+-----------+-----+
+
+31      24 23  16 15                              0
++---------+------+-----------------------------------+
+|  INTID  | Aff1 |           TargetList              |
++---------+------+-----------------------------------+
+```
+
+- **Aff3/Aff2/Aff1** [55:48, 39:32, 23:16]: Affinity levels of target PEs
+- **IRM** [40]: Interrupt Routing Mode
+  - 0: Use TargetList to select target PEs
+  - 1: Route to all PEs except self
+- **INTID** [27:24]: SGI number (0-15)
+- **TargetList** [15:0]: Bitmap of target PEs at specified affinity
+
+### 19.4 Implementation: Single-vCPU (Phase 1)
+
+For single-vCPU VMs, SGI handling is simple:
+- Any SGI is a self-SGI (only one CPU)
+- Just inject the SGI back to the same vCPU
+
+**Location**: `libsel4vmmplatsupport/src/sel4_arch/aarch64/sysreg_exception.c`
+
+```c
+/* ICC_SGI1R_EL1: Op0=3, Op1=0, CRn=12, CRm=11, Op2=5 */
+#define ICC_SGI1R_OP0   3
+#define ICC_SGI1R_OP1   0
+#define ICC_SGI1R_CRN   12
+#define ICC_SGI1R_CRM   11
+#define ICC_SGI1R_OP2   5
+
+/* Similarly for ICC_SGI0R_EL1 (Op2=7) and ICC_ASGI1R_EL1 (Op2=6) */
+
+static int handle_icc_sgi_exception(vm_vcpu_t *vcpu, sysreg_t *sysreg, bool is_read)
+{
+    if (is_read) {
+        /* SGI registers are write-only - reads are UNDEFINED */
+        ZF_LOGW("ICC_SGI*R read (undefined behavior)");
+        advance_vcpu_fault(vcpu);
+        return 0;
+    }
+
+    /* Get the value being written from guest register Rt */
+    seL4_UserContext regs;
+    int err = vm_get_thread_context(vcpu, &regs);
+    if (err) {
+        ZF_LOGE("Failed to get thread context");
+        return -1;
+    }
+
+    uint64_t sgi_value = get_reg_from_context(&regs, sysreg->params.rt);
+
+    /* Extract SGI number (INTID field, bits 27:24) */
+    int sgi_intid = (sgi_value >> 24) & 0xF;
+
+    ZF_LOGI("ICC_SGI*R write: INTID=%d IRM=%d Aff=0x%x TargetList=0x%x",
+            sgi_intid,
+            (int)((sgi_value >> 40) & 1),
+            (int)((sgi_value >> 16) & 0xFF),
+            (int)(sgi_value & 0xFFFF));
+
+    /* For single-vCPU: inject SGI to self */
+    vm_inject_irq(vcpu, sgi_intid);
+
+    advance_vcpu_fault(vcpu);
+    return 0;
+}
+```
+
+### 19.5 Implementation: Multi-vCPU (Phase 2)
+
+For multi-vCPU VMs:
+1. Parse IRM bit to determine routing mode
+2. If IRM=1: inject to all vCPUs except self
+3. If IRM=0: parse Aff3/Aff2/Aff1 and TargetList to find target vCPUs
+4. Match affinity against VMPIDR_EL2 of each vCPU
+5. Inject SGI to each matching vCPU
+
+### 19.6 Testing
+
+**Test case**: Boot Linux VM, let it go idle for 30+ seconds
+- **Before fix**: VM crashes with HSR_SYSREG_64_EXCEPTION
+- **After fix**: VM remains running, console responsive
+
+**Debug verification**:
+```bash
+# In guest Linux
+cat /proc/interrupts | grep IPI
+# Should show IPI counts incrementing
+```
+
+### 19.7 Commit: Add ICC_SGI*R trap handler
+
+**Files**: `libsel4vmmplatsupport/src/sel4_arch/aarch64/sysreg_exception.c`
+
+Add to `sysreg_table[]`:
+```c
+/* ICC_SGI1R_EL1: Generate Group 1 SGI */
+{
+    .sysreg = { .params.op0 = 3, .params.op1 = 0, .params.op2 = 5,
+                .params.crn = 12, .params.crm = 11 },
+    .sysreg_match_mask = { .hsr_val = SYSREG_MATCH_ALL_MASK },
+    .handler = handle_icc_sgi_exception
+},
+/* ICC_ASGI1R_EL1: Generate Group 1 SGI (alias) */
+{
+    .sysreg = { .params.op0 = 3, .params.op1 = 0, .params.op2 = 6,
+                .params.crn = 12, .params.crm = 11 },
+    .sysreg_match_mask = { .hsr_val = SYSREG_MATCH_ALL_MASK },
+    .handler = handle_icc_sgi_exception
+},
+/* ICC_SGI0R_EL1: Generate Group 0 SGI */
+{
+    .sysreg = { .params.op0 = 3, .params.op1 = 0, .params.op2 = 7,
+                .params.crn = 12, .params.crm = 11 },
+    .sysreg_match_mask = { .hsr_val = SYSREG_MATCH_ALL_MASK },
+    .handler = handle_icc_sgi_exception
+},
+```
+
+**Test**: Linux VM survives idle period without crashing.
+
+**Estimated LOC**: ~60

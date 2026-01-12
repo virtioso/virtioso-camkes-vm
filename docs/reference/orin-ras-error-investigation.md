@@ -37,6 +37,32 @@ See Phase 16, Phase 17, Phase 18, and Phase 19 for full analysis.
 
 **Key question**: Why do stale L2→L3 links persist after PT teardown? (See Phase 20)
 
+### ⚠️ HYPOTHESIS (2026-01-11): SMMU/MC Control May Be Related
+
+**STATUS: UNVERIFIED HYPOTHESIS - NOT A CONCLUSION**
+
+When running vm_minimal with guest Linux controlling SMMU and Memory Controller, **no RAS errors occur** even with DRAM starting at 0x80000000 (without the 200KB offset that was previously needed).
+
+**Observation**:
+- vm_minimal boots successfully with DRAM at 0x80000000
+- No RAS errors despite using the "problematic" memory region
+- Guest Linux has active control of all three SMMU instances (smmu_niso0, smmu_niso1, smmu_iso)
+- Guest Linux has Memory Controller fully passed through
+
+**Possible explanations (all unverified)**:
+1. **Different workload**: vm_minimal doesn't exercise the same code paths as sel4test (no FPU tests, no cap revocation stress)
+2. **SMMU controlling device DMA**: With SMMU active, device DMA goes through translation - previously uncontrolled DMA could have been writing to PT memory
+3. **MC coherency**: Proper MC control ensures correct memory transaction coherency attributes
+4. **MC error handling**: With proper MC passthrough, memory errors may be handled/cleared instead of escalating to RAS
+5. **Coincidence**: The workload difference alone explains it, SMMU/MC is irrelevant
+
+**To verify this hypothesis**, one would need to:
+1. Run sel4test with SMMU/MC properly configured (currently sel4test doesn't set up SMMU)
+2. Run vm_minimal WITHOUT SMMU/MC passthrough and check for RAS errors
+3. Check if any device was doing uncontrolled DMA during sel4test
+
+**This remains speculation until tested.**
+
 Phase 19 tested whether something corrupts the first 200KB of DRAM. A diagnostic pattern initialized at boot remained intact through 72+ million function calls. **PT corruption targets dynamically allocated PTs in the middle of DRAM**, not any fixed memory region. The RAM start address affects whether corruption manifests as RAS errors, not the corruption itself.
 
 ### ⚠️ Previous Finding (2025-12-18): Page Tables Contain Garbage User Data
@@ -4197,4 +4223,5 @@ Zero errors in ARM_HYP=ON tests was unusual (normally 2-4). After several test r
 | 2025-12-13 | Added DMB barrier test in cancelBadgedSends - no effect |
 | 2025-12-13 | Added boot delay test - proved errors are synchronous |
 | 2025-12-13 | Added non-hypervisor mode test results, ruled out stage-2 as root cause |
+| 2026-01-11 | **HYPOTHESIS: SMMU/MC Control**: vm_minimal runs without RAS errors at DRAM 0x80000000 (no 200KB offset) when guest Linux controls SMMU and MC. Possible explanations: (1) different workload doesn't trigger bug, (2) SMMU controls device DMA preventing stray writes, (3) MC coherency/error handling. **UNVERIFIED - needs testing with sel4test+SMMU or vm_minimal without SMMU.** |
 | 2025-12-13 | Initial investigation and documentation |

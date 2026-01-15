@@ -104,7 +104,6 @@ assembly {
             {"path": "/bus@0/mmc@3460000"},   /* 0x3460000 - SDMMC4 eMMC */
             {"path": "/bus@0/hsp@3c00000"},   /* 0x3c00000 - HSP Top0 */
             {"path": "/bus@0/phy@3f20000"},   /* 0x3f20000 - P2U PHY */
-//            {"path": "/serial"},              /* 0xc168000 - TCU */
             {"path": "/bus@0/ethernet@6800000"}, /* 0x6800000 - MGBE0 Ethernet */
             {"path": "/bus@0/iommu@8000000"}, /* 0x7000000/0x8000000 - smmu_niso1 (MGBE) */
             {"path": "/bus@0/iommu@10000000"}, /* 0x10000000 - smmu_iso */
@@ -122,34 +121,50 @@ assembly {
             "/bus@0/ethernet@6800000/mdio",
             "/bus@0/ethernet@6800000/mdio/phy@0",
             "/bus@0/ethernet@6800000/stmmac-axi-config",
+            /* stuff from vmlinux.h */
             "/timer",
             "/psci",
-            "/bus@0/interrupt-controller@f400000",
-            "/serial",
+            "/serial",                             /* 0xc168000 - TCU */
+            "/bus@0/interrupt-controller@f400000"
         ];
 
         vm0.plat_keep_devices_and_subtree = [
             "/mgbe-vm-irq-config",
             "/firmware",
-            "/sram@40000000",
+            "/sram@40000000",  /* SRAM container - child shmem in devices.camkes dtb() */
         ];
 
-        /* VM0 RAM using 2MB pages to reduce cap usage */
+        /* VM RAM and device MMIO regions.
+         * Format: "paddr:size_bits:page_bits" where page_bits specifies the
+         * page size for retyping (12=4KB, 21=2MB). Default is 12 if omitted.
+         *
+         * IMPORTANT: Device MMIO regions from dtb() passthrough are auto-generated
+         * by CAmkES - do NOT list them here or they'll be duplicated!
+         * Only list VM RAM here. Using 2MB pages reduces cap usage. */
         vm0.untyped_mmios = [
-            "0x90000000:28:21",   /* 256MB VM0 RAM (2MB pages) */
-            "0xa0000000:28:21",   /* 256MB VM0 RAM (2MB pages, total 512MB) */
+            "0x90000000:28:21",   /* 256MB VM RAM (2MB pages) */
+            "0xa0000000:28:21",   /* 256MB VM RAM (2MB pages, total 512MB) */
+            /* SMMU/MC now in dtb() for Linux driver probing */
         ];
-
-        vm0.simple_untyped24_pool = 12;
 
         /*
          * IRQ passthrough for HSP, UART, GPIO, and Ethernet devices.
          * GIC INTID = SPI number + 32
+         *
+         * GPIO (48 IRQs): SPI 288-335 -> INTID 320-367 (PHY reset)
+         * HSP Top0 doorbell: SPI 176 -> INTID 208 (BPMP communication)
+         * HSP AON shared1: SPI 133 -> INTID 165 (TCU mailbox)
+         * UARTI: SPI 146 -> INTID 178 (backup console)
+         * SDMMC4: SPI 65 -> INTID 97 (internal eMMC)
+         * P2U PHY: SPI 203 -> INTID 235 (MGBE0 PHY)
+         * MGBE0 (8 IRQs): SPI 384-391 -> INTID 416-423
+         *   - common (416), vm0-vm4 (417-421), macsec-ns (422), macsec-s (423)
+         *   - Driver uses 10 DMA channels across 5 VM IRQs (vm0-vm4)
          */
         vm0.dtb_irqs = [
             /* GPIO SPI 288-335 -> INTID 320-367 */
             320, 321, 322, 323, 324, 325, 326, 327,  /* bank 0 */
-            328, 329, 330, 331, 332, 333, 334, 335,  /* bank 1 */
+            328, 329, 330, 331, 332, 333, 334, 335,  /* bank 1 (includes port Y) */
             336, 337, 338, 339, 340, 341, 342, 343,  /* bank 2 */
             344, 345, 346, 347, 348, 349, 350, 351,  /* bank 3 */
             352, 353, 354, 355, 356, 357, 358, 359,  /* bank 4 */
@@ -175,6 +190,11 @@ assembly {
         ];
 
         vm0.irqs = [];
+
+        /* Provide untyped memory from allocator pool for vspace bootstrapping.
+         * Without this, VM0 only has 2MB pages from untyped_mmios and cannot
+         * allocate 4KB frames needed for vspace bookkeeping structures. */
+        vm0.simple_untyped24_pool = 12;
 
         /*
          * VM1 - Driver VM

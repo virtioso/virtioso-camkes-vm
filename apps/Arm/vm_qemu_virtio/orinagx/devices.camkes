@@ -1,0 +1,219 @@
+/*
+ * Copyright 2024, 2025 Unikie
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * VM configuration for vm_qemu_virtio on NVIDIA Orin AGX (Tegra234)
+ *
+ * Two-VM virtio setup:
+ * - VM0 (Driver VM): Runs virtio drivers, gets TCU console and Ethernet
+ * - VM1 (Device VM): Runs QEMU with seL4 accelerator, PL011 emulated console
+ *
+ * Key devices passed through to VM0 (driver):
+ * - TCU: Tegra Combined UART for console (uses HSP AON mailbox)
+ * - HSP Top0/AON: Hardware Synchronization Primitives for BPMP
+ * - MGBE0: 10GbE Ethernet
+ * - GPIO, SMMU, SDMMC4
+ */
+#include <configurations/tii/vm.h>
+
+#define GUEST_ENTRY_OFFSET  0x200000
+
+#define VM_INITRD_MAX_SIZE  0x2000000   /* 32 MB */
+#define VM_DTB_MAX_SIZE     0x1000000   /* 16 MB */
+
+/* VM0 (Device VM) - runs QEMU, has TCU console and Ethernet */
+#define VM0_RAM_BASE    0x90000000
+#define VM0_RAM_SIZE    0x20000000      /* 512 MB */
+#define VM0_DTB_ADDR    VM0_RAM_BASE + VM0_RAM_SIZE - VM_DTB_MAX_SIZE
+#define VM0_INITRD_ADDR VM0_DTB_ADDR - VM_INITRD_MAX_SIZE
+#define VM0_ENTRY_ADDR  VM0_RAM_BASE + GUEST_ENTRY_OFFSET
+
+/* VM1 (Driver VM) - uses virtio devices from VM0 */
+#define VM1_RAM_BASE    0xB0000000
+#define VM1_RAM_SIZE    0x10000000      /* 256 MB */
+#define VM1_DTB_ADDR    VM1_RAM_BASE + VM1_RAM_SIZE - VM_DTB_MAX_SIZE
+#define VM1_INITRD_ADDR VM1_DTB_ADDR - VM_INITRD_MAX_SIZE
+#define VM1_ENTRY_ADDR  VM1_RAM_BASE + GUEST_ENTRY_OFFSET
+
+/* Virtio shared memory regions */
+#if VMSWIOTLB
+#define VM0_VM1_VIRTIO_DATA_BASE        0xC0000000
+#define VM0_VM1_VIRTIO_DATA_SIZE        0x800000    /* 8 MB SWIOTLB bounce buffer */
+#else
+#define VM0_VM1_VIRTIO_DATA_BASE        VM1_RAM_BASE
+#define VM0_VM1_VIRTIO_DATA_SIZE        VM1_RAM_SIZE
+#endif
+
+#define VM0_VM1_VIRTIO_CTRL_BASE        0xC0800000
+#define VM0_VM1_VIRTIO_CTRL_SIZE        0x00080000  /* 512 KB RPC queues */
+
+assembly {
+    composition {}
+    configuration {
+        VIRTIO_CONFIGURATION_DEF(0, 1)
+
+        /*
+         * VM0 - Device VM
+         * Runs QEMU, gets TCU console, Ethernet, provides virtio backends to VM1
+         */
+        vm0.vm_address_config = {
+            "ram_base" : VAR_STRINGIZE(VM0_RAM_BASE),
+            "ram_paddr_base" : VAR_STRINGIZE(VM0_RAM_BASE),
+            "ram_size" : VAR_STRINGIZE(VM0_RAM_SIZE),
+            "dtb_addr" : VAR_STRINGIZE(VM0_DTB_ADDR),
+            "initrd_addr" : VAR_STRINGIZE(VM0_INITRD_ADDR),
+            "kernel_entry_addr" : VAR_STRINGIZE(VM0_ENTRY_ADDR),
+        };
+        vm0.num_vcpus = 1;
+        vm0.vm_image_config = {
+            "kernel_bootcmdline" :
+                "console=ttyTCU0 "
+                "earlycon=pl011,mmio32,0x31d0000 "
+                "debug "
+                "loglevel=8 "
+                "ignore_loglevel "
+                "printk.devkmsg=on "
+                "rdinit=/init "
+                "arm64.nopauth "
+                "maxcpus=1 "
+                "swiotlb=512 ",
+            "kernel_stdout" : "/serial",
+            "kernel_name" : "linux",
+            "generate_dtb" : true,
+            "provide_dtb" : false,
+            "provide_initrd" : true,
+            "initrd_name" : "linux-initrd",
+            "map_one_to_one" : true,
+            "clean_cache" : true,
+        };
+        vm0.vm_virtio_device_channels = [
+            VIRTIO_CHANNEL_DEVICE_CONFIGURATION_DEF(0, 1)
+        ];
+
+        /* Pass through devices from seL4 kernel DTB for VM0 (driver).
+         * IMPORTANT: Paths are regex patterns. Use $ anchor for exact matches.
+         * IMPORTANT: Order entries by physical address - capdl-loader expects sorted order.
+         * The TCU /serial node is added by fdt_plat_customize() hook. */
+        vm0.dtb = dtb([
+            {"path": "/bus@0/misc@100000"},   /* 0x100000 - APB MISC */
+            {"path": "/bus@0/gpio@2200000"},  /* 0x2200000 - GPIO controller */
+            {"path": "/bus@0/pinmux@2430000"}, /* 0x2430000 - Pinmux */
+            {"path": "/bus@0/memory-controller@2c00000"}, /* 0x2c00000 - MC for SMMU SID */
+            {"path": "/bus@0/serial@31d0000"}, /* 0x31d0000 - SBSA UART */
+            {"path": "/bus@0/mmc@3460000"},   /* 0x3460000 - SDMMC4 eMMC */
+            {"path": "/bus@0/hsp@3c00000"},   /* 0x3c00000 - HSP Top0 */
+            {"path": "/bus@0/phy@3f20000"},   /* 0x3f20000 - P2U PHY */
+//            {"path": "/serial"},              /* 0xc168000 - TCU */
+            {"path": "/bus@0/ethernet@6800000"}, /* 0x6800000 - MGBE0 Ethernet */
+            {"path": "/bus@0/iommu@8000000"}, /* 0x7000000/0x8000000 - smmu_niso1 (MGBE) */
+            {"path": "/bus@0/iommu@10000000"}, /* 0x10000000 - smmu_iso */
+            {"path": "/bus@0/iommu@12000000"}, /* 0x11000000/0x12000000 - smmu_niso0 */
+            {"path": "/bus@0/memory-controller@2c00000"},
+            {"path": "/bus@0/memory-controller@2c00000/external-memory-controller@2c60000"},
+            {"path": "/bus@0/hsp@c150000"},   /* 0xc150000 - HSP AON */
+            {"path": "/sram@40000000/sram@70000"}, /* 0x40070000 - BPMP TX shmem */
+            {"path": "/sram@40000000/sram@71000"}, /* 0x40071000 - BPMP RX shmem */
+            {"path": "/bpmp"},                /* no MMIO - BPMP node */
+            {"path": "/bus@0"},               /* no MMIO - bus parent */
+        ]);
+
+        vm0.plat_keep_devices = [
+            "/bus@0/ethernet@6800000/mdio",
+            "/bus@0/ethernet@6800000/mdio/phy@0",
+            "/bus@0/ethernet@6800000/stmmac-axi-config",
+            "/timer",
+            "/psci",
+            "/bus@0/interrupt-controller@f400000",
+            "/serial",
+        ];
+
+        vm0.plat_keep_devices_and_subtree = [
+            "/mgbe-vm-irq-config",
+            "/firmware",
+            "/sram@40000000",
+        ];
+
+        /* VM0 RAM using 2MB pages to reduce cap usage */
+        vm0.untyped_mmios = [
+            "0x90000000:28:21",   /* 256MB VM0 RAM (2MB pages) */
+            "0xa0000000:28:21",   /* 256MB VM0 RAM (2MB pages, total 512MB) */
+        ];
+
+        vm0.simple_untyped24_pool = 12;
+
+        /*
+         * IRQ passthrough for HSP, UART, GPIO, and Ethernet devices.
+         * GIC INTID = SPI number + 32
+         */
+        vm0.dtb_irqs = [
+            /* GPIO SPI 288-335 -> INTID 320-367 */
+            320, 321, 322, 323, 324, 325, 326, 327,  /* bank 0 */
+            328, 329, 330, 331, 332, 333, 334, 335,  /* bank 1 */
+            336, 337, 338, 339, 340, 341, 342, 343,  /* bank 2 */
+            344, 345, 346, 347, 348, 349, 350, 351,  /* bank 3 */
+            352, 353, 354, 355, 356, 357, 358, 359,  /* bank 4 */
+            360, 361, 362, 363, 364, 365, 366, 367,  /* bank 5 */
+            208,    /* HSP Top0 doorbell (SPI 176) - BPMP */
+            165,    /* HSP AON shared1 (SPI 133) - TCU */
+            178,    /* UARTI (SPI 146) */
+            97,     /* SDMMC4 (SPI 65) - internal eMMC */
+            235,    /* P2U PHY (SPI 203) - MGBE0 PHY */
+            /* SMMU interrupts */
+            202,    /* smmu_niso0 global (SPI 170) */
+            264,    /* smmu_niso0 combined (SPI 232) */
+            270,    /* smmu_niso1 global (SPI 238) - MGBE uses this SMMU */
+            274,    /* smmu_niso1 combined (SPI 242) */
+            272,    /* smmu_iso global (SPI 240) */
+            /* MGBE0 interrupts */
+            416,    /* MGBE0 common (SPI 384) */
+            417,    /* MGBE0 vm0 (SPI 385) - DMA channels 0-1 */
+            418,    /* MGBE0 vm1 (SPI 386) - DMA channels 2-3 */
+            419,    /* MGBE0 vm2 (SPI 387) - DMA channels 4-5 */
+            420,    /* MGBE0 vm3 (SPI 388) - DMA channels 6-7 */
+            421,    /* MGBE0 vm4 (SPI 389) - DMA channels 8-9 */
+        ];
+
+        vm0.irqs = [];
+
+        /*
+         * VM1 - Driver VM
+         * Uses virtio devices from VM0, PL011 emulated console
+         */
+        vm1.vm_address_config = {
+            "ram_base" : VAR_STRINGIZE(VM1_RAM_BASE),
+            "ram_paddr_base" : VAR_STRINGIZE(VM1_RAM_BASE),
+            "ram_size" : VAR_STRINGIZE(VM1_RAM_SIZE),
+            "dtb_addr" : VAR_STRINGIZE(VM1_DTB_ADDR),
+            "initrd_addr" : VAR_STRINGIZE(VM1_INITRD_ADDR),
+            "kernel_entry_addr" : VAR_STRINGIZE(VM1_ENTRY_ADDR),
+        };
+        vm1.vm_image_config = {
+            "kernel_bootcmdline" :
+                "console=hvc0 "
+                "earlycon=pl011,mmio32,0x09000000 "
+                "rw "
+                "debug "
+                "loglevel=8 "
+                "swiotlb=512 ",
+            "kernel_stdout" : "hvc0",
+            "generate_dtb" : true,
+            "provide_dtb" : false,
+            "provide_initrd" : false,
+            "clean_cache" : true,
+        };
+        vm1.vm_virtio_driver_channels = [
+            VIRTIO_CHANNEL_DRIVER_CONFIGURATION_DEF(0, 1)
+        ];
+
+        /* PL011 emulated serial for VM1 early console */
+        vm1.pl011 = 0x9000000;
+
+        VIRTIO_DRIVER_GUEST_RAM_CONFIGURATION_DEF(1)
+
+        vm1.irqs = [];
+        vm1.dtb = dtb([
+            {"path": "/reserved-memory"},
+        ]);
+    }
+}

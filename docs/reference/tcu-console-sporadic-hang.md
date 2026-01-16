@@ -82,10 +82,26 @@ SYNC    SYNC    reset counters; move to ACK; notify
 
 ## Remaining Hypotheses
 
-1. **HSP doorbell interrupt not delivered**: The doorbell to notify BPMP might not be working in the VM
-2. **BPMP firmware state**: BPMP might be in a bad state from previous boot/UEFI
-3. **Timing/race condition**: Something about boot timing affects BPMP responsiveness
-4. **IRQ passthrough issue**: IRQ 208 (HSP Top0 doorbell) might not be properly configured
+### ~~1. HSP doorbell interrupt not delivered~~ - DISPROVEN (2026-01-16)
+
+**Test:** Added vGIC debug, test 20260116-103943
+
+**Result:** IRQ 208 is being:
+- Registered successfully
+- Injected to vCPU 0 (8 times)
+- Loaded to List Register
+- EOI'd by guest (7 times, last one pending when hang occurred)
+
+The guest IS receiving and acknowledging the doorbell interrupts. The hang is not due to IRQ delivery.
+
+### 2. BPMP firmware state
+BPMP might be in a bad state from previous boot/UEFI
+
+### 3. Timing/race condition
+Something about boot timing affects BPMP responsiveness
+
+### 4. IVC protocol issue
+The IVC state machine might not be completing properly despite IRQs being delivered. BPMP firmware might not be sending the expected response via shared memory.
 
 ## Files Involved
 

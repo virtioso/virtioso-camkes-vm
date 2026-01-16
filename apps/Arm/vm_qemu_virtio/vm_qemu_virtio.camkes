@@ -49,6 +49,11 @@ assembly {
         VM_TII_CONFIGURATION_DEF(0)
         VM_TII_CONFIGURATION_DEF(1)
 
+        /* VM0 needs 80MB heap for LZ4 kernel decompression (~18MB compressed + ~51MB decompressed) */
+        vm0.heap_size = 0x5000000;
+        /* VM1 uses virtio-blk root, no kernel loading - default 3MB heap is sufficient */
+        vm1.heap_size = 0x300000;
+
         vm0.num_extra_frame_caps = 0;
         vm0.extra_frame_map_address = 0;
         vm0.cnode_size_bits = 23;

@@ -14,20 +14,24 @@
     attribute int tracebuffer_size; \
     attribute int ramoops_base; \
     attribute int ramoops_size; \
+    /* vm_virtio_driver_channels: This VM is the DRIVER in these virtio channels.
+     * Uses virtio devices provided by another VM. */ \
     attribute { \
         int id; \
         string data_base; \
         string data_size; \
         string ctrl_base; \
         string ctrl_size; \
-    } vm_virtio_devices[] = []; \
+    } vm_virtio_driver_channels[] = []; \
+    /* vm_virtio_device_channels: This VM is the DEVICE in these virtio channels.
+     * Provides virtio backends (e.g., runs QEMU) to driver VMs. */ \
     attribute { \
         int id; \
         string data_base; \
         string data_size; \
         string ctrl_base; \
         string ctrl_size; \
-    } vm_virtio_drivers[] = []; \
+    } vm_virtio_device_channels[] = []; \
 
 #define VM_TII_CONFIGURATION_DEF(num) \
     vm##num.fs_shmem_size = 0x100000; \
@@ -35,7 +39,7 @@
     vm##num.asid_pool = true; \
     vm##num.simple = true; \
     vm##num.sem_value = 0; \
-    vm##num.heap_size = 0x300000; \
+    /* heap_size set per-app in camkes file - not in macro */
 
 #undef VM_COMPONENT_DEF
 #define VM_COMPONENT_DEF(num) \
@@ -64,7 +68,9 @@
     vm##_dev##_vm##_drv##_memdev.size = VM##_dev##_VM##_drv##_VIRTIO_DATA_SIZE; \
     vm##_dev##_vm##_drv##_iobuf.size = VM##_dev##_VM##_drv##_VIRTIO_DATA_SIZE; \
 
-#define VIRTIO_DEVICE_CONFIGURATION_DEF(_dev, _drv) \
+/* VIRTIO_CHANNEL_DRIVER_CONFIGURATION_DEF: Config for the DRIVER side of a channel.
+ * Use on VM that is the driver (uses virtio devices). */
+#define VIRTIO_CHANNEL_DRIVER_CONFIGURATION_DEF(_dev, _drv) \
     { \
         "id" : _dev, \
         "data_base" : VAR_STRINGIZE(VM##_dev##_VM##_drv##_VIRTIO_DATA_BASE), \
@@ -73,7 +79,9 @@
         "ctrl_size" : VAR_STRINGIZE(VM##_dev##_VM##_drv##_VIRTIO_CTRL_SIZE), \
     },
 
-#define VIRTIO_DRIVER_CONFIGURATION_DEF(_dev, _drv) \
+/* VIRTIO_CHANNEL_DEVICE_CONFIGURATION_DEF: Config for the DEVICE side of a channel.
+ * Use on VM that is the device (provides virtio backends, e.g., runs QEMU). */
+#define VIRTIO_CHANNEL_DEVICE_CONFIGURATION_DEF(_dev, _drv) \
     { \
         "id" : _drv, \
         "data_base" : VAR_STRINGIZE(VM##_dev##_VM##_drv##_VIRTIO_DATA_BASE), \
@@ -85,7 +93,7 @@
 #if VMSWIOTLB
 #define VIRTIO_DRIVER_GUEST_RAM_CONFIGURATION_DEF(_num) \
         /* additional 16 MB pages for guest RAM */ \
-        vm##_num.simple_untyped24_pool = 2 + (VM##_num##_RAM_SIZE >> 24);
+        vm##_num.simple_untyped24_pool = 6 + (VM##_num##_RAM_SIZE >> 24);
 #else
 #define VIRTIO_DRIVER_GUEST_RAM_CONFIGURATION_DEF(_num) \
         /* this setting predates merging ARM VMM to camkes-vm repo */ \

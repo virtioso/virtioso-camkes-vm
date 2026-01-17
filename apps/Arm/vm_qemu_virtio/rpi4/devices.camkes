@@ -65,8 +65,8 @@ assembly {
             "map_one_to_one" : true,
             "clean_cache" : true,
         };
-        vm0.vm_virtio_drivers = [
-            VIRTIO_DRIVER_CONFIGURATION_DEF(0, 1)
+        vm0.vm_virtio_device_channels = [
+            VIRTIO_CHANNEL_DEVICE_CONFIGURATION_DEF(0, 1)
         ];
         vm0.tracebuffer_base = 0x08800000;
         vm0.tracebuffer_size = 0x200000;
@@ -159,8 +159,8 @@ assembly {
 #endif
             "clean_cache" : true,
         };
-        vm1.vm_virtio_devices = [
-            VIRTIO_DEVICE_CONFIGURATION_DEF(0, 1)
+        vm1.vm_virtio_driver_channels = [
+            VIRTIO_CHANNEL_DRIVER_CONFIGURATION_DEF(0, 1)
         ];
         vm1.mmios = [
             "0xff846000:0x1000:12"

@@ -15,12 +15,14 @@
 #define CONNECTION_BASE_ADDRESS 0xC0000000
 #elif CONFIG_PLAT_BCM2711
 #define CONNECTION_BASE_ADDRESS 0x60000000
+#elif CONFIG_PLAT_ORINAGX
+#define CONNECTION_BASE_ADDRESS 0x72000000
 #else
 #define CONNECTION_BASE_ADDRESS 0x3F000000
 #endif
 
-/*- set vm_virtio_drivers = configuration[me.name].get('vm_virtio_drivers') -*/
-/*- for drv in vm_virtio_drivers -*/
+/*- set vm_virtio_device_channels = configuration[me.name].get('vm_virtio_device_channels') -*/
+/*- for drv in vm_virtio_device_channels -*/
 extern dataport_caps_handle_t vm/*? drv.id ?*/_iobuf_handle;
 extern dataport_caps_handle_t vm/*? drv.id ?*/_memdev_handle;
 
@@ -28,10 +30,10 @@ extern seL4_Word vm/*? drv.id ?*/_ntfn_recv_notification_badge(void);
 /*- endfor -*/
 
 static struct camkes_crossvm_connection connections[] = {
-/*- for drv in vm_virtio_drivers -*/
+/*- for drv in vm_virtio_device_channels -*/
     { &vm/*? drv.id ?*/_iobuf_handle, vm/*? drv.id ?*/_ntfn_send_emit, 16, "guest-iobuf-/*? drv.id ?*/" },
 /*- endfor -*/
-/*- for drv in vm_virtio_drivers -*/
+/*- for drv in vm_virtio_device_channels -*/
     { &vm/*? drv.id ?*/_memdev_handle, NULL, -1, "guest-ram-/*? drv.id ?*/" },
 /*- endfor -*/
 };
@@ -47,7 +49,7 @@ static void init_cross_vm_connections(vm_t *vm, void *cookie)
 {
     int err;
 
-/*- for drv in vm_virtio_drivers -*/
+/*- for drv in vm_virtio_device_channels -*/
     connections[/*? loop.index0 ?*/].consume_badge = vm/*? drv.id ?*/_ntfn_recv_notification_badge();
     err = register_async_event_handler(connections[/*? loop.index0 ?*/].consume_badge, consume_callback, &connections[/*? loop.index0 ?*/]);
     ZF_LOGF_IF(err, "Failed to register_async_event_handler for init_cross_vm_connections.");
@@ -57,7 +59,7 @@ static void init_cross_vm_connections(vm_t *vm, void *cookie)
     ZF_LOGF_IF(err, "init_cross_vm_connections() failed");
 }
 
-/*- if vm_virtio_drivers|length > 0 -*/
+/*- if vm_virtio_device_channels|length > 0 -*/
 DEFINE_MODULE(cross_vm_connections, NULL, init_cross_vm_connections)
 DEFINE_MODULE_DEP(cross_vm_connections, vpci_init)
 DEFINE_MODULE_DEP(vpci_register_devices, cross_vm_connections)
@@ -65,14 +67,14 @@ DEFINE_MODULE_DEP(vpci_register_devices, cross_vm_connections)
 
 const char *append_vm_virtio_device_cmdline(char *buffer)
 {
-/*- if vm_virtio_drivers|length > 0 -*/
+/*- if vm_virtio_device_channels|length > 0 -*/
     unsigned int id;
     uintptr_t data_base, ctrl_base;
     size_t data_size, ctrl_size;
     char *p = buffer;
 /*- endif -*/
 
-/*- for drv in vm_virtio_drivers -*/
+/*- for drv in vm_virtio_device_channels -*/
     id = /*? drv.id ?*/;
     data_base = /*? drv.data_base ?*/;
     data_size = /*? drv.data_size ?*/;

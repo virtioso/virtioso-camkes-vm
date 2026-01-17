@@ -13,9 +13,9 @@
 #include <tii/camkes/io_proxy.h>
 #include <tii/fdt.h>
 
-/*- set vm_virtio_devices = configuration[me.name].get('vm_virtio_devices') -*/
+/*- set vm_virtio_driver_channels = configuration[me.name].get('vm_virtio_driver_channels') -*/
 
-/*- for dev in vm_virtio_devices -*/
+/*- for dev in vm_virtio_driver_channels -*/
 extern void *vm/*? dev.id ?*/_iobuf;
 
 ram_dataport_t __attribute__((section("_ram_dataport_definition"))) vm/*? dev.id ?*/_ram_dataport;
@@ -86,7 +86,7 @@ int ram_dataport_setup(void)
 {
     ram_dataport_t *ram_dp;
     dataport_caps_handle_t *dp;
-/*- for dev in vm_virtio_devices -*/
+/*- for dev in vm_virtio_driver_channels -*/
     extern dataport_caps_handle_t vm/*? dev.id ?*/_memdev_handle;
     dp = &vm/*? dev.id ?*/_memdev_handle;
     ram_dp = &vm/*? dev.id ?*/_ram_dataport;

@@ -68,8 +68,8 @@ assembly {
             "clean_cache" : true,
         };
 
-        vm0.vm_virtio_drivers = [
-            VIRTIO_DRIVER_CONFIGURATION_DEF(0, 1)
+        vm0.vm_virtio_device_channels = [
+            VIRTIO_CHANNEL_DEVICE_CONFIGURATION_DEF(0, 1)
         ];
 
         vm0.mmios = [
@@ -119,8 +119,8 @@ assembly {
 #endif
             "clean_cache" : true,
         };
-        vm1.vm_virtio_devices = [
-            VIRTIO_DEVICE_CONFIGURATION_DEF(0, 1)
+        vm1.vm_virtio_driver_channels = [
+            VIRTIO_CHANNEL_DRIVER_CONFIGURATION_DEF(0, 1)
         ];
         vm1.mmios = [
             "0x8040000:0x1000:12"

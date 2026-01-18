@@ -2529,9 +2529,9 @@ This causes IRQ 208 (BPMP) to preempt everything, potentially causing priority i
 
 | Fix | Description | Status |
 |-----|-------------|--------|
-| 1B | Always send `seL4_Reply()` | TODO |
-| 1A | Track direct-injected IRQs with `lr_irq_num[]` | TODO |
-| 3A | Use proper priority (0xA0 instead of 0) | TODO |
+| 1B | Always send `seL4_Reply()` | ✅ DONE |
+| 1A | Track direct-injected IRQs with `lr_irq_num[]` | ✅ DONE |
+| 3A | Use proper priority (0xA0 instead of 0) | ✅ DONE |
 
 #### Phase 2: GICR State Tracking
 
@@ -2591,3 +2591,40 @@ This causes IRQ 208 (BPMP) to preempt everything, potentially causing priority i
 | Date | Work Done | Result |
 |------|-----------|--------|
 | 2026-01-18 | Initial investigation, identified 9 bugs | Plan created |
+| 2026-01-18 | Implemented critical fixes 1A, 1B, 3A | Committed to sel4_projects_libs virtioso-next |
+| 2026-01-18 | Fixed priority 0xa0 -> 16 (seL4 uses 5-bit priority 0-31) | Priority was causing seL4_RangeError |
+| 2026-01-18 | Added debug tracing for IRQ 208 and maintenance | Confirmed IRQ delivery IS working |
+| 2026-01-18 | **Finding**: Physical IRQ 208 delivered OK, guest EOIs OK | vGIC fixes are correct |
+| 2026-01-18 | **Finding**: Multiple rapid IRQ 208s during BPMP probe | Doorbell keeps firing |
+
+### 20.8 Current Investigation Status
+
+**vGIC fixes appear correct - problem may be elsewhere**
+
+The debug output shows:
+1. Physical IRQ 208 is being delivered to VMM via irq_server
+2. vm_inject_irq loads IRQ 208 to LR0 correctly
+3. Guest receives the interrupt (maintenance fires)
+4. Maintenance handler calls virq_ack, which acks physical IRQ
+5. Pattern repeats with multiple rapid IRQ 208s
+
+**Observed pattern during BPMP probe:**
+```
+irq_handler: received physical IRQ 208
+vm_inject_irq(208): LR state: [0, 0, 0, 0]
+vm_inject_irq: loaded IRQ 208 to LR0
+MAINTENANCE: calling virq_ack for IRQ 208
+do_irq_server_ack: IRQ 208 EOI
+[repeats 6+ times in rapid succession]
+```
+
+**Possible root causes (not vGIC):**
+1. **HSP doorbell stays asserted**: If physical doorbell level not cleared, IRQ re-fires
+2. **Mailbox read timing**: Guest may not read mailbox before ACK clears interrupt
+3. **HSP register passthrough issue**: MMIO to HSP might not reach real hardware
+4. **BPMP IPC protocol issue**: Response handling in driver might be broken
+
+**Next steps:**
+- Check if HSP doorbell passthrough is working correctly
+- Add debug to HSP MMIO accesses
+- Verify guest is reading/writing HSP registers correctly

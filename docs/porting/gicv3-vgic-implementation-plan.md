@@ -1612,14 +1612,14 @@ endif()
 
 | Task | Complexity | Status |
 |------|------------|--------|
-| Create vgicv3_defs.h with register offsets | Low | TODO |
-| Create gicv3.h with platform addresses | Low | TODO |
-| Implement GICD fault handler (ARE_NS=1, DS=1) | Medium | TODO |
-| Implement GICR RD_base handler (TYPER, WAKER) | Medium | TODO |
-| Implement GICR SGI_base handler (enable, priority) | Medium | TODO |
-| Update CMakeLists.txt for GICv3 selection | Low | TODO |
-| Test with timer interrupt | Medium | TODO |
-| Test with Linux guest | High | TODO |
+| Create vgicv3_defs.h with register offsets | Low | ✅ DONE |
+| Create gicv3.h with platform addresses | Low | ✅ DONE |
+| Implement GICD fault handler (ARE_NS=1, DS=1) | Medium | ✅ DONE |
+| Implement GICR RD_base handler (TYPER, WAKER) | Medium | ✅ DONE |
+| Implement GICR SGI_base handler (enable, priority) | Medium | ✅ DONE (partial - see Section 20) |
+| Update CMakeLists.txt for GICv3 selection | Low | ✅ DONE |
+| Test with timer interrupt | Medium | ✅ DONE |
+| Test with Linux guest | High | ⚠️ IN PROGRESS (BPMP issue - see Section 20) |
 
 **Estimated LOC**: ~800-1000 for basic GICv3 vGIC
 
@@ -2405,3 +2405,189 @@ Add to `sysreg_table[]`:
 **Test**: Linux VM survives idle period without crashing.
 
 **Estimated LOC**: ~60
+
+## 20. BPMP Driver Bug Investigation and vGIC Fixes (2026-01)
+
+### 20.1 Problem Statement
+
+**Symptom**: BPMP (Boot and Power Management Processor) driver in guest Linux on Orin AGX gets stuck during probe. Adding even slight delays in the IRQ path in guest Linux makes BPMP work.
+
+**Root Cause**: Multiple bugs in GICv3 vGIC emulation causing race conditions and incorrect interrupt handling. The delays work around:
+1. Asynchronous injection window - guest doesn't see injected IRQ immediately
+2. ACK callback serialization - delay ensures one IRQ's ACK completes before next
+3. Queue overflow prevention - the 64-entry IRQ queue can overflow with rapid-fire IRQs
+4. BPMP protocol timing - delay ensures request-response pairs complete before new IRQs
+
+### 20.2 Identified Bugs
+
+Nine bugs were identified through code review and exploration:
+
+| Issue | Severity | Location | Description |
+|-------|----------|----------|-------------|
+| 1 | **CRITICAL** | vgic_v3.c:929-953 | Missing `lr_shadow` update for direct injection path |
+| 2 | **CRITICAL** | vgic_v3.c:895-898 | Missing `seL4_Reply` on maintenance error → vCPU hangs |
+| 3 | Medium | vgic_v3.c:542-640 | Missing GICR pending/active register emulation |
+| 4 | Medium | vgic_v3.c:968-976 | SGI/PPI pending not tracked when disabled |
+| 5 | Medium | vgic_v3.c | Missing pending injection on GICR_ISENABLER0 write |
+| 6 | **CRITICAL** | vgic_v3.c:944 | Priority hardcoded to 0 (highest!) for unregistered IRQs |
+| 7 | Low | vgic_v3.c:944 | Group hardcoded to 1, no GICD_CTLR.EnableGrp1NS check |
+| 8 | Low | vgic_v3.c | No ISB memory barriers after GICD/GICR register writes |
+| 9 | Medium | virq.h | No backpressure - IRQs silently dropped on queue overflow |
+
+### 20.3 Issue Details
+
+#### Issue 1: Missing lr_shadow Update (CRITICAL)
+
+**Problem**: When unregistered IRQs (like IRQ 208 from BPMP) are injected directly via `seL4_ARM_VCPU_InjectIRQ()`, the `lr_shadow` array is NOT updated. When the guest EOIs the IRQ, the maintenance handler finds `lr_shadow[idx] == NULL` and returns early without calling the ACK callback. The physical IRQ stays masked forever.
+
+**Code location**: `vgic_v3.c` lines 929-953
+
+```c
+if (!virq_data) {
+    DVGIC("IRQ %d not registered, injecting directly", irq);
+    idx = vgic_find_empty_list_reg(vgic, vcpu);
+    // ...
+    int err = seL4_ARM_VCPU_InjectIRQ(vcpu->vcpu.cptr, irq, 0, 1, idx);
+    // BUG: lr_shadow[idx] not updated! Maintenance handler won't process it
+    return 0;
+}
+```
+
+**Fix**: Add `lr_irq_num[]` array to track IRQ number in each list register. Update maintenance handler to process direct-injected IRQs.
+
+#### Issue 2: Missing seL4_Reply on Error (CRITICAL)
+
+**Problem**: When `handle_vgic_maintenance()` returns an error, `vm_vgic_maintenance_handler()` logs the error but does NOT send `seL4_Reply()`. The vCPU hangs indefinitely waiting for a reply.
+
+**Code location**: `vgic_v3.c` lines 895-898
+
+```c
+int err = handle_vgic_maintenance(vcpu, idx);
+if (err) {
+    ZF_LOGE("vGIC maintenance handler failed (error %d)", err);
+    // BUG: No seL4_Reply() - vCPU hangs!
+}
+```
+
+**Fix**: Always call `seL4_Reply()` regardless of error status.
+
+#### Issue 3: Missing GICR Pending/Active Registers
+
+**Problem**: `GICR_ISPENDR0`, `GICR_ICPENDR0`, `GICR_ISACTIVER0`, `GICR_ICACTIVER0` are not emulated. The `gicv3_redist_state` struct lacks `ispendr0` and `isactiver0` fields.
+
+**Fix**: Add missing fields to struct and implement read/write handlers.
+
+#### Issue 4: SGI/PPI Pending Not Tracked
+
+**Problem**: When `vm_inject_irq()` is called for a disabled IRQ, only SPIs (irq >= 32) get their pending bit set. SGIs/PPIs (irq < 32) are silently dropped.
+
+**Code location**: `vgic_v3.c` lines 968-976
+
+**Fix**: Track pending state in `GICR` `ispendr0` for SGI/PPIs.
+
+#### Issue 5: Missing Pending Injection on GICR_ISENABLER0 Write
+
+**Problem**: Unlike `GICD_ISENABLER` handler, `GICR_ISENABLER0` handler doesn't check for pending SGI/PPIs to inject when the interrupt is enabled.
+
+**Fix**: When `GICR_ISENABLER0` is written, check `ispendr0` for newly-enabled IRQs and inject them.
+
+#### Issue 6: Priority Hardcoded to 0 (CRITICAL)
+
+**Problem**: Direct injection path uses `priority=0` (the HIGHEST priority in GICv3):
+
+```c
+int err = seL4_ARM_VCPU_InjectIRQ(vcpu->vcpu.cptr, irq, 0, 1, idx);
+//                                                    ↑
+//                                              priority=0 (HIGHEST!)
+```
+
+This causes IRQ 208 (BPMP) to preempt everything, potentially causing priority inversion.
+
+**Fix**: Use proper priority from `GICD_IPRIORITYR` or default `0xA0` (GIC_PRI_IRQ).
+
+#### Issue 7: Group Hardcoded to 1
+
+**Problem**: Group 1 (non-secure) is hardcoded for all injections. Code doesn't check if `GICD_CTLR.EnableGrp1NS` is set. If guest hasn't enabled group 1 interrupts, they're silently ignored.
+
+**Fix**: Check `GICD_CTLR.EnableGrp1NS` before injection; queue as pending if not enabled.
+
+#### Issue 8: No Memory Barriers
+
+**Problem**: No `isb()` after GICD/GICR emulated register writes. On ARM64 with speculative execution, this can cause stale register values.
+
+**Fix**: Add `asm volatile("isb" ::: "memory")` before returning from fault handlers.
+
+#### Issue 9: IRQs Silently Dropped on Queue Overflow
+
+**Problem**: The 64-entry IRQ queue (`MAX_IRQ_QUEUE_LEN`) can overflow. When it does, `vgic_irq_enqueue()` returns -1 and the IRQ is silently dropped with just a warning log.
+
+**Fix**: Set pending bit so IRQ can be re-attempted when queue has space.
+
+### 20.4 Implementation Plan
+
+#### Phase 1: Critical Fixes (Unblock BPMP)
+
+| Fix | Description | Status |
+|-----|-------------|--------|
+| 1B | Always send `seL4_Reply()` | TODO |
+| 1A | Track direct-injected IRQs with `lr_irq_num[]` | TODO |
+| 3A | Use proper priority (0xA0 instead of 0) | TODO |
+
+#### Phase 2: GICR State Tracking
+
+| Fix | Description | Status |
+|-----|-------------|--------|
+| 2A | Add `ispendr0`, `isactiver0` to `gicv3_redist_state` | TODO |
+| 2B | Handle GICR pending/active register reads | TODO |
+| 2C | Handle GICR pending/active register writes | TODO |
+| 2D | Track SGI/PPI pending when disabled | TODO |
+| 2E | Inject pending on GICR_ISENABLER0 write | TODO |
+
+#### Phase 3: Robustness Improvements
+
+| Fix | Description | Status |
+|-----|-------------|--------|
+| 3B | Check GICD_CTLR.EnableGrp1NS before injection | TODO |
+| 4A | Add ISB memory barriers after register writes | TODO |
+| 4B | Improve queue overflow handling | TODO |
+
+### 20.5 Files to Modify
+
+1. **`projects/sel4_projects_libs/libsel4vm/src/arch/arm/vgic/vgic_v3.c`**
+   - `struct gicv3_redist_state` - Add `ispendr0`, `isactiver0`
+   - `vm_inject_irq()` - Track direct-injected IRQs, track SGI/PPI pending, use proper priority
+   - `handle_vgic_maintenance()` - Handle direct-injected IRQs
+   - `vm_vgic_maintenance_handler()` - Always send seL4_Reply
+   - `gicr_sgi_read_reg()` - Add ISPENDR0, ICPENDR0, ISACTIVER0, ICACTIVER0 cases
+   - `gicr_sgi_write_reg()` - Add ISPENDR0, ICPENDR0, ISACTIVER0, ICACTIVER0 cases
+   - Fault handlers - Add ISB before return
+
+2. **`projects/sel4_projects_libs/libsel4vm/src/arch/arm/vgic/virq.h`**
+   - `vgic_vcpu_t` - Add `lr_irq_num[NUM_LIST_REGS]` array
+   - `vgic_vcpu_load_list_reg()` - Use priority from IRQ config
+   - `vgic_irq_enqueue()` - Improve overflow handling
+
+### 20.6 Testing Plan
+
+1. **Build sel4test** (sanity check):
+   ```
+   mcp__sel4-autopilot__build_sel4test mode=el2
+   mcp__sel4-autopilot__test_sel4_binary
+   ```
+
+2. **Build and test vm_minimal** (BPMP test):
+   ```
+   mcp__sel4-autopilot__build_vm_minimal
+   mcp__sel4-autopilot__test_vm_minimal
+   ```
+
+3. **Verify BPMP initialization** in vm.log/sel4.log:
+   - Look for `tegra-bpmp` probe success
+   - No "timeout" or "stuck" messages
+   - Clock/reset/power domain operations complete
+
+### 20.7 Progress Log
+
+| Date | Work Done | Result |
+|------|-----------|--------|
+| 2026-01-18 | Initial investigation, identified 9 bugs | Plan created |

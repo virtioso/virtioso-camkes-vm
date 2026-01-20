@@ -111,6 +111,7 @@ assembly {
             {"path": "/bus@0/memory-controller@2c00000"},
             {"path": "/bus@0/memory-controller@2c00000/external-memory-controller@2c60000"},
             {"path": "/bus@0/hsp@c150000"},   /* 0xc150000 - HSP AON */
+            {"path": "/bus@0/pmc@c360000"},   /* 0xc360000 - PMC (for reboot/poweroff) */
             {"path": "/sram@40000000/sram@70000"}, /* 0x40070000 - BPMP TX shmem */
             {"path": "/sram@40000000/sram@71000"}, /* 0x40071000 - BPMP RX shmem */
             {"path": "/bpmp"},                /* no MMIO - BPMP node */

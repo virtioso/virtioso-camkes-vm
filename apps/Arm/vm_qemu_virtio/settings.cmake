@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 
-set(supported "exynos5422;qemu-arm-virt;rpi4")
+set(supported "exynos5422;qemu-arm-virt;rpi4;orinagx")
 if(NOT "${PLATFORM}" IN_LIST supported)
     message(FATAL_ERROR "PLATFORM: ${PLATFORM} not supported.
          Supported: ${supported}")
@@ -39,5 +39,9 @@ elseif("${PLATFORM}" STREQUAL "rpi4")
     set(KernelCustomDTSOverlay
         "${CMAKE_CURRENT_LIST_DIR}/../../../hardware/${PLATFORM}/dts/overlay-rpi4.dts"
         CACHE FILEPATH "" FORCE)
+
+elseif("${PLATFORM}" STREQUAL "orinagx")
+    # Set machine for image paths
+    set(VM_IMAGE_MACHINE "vm-jetson-agx-orin")
 
 endif()

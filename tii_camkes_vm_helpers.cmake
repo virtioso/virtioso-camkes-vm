@@ -54,6 +54,7 @@ function(DeclareTIICAmkESVM name)
         seL4VirtIODeviceVM.template.c
         seL4VirtIODriverVM.template.c
         pl011.template.c
+        hyp_ftrace.template.c
         TEMPLATE_HEADERS
         seL4VirtIODeviceVM.template.h
     )

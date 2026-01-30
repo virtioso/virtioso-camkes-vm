@@ -94,6 +94,11 @@ assembly {
 
         vm0.pl011 = 0x9000000;
 
+        /* Hypervisor ftrace control interface - allows guest to control seL4 ftrace.
+         * Guest writes to this MMIO address trigger seL4_BenchmarkResetLog/FinalizeLog.
+         * Used for debugging guest-triggered kernel activity. */
+        vm0.hyp_ftrace = 0x0F010000;
+
         /* Pass through devices from seL4 kernel DTB for VM0 (driver).
          * IMPORTANT: Paths are regex patterns. Use $ anchor for exact matches.
          * IMPORTANT: Order entries by physical address - capdl-loader expects sorted order.

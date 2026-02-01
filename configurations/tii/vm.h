@@ -14,6 +14,8 @@
     attribute int tracebuffer_size; \
     attribute int ramoops_base; \
     attribute int ramoops_size; \
+    /* Timer interface for hyp_ftrace auto-dump timeout (seL4TimeServer has built-in notification) */ \
+    maybe uses Timer hyp_ftrace_timer; \
     /* vm_virtio_driver_channels: This VM is the DRIVER in these virtio channels.
      * Uses virtio devices provided by another VM. */ \
     attribute { \

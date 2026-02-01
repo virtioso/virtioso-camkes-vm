@@ -44,4 +44,10 @@ elseif("${PLATFORM}" STREQUAL "orinagx")
     # Set machine for image paths
     set(VM_IMAGE_MACHINE "vm-jetson-agx-orin")
 
+    # Enable ftrace buffer for hyp_ftrace interface
+    # This enables CONFIG_FTRACE_BUFFER which provides ftrace_reset()/ftrace_dump_binary()
+    # via the benchmark syscalls seL4_BenchmarkResetLog/FinalizeLog
+    set(KernelFtraceBuffer ON CACHE BOOL "" FORCE)
+    set(KernelBenchmarks "track_kernel_entries" CACHE STRING "" FORCE)
+
 endif()

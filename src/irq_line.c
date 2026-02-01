@@ -7,6 +7,7 @@
 #include <sel4vm/guest_irq_controller.h>
 
 #include <tii/irq_line.h>
+#include <tii/camkes/hyp_ftrace.h>
 
 static void irq_line_ack(vm_vcpu_t *vcpu, int irq, void *cookie)
 {
@@ -30,11 +31,16 @@ int irq_line_init(irq_line_t *line, vm_vcpu_t *vcpu, unsigned int irq,
 
 int irq_line_change(irq_line_t *line, bool active)
 {
+    if (active) {
+        hyp_ftrace_irq_injected();
+    }
     return vm_set_irq_level(line->vcpu, line->irq, active);
 }
 
 int irq_line_pulse(irq_line_t *line)
 {
+    hyp_ftrace_irq_injected();
+
     int err = vm_set_irq_level(line->vcpu, line->irq, true);
     if (err) {
         return err;

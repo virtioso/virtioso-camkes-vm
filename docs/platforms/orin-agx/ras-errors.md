@@ -17,7 +17,8 @@ Investigation shows **two separate bugs** with distinct signatures:
 
 ## Root Cause Summary
 
-- The RAS errors are **asynchronous**: the memory access happens at time T, but the SError is delivered later.
+- RAS errors are delivered via **SError interrupts** (architecturally asynchronous), but our logs show **ERR<n>STATUS.DE=0** (not deferred). This means the error is reported immediately once signaled, even if it arrives while executing unrelated code.
+- The **SERR field** describes the error reason (for example, illegal address) and does **not** indicate deferred vs non-deferred delivery.
 - The hardware reports **invalid physical addresses** (below DRAM base or near NULL).
 - The most consistent explanation is **speculative PTW reading invalid PTE output addresses**.
 

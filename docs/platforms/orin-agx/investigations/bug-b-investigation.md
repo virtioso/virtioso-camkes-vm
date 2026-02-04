@@ -1,5 +1,7 @@
 # Bug B Investigation: 0x0xxx Errors in Destruction/Revocation Path
 
+See the canonical overview in [ras-errors.md](../ras-errors.md).
+
 ## Summary
 
 **Bug B** produces RAS errors with addresses 0x0fc0/0x0ff0 (near-NULL) during capability revocation and process destruction. These errors occur regardless of RAM location and are primarily triggered by CANCEL_BADGED_SENDS_0002 test.

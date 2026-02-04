@@ -4,6 +4,8 @@
 
 This document consolidates all investigation documents, technical references, and debugging guides into a single reference. Use this when investigating issues on Orin AGX.
 
+For the canonical RAS problem statement and current status, see [ras-errors.md](ras-errors.md).
+
 ---
 
 # Table of Contents

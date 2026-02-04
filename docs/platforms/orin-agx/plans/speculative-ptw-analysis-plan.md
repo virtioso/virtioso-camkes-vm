@@ -1,5 +1,7 @@
 # Speculative PTW Analysis Plan
 
+See the canonical overview in [ras-errors.md](../ras-errors.md).
+
 ## Background: Critical Correction (2025-12-17)
 
 ### What We Learned

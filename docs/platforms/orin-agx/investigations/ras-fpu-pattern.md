@@ -1,5 +1,7 @@
 # RAS Error Pattern: FPU0001 Thread Creation and Wake-up
 
+See the canonical overview in [ras-errors.md](../ras-errors.md).
+
 **Date**: 2025-12-22
 **Status**: Reproducible pattern identified
 

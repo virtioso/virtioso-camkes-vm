@@ -1,5 +1,7 @@
 # Orin AGX RAS Error Investigation
 
+**Canonical overview:** See [ras-errors.md](../ras-errors.md). This file is the chronological investigation log and evidence trail.
+
 ## Summary
 
 **STATUS: ⚠️ BUG B FIXED, BUG A INVESTIGATION IN PROGRESS - CACHE HYPOTHESIS DISPROVEN**

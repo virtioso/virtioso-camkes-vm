@@ -1,5 +1,7 @@
 # RAS Error Pattern: CancelBadgedSends Thread Wake-up Cascade
 
+See the canonical overview in [ras-errors.md](../ras-errors.md).
+
 **Date**: 2025-12-22
 **Status**: Reproducible pattern identified
 **Last Updated**: 2025-12-22 (added Phase 24 analysis with el2-ftrace data)

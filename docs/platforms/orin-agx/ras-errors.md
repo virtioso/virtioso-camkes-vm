@@ -43,6 +43,7 @@ Investigation shows **two separate bugs** with distinct signatures:
 - **Master investigation log:** [orin-ras-error-investigation.md](investigations/orin-ras-error-investigation.md)
 - **Bug B deep dive:** [bug-b-investigation.md](investigations/bug-b-investigation.md)
 - **Pattern docs:** [ras-fpu-pattern.md](investigations/ras-fpu-pattern.md), [ras-cancelbadgedsends-pattern.md](investigations/ras-cancelbadgedsends-pattern.md)
+- **Hypotheses + experiment plan:** [ras-errors-hypotheses.md](plans/ras-errors-hypotheses.md)
 - **Analysis plan:** [speculative-ptw-analysis-plan.md](plans/speculative-ptw-analysis-plan.md)
 - **Speculative PTW background:** [arm-speculative-ptw-research.md](reference/arm-speculative-ptw-research.md)
 

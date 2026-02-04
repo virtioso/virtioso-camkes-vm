@@ -18,11 +18,15 @@ If the task involves kernel tracing, ftrace, or scheduler/IRQ behavior, also rea
 
 5. `../../kernel/docs/ftrace.md`
 
+If the task involves Autopilot or interactive console sessions, also read:
+
+6. `../autopilot/docs/ai-interactive-console.md`
+
 If the task involves build, Yocto, or CI/CD, also read:
 
-6. `docs/build-system/build-architecture.md`
-7. `docs/build-system/yocto-integration.md`
-8. `docs/build-system/ci-cd.md`
+7. `docs/build-system/build-architecture.md`
+8. `docs/build-system/yocto-integration.md`
+9. `docs/build-system/ci-cd.md`
 
 ## Additional Notes
 

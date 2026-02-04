@@ -88,6 +88,7 @@ graph TB
 - [Production Guide](deployment/production-guide.md) - Performance and security
 
 ### Platforms
+- [Orin AGX RAS Errors](platforms/orin-agx/ras-errors.md) - Canonical RAS problem statement and status
 - [Orin AGX Debugging Guide](platforms/orin-agx/orin-agx-debugging-guide.md) - Start here for Orin AGX work
 - [Orin AGX Complete Debugging Reference](platforms/orin-agx/orin-agx-complete-debugging-reference.md)
 - [Orin AGX Porting Guide](platforms/orin-agx/porting/orinagx-camkes-porting.md)

@@ -425,6 +425,6 @@ assembly {
 
 ## Related Documentation
 
-- [Building](../getting-started/building.md)
+- [Building](../start-here/building.md)
 - [CAmkES Templates](../components/camkes-templates.md)
 - [Deployment Scenarios](../deployment/deployment-scenarios.md)

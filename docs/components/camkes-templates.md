@@ -382,4 +382,4 @@ endmacro()
 
 - [Virtio Architecture](../architecture/virtio-architecture.md)
 - [I/O Proxy](io-proxy.md)
-- [Building](../getting-started/building.md)
+- [Building](../start-here/building.md)

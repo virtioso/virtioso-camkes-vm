@@ -498,5 +498,5 @@ vmstat 1 10
 ## Related Documentation
 
 - [Deployment Scenarios](deployment-scenarios.md)
-- [Building](../getting-started/building.md)
-- [Running on RPi4](../getting-started/running-rpi4.md)
+- [Building](../start-here/building.md)
+- [Running on RPi4](../start-here/running-rpi4.md)

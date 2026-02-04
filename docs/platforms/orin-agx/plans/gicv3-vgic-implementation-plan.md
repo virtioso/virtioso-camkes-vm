@@ -8,7 +8,7 @@ The seL4 VMM currently only supports GICv2 virtual interrupt controller emulatio
 
 | Document | Purpose |
 |----------|---------|
-| [vm-image-minimal-orinagx.md](vm-image-minimal-orinagx.md) | CAmkES VM porting for Orin AGX - references this plan |
+| [vm-image-minimal-orinagx.md](../porting/vm-image-minimal-orinagx.md) | CAmkES VM porting for Orin AGX - references this plan |
 | `kernel/tools/dts/orinagx.dts` | Platform device tree with GIC addresses |
 | `projects/vm/components/VM_Arm/plat_include/orinagx/plat/vmlinux.h` | Guest DT node filtering |
 

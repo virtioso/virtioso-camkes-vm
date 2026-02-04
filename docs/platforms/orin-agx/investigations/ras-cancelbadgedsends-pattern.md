@@ -194,7 +194,7 @@ The `cancelBadgedSends` operation causes:
 3. Multiple VSpace/VMID transitions in quick succession
 4. Possible speculative page table walk issues during VMID switching
 
-This aligns with previous findings about VMID 0 vs VMID 1 behavior and the need for DSB barriers before VTTBR changes (see [ARM Speculative PTW Research](arm-speculative-ptw-research.md)).
+This aligns with previous findings about VMID 0 vs VMID 1 behavior and the need for DSB barriers before VTTBR changes (see [ARM Speculative PTW Research](../reference/arm-speculative-ptw-research.md)).
 
 ### Updated Hypothesis (Phase 24)
 
@@ -433,6 +433,6 @@ This proves:
 ## Related Documents
 
 - [FPU Pattern](ras-fpu-pattern.md) - The other reproducible RAS trigger (thread creation/resume)
-- [ARM Speculative PTW Research](arm-speculative-ptw-research.md) - Linux/KVM/Xen fixes
+- [ARM Speculative PTW Research](../reference/arm-speculative-ptw-research.md) - Linux/KVM/Xen fixes
 - [orin-ras-error-investigation.md](orin-ras-error-investigation.md) - Full investigation log
-- [speculative-ptw-fix-plan.md](../../../../kernel/docs/speculative-ptw-fix-plan.md) - Fix checklist
+- [arm64-speculative-ptw-safe-invalid-pte.md](../../../../../../kernel/docs/arm64-speculative-ptw-safe-invalid-pte.md) - Speculative PTW fix details

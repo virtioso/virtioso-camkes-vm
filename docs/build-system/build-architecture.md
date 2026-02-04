@@ -378,4 +378,4 @@ bitbake -v vm-image-driver
 
 - [Yocto Integration](yocto-integration.md)
 - [CI/CD](ci-cd.md)
-- [Building](../getting-started/building.md)
+- [Building](../start-here/building.md)

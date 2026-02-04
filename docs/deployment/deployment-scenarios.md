@@ -637,4 +637,4 @@ qemu-system-aarch64 \
 
 - [Production Guide](production-guide.md)
 - [Memory Model](../architecture/memory-model.md)
-- [Building](../getting-started/building.md)
+- [Building](../start-here/building.md)

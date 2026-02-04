@@ -2256,9 +2256,9 @@ word_t safe_invalid_pte = addrFromKPPtr(armKSGlobalUserVSpace) & 0xfffffffff000U
 
 ### Debugging Resources and Techniques
 
-#### Challenge: Asynchronous Nature of SErrors
+#### Challenge: SError Delivery vs Deferred Reporting
 
-SErrors are asynchronous - an incorrect memory access may not immediately trigger an SError. The fault might be reported later when the AXI transaction completes, by which time the CPU may have transitioned to a different exception level. This makes correlating errors with their source difficult.
+SError is an **asynchronous exception class**, but our RAS status dumps show **ERR<n>STATUS.DE=0** (not deferred). That means the error is reported immediately once signaled, even if it arrives while the CPU is executing unrelated code or has switched exception levels. This still makes correlating errors with their source difficult, but it is **not** a deferred error case.
 
 #### KVM Speculative Page Table Walk Issue (Highly Relevant)
 
@@ -2923,7 +2923,7 @@ setRegister at kernel/include/machine/registerset.h:31
 
 #### 1.3 CANCEL_BADGED_SENDS Code Path Analysis
 
-The `seL4_InvalidCapability` error at `setMRs_syscall_error` is **not the cause** - it's just where the **asynchronous SError gets delivered**.
+The `seL4_InvalidCapability` error at `setMRs_syscall_error` is **not the cause** - it's just where the **SError interrupt gets delivered**.
 
 **What cancelBadgedSends does** (`kernel/src/object/endpoint.c:436`):
 ```c
@@ -2943,7 +2943,7 @@ rescheduleRequired();  // ← TRIGGERS CONTEXT SWITCH!
 3. **Context switch occurs** - VTTBR switched, TLBs invalidated
 4. **Speculative PTW** from old context accesses stale page tables
 5. PTW reads address in 0x7fffxxxx range (below DRAM) → RAS error
-6. SError delivered later while kernel is at `setMRs_syscall_error`
+6. SError delivered while kernel is at `setMRs_syscall_error`
 
 #### 1.4 FPU0001 In-Depth Analysis
 
@@ -2991,7 +2991,7 @@ static int test_fpu_multithreaded(struct env *env)
 1. **Thread context switching** - VTTBR switched, TLBs invalidated
 2. **Speculative PTW** from old context accesses stale page tables
 3. **PTW reads address** in 0x7fffxxxx range (below DRAM) → RAS error
-4. **SError delivered asynchronously** while executing unrelated code (cspace ops, syscalls)
+4. **SError delivered while executing unrelated code** (cspace ops, syscalls)
 
 The "FPU" test happens to trigger this because it creates aggressive context switch conditions, not because of anything FPU-specific.
 
@@ -3309,7 +3309,7 @@ Tests run in sequential mode (AAA BBB CCC DDD) where each test runs 100× before
 
 **Note: This is a hypothesis, not yet confirmed.**
 
-RAS errors are **asynchronous** - the memory access triggering an error occurs at time T, but the error interrupt may fire at T+N cycles. In interleaved mode (ABCD ABCD), this could cause misattribution:
+SError is an **asynchronous exception class**, but our logs show **ERR<n>STATUS.DE=0** (not deferred). The error interrupt can still arrive while a different test is running. In interleaved mode (ABCD ABCD), this could cause misattribution:
 
 ```
 Test A triggers error → Test B running when interrupt fires → Error attributed to B
@@ -3356,18 +3356,18 @@ The error distribution is essentially unchanged with the idle delay. This means:
 
 The 5-second idle period was implemented using seL4's timer + `seL4_Wait()`, which causes the idle thread to run WFI. Any pending RAS interrupts would have fired during this window.
 
-### RAS Status DE Bit Analysis - Errors Are Synchronous
+### RAS Status DE Bit Analysis - Errors Are Not Deferred
 
-The ARM RAS ERR\<n\>STATUS register contains a **DE (Deferred Error) bit at position 23**. When DE=1, the error is deferred (asynchronous to the triggering operation). When DE=0, the error is synchronous/uncorrected.
+The ARM RAS ERR\<n\>STATUS register contains a **DE (Deferred Error) bit at position 23**. When DE=1, the error is deferred. When DE=0, the error is **not deferred** (reported immediately once signaled).
 
 **Decoding our RAS error status values:**
 
 | Status Value | Binary (bits 24:20) | DE (bit 23) | Interpretation |
 |--------------|---------------------|-------------|----------------|
-| `0xe400090d` | `0b11100100...` | **0** | Synchronous |
-| `0xe8000904` | `0b11101000...` | **0** | Synchronous |
+| `0xe400090d` | `0b11100100...` | **0** | Not deferred |
+| `0xe8000904` | `0b11101000...` | **0** | Not deferred |
 
-**Both status values have DE=0, confirming all our RAS errors are synchronous, NOT deferred.**
+**Both status values have DE=0, confirming all our RAS errors are not deferred.**
 
 **ERR\<n\>STATUS bit layout (bits 31:24):**
 ```
@@ -3380,8 +3380,8 @@ The ARM RAS ERR\<n\>STATUS register contains a **DE (Deferred Error) bit at posi
 
 **Implications:**
 
-1. **Errors are NOT deferred** - They occur synchronously with the triggering operation
-2. **No async deferral window** - The error is reported immediately, not stored for later
+1. **Errors are NOT deferred** - The error is reported immediately once signaled
+2. **No deferral window** - The error is not stored for later
 3. **Idle delay cannot help** - Since errors aren't deferred, waiting won't flush them
 4. **Attribution is accurate** - Errors appear during the actual triggering test, not later
 
@@ -3678,7 +3678,7 @@ RAS errors occur in BOTH kernel and userspace:
 
 1. **Not purely VTTBR switching**: HCR_EL2.VM fix helped FPU0001/THREAD_LIFECYCLE but made CANCEL_BADGED_SENDS worse
 2. **Not TLB multiple-hit**: Erratum 1941500 fix had no effect
-3. **Not deferred errors**: DE bit analysis shows synchronous errors
+3. **Not deferred errors**: DE bit analysis shows errors are not deferred
 4. **Likely kernel data structure access**: Errors occur during queue/capability manipulation
 
 ### Instrumentation Results: REVOKE vs CANCEL (2025-12-17)
@@ -4184,7 +4184,7 @@ Zero errors in ARM_HYP=ON tests was unusual (normally 2-4). After several test r
 | 2025-12-17 | **INSTRUMENTATION RESULTS**: Added RAS_OP markers to isolate REVOKE vs CANCEL. **Both operations trigger errors equally** (REVOKE 25%, CANCEL 22%, BETWEEN 31%). Common factor is thread restart/rescheduling, not specific cap/queue ops. Updated analyzer to parse operation markers. |
 | 2025-12-17 | **CANCEL_BADGED_SENDS CODE PATH**: Documented full code path analysis. Test triggers BOTH `cnode_revoke()` AND `cnode_cancelBadgedSends()`. Errors occur in kernel (ep_ptr_set_queue, tcbEPDequeue) AND userspace (_destroy_second_level). Likely cause: kernel data structure access patterns, not VTTBR switching. |
 | 2025-12-17 | **ERRATUM 1941500 FIX - NO EFFECT**: Found ATF has inverted workaround (`bic` instead of `orr`). Fixed and tested - **RAS errors unchanged** (663 SCC). Ruled out TLB multiple-hit amalgamation as cause. |
-| 2025-12-17 | **DE BIT ANALYSIS**: Decoded RAS ERR\<n\>STATUS DE bit (bit 23). All errors have DE=0, confirming they are **synchronous**, not deferred. Explains why idle delay had no effect - there are no deferred errors waiting to surface. |
+| 2025-12-17 | **DE BIT ANALYSIS**: Decoded RAS ERR\<n\>STATUS DE bit (bit 23). All errors have DE=0, confirming they are **not deferred**. Explains why idle delay had no effect - there are no deferred errors waiting to surface. |
 | 2025-12-17 | **IDLE DELAY TEST**: Added 5-second WFI idle between tests. Error distribution unchanged - **DISPROVED** async bleeding hypothesis. Errors are correctly attributed to triggering tests. |
 | 2025-12-16 | **SEQUENTIAL MODE TESTS**: Ran tests in sequential mode (AAA BBB CCC). HCR fix effect consistent (~88% improvement for THREAD_LIFECYCLE). Added hypothesis about async RAS error attribution bleeding between tests in interleaved mode. |
 | 2025-12-16 | **DOCUMENTED**: TCR_EL2 EPD bits only exist in VHE mode (E2H=1). VTCR_EL2 has no EPD equivalent - HCR_EL2.VM=0 is the correct approach for Stage 2. |

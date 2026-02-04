@@ -6,10 +6,10 @@
 
 | Document | Purpose | Status |
 |----------|---------|--------|
-| [RAS Error Investigation](orin-ras-error-investigation.md) | **Main investigation log** - 167KB of findings | Active |
-| [Memory Layout](sel4-memory-layout-orinagx.md) | Physical memory layout, kernel load addresses | Reference |
-| [Tegra Cache Operations](tegra-cache-operations.md) | **CRITICAL**: dc civac vs dc cisw | Reference |
-| [Firmware Shared Memory](orin-firmware-shared-memory.md) | UEFI/ATF/OP-TEE memory regions - **no conflicts** | Reference |
+| [RAS Error Investigation](investigations/orin-ras-error-investigation.md) | **Main investigation log** - 167KB of findings | Active |
+| [Memory Layout](reference/sel4-memory-layout-orinagx.md) | Physical memory layout, kernel load addresses | Reference |
+| [Tegra Cache Operations](reference/tegra-cache-operations.md) | **CRITICAL**: dc civac vs dc cisw | Reference |
+| [Firmware Shared Memory](reference/orin-firmware-shared-memory.md) | UEFI/ATF/OP-TEE memory regions - **no conflicts** | Reference |
 
 ## Current Status (2025-12-20)
 
@@ -18,7 +18,7 @@
 **Bug A (0x7fffxxxx errors)**: IN PROGRESS - PTE overwrite mystery
 - Page tables initialized correctly but get corrupted DURING test execution
 - Corruption contains stale data from previous test iterations
-- See Phase 17+ in [RAS Error Investigation](orin-ras-error-investigation.md)
+- See Phase 17+ in [RAS Error Investigation](investigations/orin-ras-error-investigation.md)
 
 **Bug B (0x0xxx errors)**: FIXED
 - Cause: Unsafe (zero) PTEs during unmap operations
@@ -46,7 +46,7 @@
 
 **ATF SMC handling**: Does NOT access NS DRAM. All cache operations during PSCI are on TZDRAM only.
 
-See [Firmware Shared Memory](orin-firmware-shared-memory.md) for complete details.
+See [Firmware Shared Memory](reference/orin-firmware-shared-memory.md) for complete details.
 
 ### What NOT to investigate
 
@@ -56,8 +56,8 @@ See [Firmware Shared Memory](orin-firmware-shared-memory.md) for complete detail
 - Firmware memory conflicts (TZDRAM at 0x50000000, not 0x80000000)
 - ATF SMC handlers accessing NS DRAM (they don't)
 - Basic IPC, scheduling, CNode ops (never trigger errors)
-- Safe PTE multi-level correctness (audited - see [safe-pte-multi-level-plan.md](../../../../kernel/docs/safe-pte-multi-level-plan.md))
-- memzero/clearMemory on page tables (audited - see [memzero-page-table-audit.md](../../../../kernel/docs/memzero-page-table-audit.md))
+- Safe PTE multi-level correctness (audited - see [safe-pte-multi-level-plan.md](../../../../../kernel/docs/safe-pte-multi-level-plan.md))
+- memzero/clearMemory on page tables (audited - see [memzero-page-table-audit.md](../../../../../kernel/docs/memzero-page-table-audit.md))
 
 ## Documentation Index
 
@@ -65,31 +65,31 @@ See [Firmware Shared Memory](orin-firmware-shared-memory.md) for complete detail
 
 | Document | Description |
 |----------|-------------|
-| [orin-ras-error-investigation.md](orin-ras-error-investigation.md) | Complete investigation log with all phases and findings |
-| [bug-b-investigation.md](bug-b-investigation.md) | Deep dive into Bug B (0x0xxx errors) - FIXED |
-| [diagnostic-region-investigation.md](diagnostic-region-investigation.md) | 200KB diagnostic region test results |
-| [speculative-ptw-analysis-plan.md](speculative-ptw-analysis-plan.md) | Analysis plan for speculative page table walks |
+| [orin-ras-error-investigation.md](investigations/orin-ras-error-investigation.md) | Complete investigation log with all phases and findings |
+| [bug-b-investigation.md](investigations/bug-b-investigation.md) | Deep dive into Bug B (0x0xxx errors) - FIXED |
+| [diagnostic-region-investigation.md](investigations/diagnostic-region-investigation.md) | 200KB diagnostic region test results |
+| [speculative-ptw-analysis-plan.md](plans/speculative-ptw-analysis-plan.md) | Analysis plan for speculative page table walks |
 
 ### Technical References
 
 | Document | Description |
 |----------|-------------|
-| [safe-pte-multi-level-plan.md](../../../../kernel/docs/safe-pte-multi-level-plan.md) | Confirms pte_pte_invalid_new() correct for ALL levels (L0-L3) |
-| [memzero-page-table-audit.md](../../../../kernel/docs/memzero-page-table-audit.md) | Audit of memzero/memset usage - ARM64 is safe |
-| [sel4-memory-layout-orinagx.md](sel4-memory-layout-orinagx.md) | Physical memory layout, kernel load addresses, DTS configuration |
-| [orin-firmware-shared-memory.md](orin-firmware-shared-memory.md) | UEFI/ATF/OP-TEE shared memory - **no conflicts with seL4** |
-| [tegra-cache-operations.md](tegra-cache-operations.md) | **CRITICAL**: Why dc cisw doesn't work on Tegra, must use dc civac |
-| [tegra-whole-cache-operations.md](tegra-whole-cache-operations.md) | Whole-cache operations on ARM64 |
-| [arm64-cache-maintenance-barriers-smp.md](arm64-cache-maintenance-barriers-smp.md) | Cache maintenance and memory barriers |
-| [arm64-mm-register-audit.md](arm64-mm-register-audit.md) | ARM64 memory management register audit |
-| [sdei-ras-error-handling.md](sdei-ras-error-handling.md) | SDEI and RAS error handling on ARM |
+| [safe-pte-multi-level-plan.md](../../../../../kernel/docs/safe-pte-multi-level-plan.md) | Confirms pte_pte_invalid_new() correct for ALL levels (L0-L3) |
+| [memzero-page-table-audit.md](../../../../../kernel/docs/memzero-page-table-audit.md) | Audit of memzero/memset usage - ARM64 is safe |
+| [sel4-memory-layout-orinagx.md](reference/sel4-memory-layout-orinagx.md) | Physical memory layout, kernel load addresses, DTS configuration |
+| [orin-firmware-shared-memory.md](reference/orin-firmware-shared-memory.md) | UEFI/ATF/OP-TEE shared memory - **no conflicts with seL4** |
+| [tegra-cache-operations.md](reference/tegra-cache-operations.md) | **CRITICAL**: Why dc cisw doesn't work on Tegra, must use dc civac |
+| [tegra-whole-cache-operations.md](reference/tegra-whole-cache-operations.md) | Whole-cache operations on ARM64 |
+| [arm64-cache-maintenance-barriers-smp.md](../../reference/kernel/arm64-cache-maintenance-barriers-smp.md) | Cache maintenance and memory barriers |
+| [arm64-mm-register-audit.md](reference/arm64-mm-register-audit.md) | ARM64 memory management register audit |
+| [sdei-ras-error-handling.md](reference/sdei-ras-error-handling.md) | SDEI and RAS error handling on ARM |
 
 ### Tools and Techniques
 
 | Document | Description |
 |----------|-------------|
-| [uart_raw_binary_transfer_for_debugging_se_l_4_embedded_systems.md](uart_raw_binary_transfer_for_debugging_se_l_4_embedded_systems.md) | Binary transfer over UART for ftrace data |
-| [upstream-addrFromKPPtr-bugs.md](upstream-addrFromKPPtr-bugs.md) | Bugs found in upstream seL4 |
+| [uart_raw_binary_transfer_for_debugging_se_l_4_embedded_systems.md](../../reference/uart_raw_binary_transfer_for_debugging_se_l_4_embedded_systems.md) | Binary transfer over UART for ftrace data |
+| [upstream-addrFromKPPtr-bugs.md](../../reference/kernel/upstream-addrFromKPPtr-bugs.md) | Bugs found in upstream seL4 |
 
 ## Build Configurations for Debugging
 
@@ -148,7 +148,7 @@ mcp__sel4-autopilot__get_sel4_log(request_id="...")
 
 ## Remember
 
-1. **Always check [orin-ras-error-investigation.md](orin-ras-error-investigation.md)** before starting new investigation
+1. **Always check [orin-ras-error-investigation.md](investigations/orin-ras-error-investigation.md)** before starting new investigation
 2. **Read the Summary and latest Phase** to understand current status
 3. **Don't re-investigate disproven hypotheses** (cache flush, ATF/OP-TEE)
 4. **Use dc civac, never dc cisw** on Tegra platforms

@@ -483,4 +483,4 @@ make vm_qemu_virtio
 
 - [Build Architecture](build-architecture.md)
 - [Yocto Integration](yocto-integration.md)
-- [Building](../getting-started/building.md)
+- [Building](../start-here/building.md)

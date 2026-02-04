@@ -237,4 +237,4 @@ seL4 kernel at EL2:
 
 - [seL4 Memory Layout on Orin AGX](sel4-memory-layout-orinagx.md)
 - [Tegra Cache Operations](tegra-cache-operations.md)
-- [Orin RAS Error Investigation](orin-ras-error-investigation.md)
+- [Orin RAS Error Investigation](../investigations/orin-ras-error-investigation.md)

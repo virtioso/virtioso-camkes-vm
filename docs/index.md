@@ -44,6 +44,13 @@ graph TB
 
 ## Documentation Sections
 
+### Start Here
+- [Prerequisites](start-here/prerequisites.md) - Development environment setup
+- [Building](start-here/building.md) - Build instructions
+- [Running on QEMU](start-here/running-qemu.md) - QEMU ARM Virt instructions
+- [Running on RPi4](start-here/running-rpi4.md) - Raspberry Pi 4 deployment
+- [Kernel Development Workflow](start-here/kernel-development-workflow.md) - Yocto devtool workflow
+
 ### Architecture
 - [System Overview](architecture/overview.md) - High-level architecture and component relationships
 - [VM Topology](architecture/vm-topology.md) - Flexible N:M topology and compartmentalization
@@ -59,6 +66,8 @@ graph TB
 - [Interrupt Handling](components/interrupt-handling.md) - IRQ, MSI, and GICv2m emulation
 - [Device Tree](components/device-tree.md) - FDT generation for guest VMs
 - [CAmkES Templates](components/camkes-templates.md) - Component templates for virtio VMs
+- [Hyp Ftrace Interface](components/hyp-ftrace-interface.md) - Hypervisor ftrace control interface
+- [Device Tree Passthrough](components/passthru.md) - DTB passthrough analysis
 
 ### Integration
 - [seL4 Kernel Modifications](integration/kernel-modifications.md) - TII changes to seL4 kernel
@@ -69,12 +78,6 @@ graph TB
 - [Guest Linux Configuration](integration/guest-linux.md) - Guest kernel and driver setup
 - [Other Repository Changes](integration/other-repos.md) - Changes across TII repositories
 
-### Getting Started
-- [Prerequisites](getting-started/prerequisites.md) - Development environment setup
-- [Building](getting-started/building.md) - Build instructions
-- [Running on QEMU](getting-started/running-qemu.md) - QEMU ARM Virt instructions
-- [Running on RPi4](getting-started/running-rpi4.md) - Raspberry Pi 4 deployment
-
 ### Build System
 - [Build Architecture](build-system/build-architecture.md) - Docker, Make, CMake, Yocto
 - [Yocto Integration](build-system/yocto-integration.md) - Guest image generation
@@ -84,15 +87,35 @@ graph TB
 - [Deployment Scenarios](deployment/deployment-scenarios.md) - Multi-VM configurations
 - [Production Guide](deployment/production-guide.md) - Performance and security
 
+### Platforms
+- [Orin AGX Debugging Guide](platforms/orin-agx/orin-agx-debugging-guide.md) - Start here for Orin AGX work
+- [Orin AGX Complete Debugging Reference](platforms/orin-agx/orin-agx-complete-debugging-reference.md)
+- [Orin AGX Porting Guide](platforms/orin-agx/porting/orinagx-camkes-porting.md)
+- [Orin AGX: vm_qemu_virtio Port](platforms/orin-agx/porting/vm-qemu-virtio-orinagx.md)
+- [Orin AGX: vm-image-minimal Port](platforms/orin-agx/porting/vm-image-minimal-orinagx.md)
+
 ### Reference
 - [API Reference](reference/api-reference.md) - Data structures and functions
 - [RPC Opcodes](reference/rpc-opcodes.md) - Complete opcode reference
 - [Configuration](reference/configuration.md) - CMake and CAmkES options
+- [Kernel Notes](reference/kernel/upstream-addrFromKPPtr-bugs.md) - Kernel-specific notes
+- [Release Instructions](reference/release/release_instructions.md)
+
+### Plans
+- [VM Image Boot Unification](plans/vm-image-boot-unification-plan.md)
+- [CAmkES to Microkit Migration](plans/camkes-to-microkit-migration.md)
+- [DTB Generation Enhancements](plans/dtb-generation-enhancements-plan.md)
+- [Ftrace Upstream Integration Plan](plans/ftrace-upstream-integration-plan.md)
+- [capdl Autopilot Extension](plans/capdl-autopilot-extension-plan.md)
 
 ### Appendix
 - [KVM vs pKVM vs seL4](appendix/kvm-pkvm-sel4-comparison.md) - Virtualization approach comparison
 - [Glossary](appendix/glossary.md) - Terms and definitions
 - [Related Work](appendix/related-work.md) - Background reading
+
+### Misc
+- [Native GPU/Host1x Experiment](misc/experimental/native-gpu-host1x.md)
+- [Logo Prompt](misc/logo-prompt.md)
 
 ## Quick Start
 
@@ -114,7 +137,7 @@ make linux-image
 make vm_qemu_virtio
 ```
 
-See [Getting Started](getting-started/prerequisites.md) for detailed instructions.
+See [Getting Started](start-here/prerequisites.md) for detailed instructions.
 
 ## Repository Structure
 
@@ -142,4 +165,4 @@ This project is part of the seL4 ecosystem. See individual repositories for lice
 
 ## Contributing
 
-Contributions are welcome. Please see the [build instructions](getting-started/building.md) to set up your development environment.
+Contributions are welcome. Please see the [build instructions](start-here/building.md) to set up your development environment.

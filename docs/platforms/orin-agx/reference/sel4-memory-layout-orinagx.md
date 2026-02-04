@@ -175,6 +175,6 @@ make orinagx_diag_defconfig && make sel4test
 
 ## See Also
 
-- [Diagnostic Region Investigation](diagnostic-region-investigation.md) - RAS error debugging
-- [Orin RAS Error Investigation](orin-ras-error-investigation.md) - Full RAS error analysis
+- [Diagnostic Region Investigation](../investigations/diagnostic-region-investigation.md) - RAS error debugging
+- [Orin RAS Error Investigation](../investigations/orin-ras-error-investigation.md) - Full RAS error analysis
 - [Tegra Cache Operations](tegra-cache-operations.md) - dc civac vs dc cisw

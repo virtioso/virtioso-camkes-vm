@@ -523,7 +523,7 @@ The BPMP co-processor runs its own firmware that must be compatible with the L4T
 
 The Orin AGX uses GICv3, which requires a new vGIC implementation in libsel4vm. The current libsel4vm only supports GICv2.
 
-**Implementation Plan**: See [gicv3-vgic-implementation-plan.md](gicv3-vgic-implementation-plan.md) for detailed design.
+**Implementation Plan**: See [gicv3-vgic-implementation-plan.md](../plans/gicv3-vgic-implementation-plan.md) for detailed design.
 
 **Key differences from GICv2**:
 - **GICR (Redistributor)**: New per-CPU component at 0x0F440000 (128KB per vCPU)

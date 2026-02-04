@@ -6,6 +6,7 @@
 
 | Document | Purpose | Status |
 |----------|---------|--------|
+| [RAS Errors - Canonical Overview](ras-errors.md) | Problem statement, fix attempts, and current status | Active |
 | [RAS Error Investigation](investigations/orin-ras-error-investigation.md) | **Main investigation log** - 167KB of findings | Active |
 | [Memory Layout](reference/sel4-memory-layout-orinagx.md) | Physical memory layout, kernel load addresses | Reference |
 | [Tegra Cache Operations](reference/tegra-cache-operations.md) | **CRITICAL**: dc civac vs dc cisw | Reference |
@@ -15,14 +16,7 @@
 
 ### RAS Errors on Orin AGX
 
-**Bug A (0x7fffxxxx errors)**: IN PROGRESS - PTE overwrite mystery
-- Page tables initialized correctly but get corrupted DURING test execution
-- Corruption contains stale data from previous test iterations
-- See Phase 17+ in [RAS Error Investigation](investigations/orin-ras-error-investigation.md)
-
-**Bug B (0x0xxx errors)**: FIXED
-- Cause: Unsafe (zero) PTEs during unmap operations
-- Fix: Safe PTE initialization with `init_pt_with_safe_ptes()`
+See the canonical status summary in [ras-errors.md](ras-errors.md). This guide links to the deep-dive logs and supporting evidence.
 
 ### Key Findings
 

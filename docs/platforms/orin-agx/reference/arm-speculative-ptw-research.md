@@ -1,5 +1,7 @@
 # ARM Speculative Page Table Walk Research
 
+See the canonical overview in [ras-errors.md](../ras-errors.md).
+
 **Date**: 2025-12-20
 **Purpose**: Document findings from researching speculative PTW issues on ARM platforms (Linux/KVM/Xen)
 

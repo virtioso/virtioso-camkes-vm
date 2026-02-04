@@ -22,6 +22,9 @@ If the task involves Autopilot or interactive console sessions, also read:
 
 6. `../autopilot/docs/ai-interactive-console.md`
 
+Note: `AUTOPILOT_DIR` is the working directory (queues/results/profiles),
+not the code path. Code lives in `~/pkvm/jetson-pkvm/autopilot`.
+
 If the task involves build, Yocto, or CI/CD, also read:
 
 7. `docs/build-system/build-architecture.md`

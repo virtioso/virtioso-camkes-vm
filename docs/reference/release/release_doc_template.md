@@ -3,7 +3,7 @@
 ## Overview
 
 *Describe the release on high level. All H2 level headings should be in
-release document. If there were no updates, it should be stated verbally e.g. 'No updates.' or 'No deprecations.' etc. H3 and higher are optional, more detailed descriptions. This file should be saved as `tii_sel4_<release>.md`*
+release document. If there were no updates, it should be stated verbally e.g. 'No updates.' or 'No deprecations.' etc. H3 and higher are optional, more detailed descriptions. This file should be saved as `virtioso_<release>.md`*
 
 Following HW targets are supported by this release:
 
@@ -91,7 +91,7 @@ $ sudo losetup -f --show -P sel4_disk.img
 $ sudo mkfs.fat -F 32 -n BOOT /dev/loop<number>p1
 $ mkdir boot
 $ sudo mount -t auto -o loop /dev/loop<number>p1 boot/
-$ sudo tar -C boot/ --strip-components=3 -xjf tii_sel4_<version>.tar.bz2 tii_sel4_<version>/bin/boot
+$ sudo tar -C boot/ --strip-components=3 -xjf virtioso_<version>.tar.bz2 virtioso_<version>/bin/boot
 $ sudo umount boot/
 $ sudo losetup -d /dev/loop<number>
 ```

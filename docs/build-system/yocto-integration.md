@@ -462,7 +462,7 @@ IMAGE_ROOTFS_EXTRA_SPACE = "262144"  # 256MB extra
 The Makefile orchestrates both Yocto and CMake builds:
 
 ```makefile
-# From tii_sel4_build/Makefile
+# From virtioso-build/Makefile
 linux-image:
     cd vm-images && \
     source poky/oe-init-build-env build && \

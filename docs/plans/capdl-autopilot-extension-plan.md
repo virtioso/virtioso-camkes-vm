@@ -77,7 +77,7 @@ async def build_capdl_app(app: str, mode: str = "el2") -> dict:
 
 #### 1.2 Add build configurations for capdl apps
 
-**File**: `/home/hlyytine/tii-sel4/tii_sel4_build/scripts/cmake_vars.map`
+**File**: `/home/hlyytine/tii-sel4/virtioso-build/scripts/cmake_vars.map`
 
 Ensure CAmkES-specific variables are mapped:
 - `CAMKES_VM_APP` → passed to build script

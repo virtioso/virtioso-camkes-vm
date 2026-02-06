@@ -22,10 +22,10 @@ such as release documents, commits, filenames etc.
 Release is a bzip2-compressed tar file with following layout:
 
 ```text
-tii_sel4_<release>
+virtioso_<release>
 ├── bin                      - directory for non-boot binaries (e.g. rootfs)
 │   └── boot                 - directory for boot binaries (e.g. seL4 images)
-└── tii_sel4_<release>.md
+└── virtioso_<release>.md
 ```
 
 ## Creating a Release Manifest
@@ -40,11 +40,11 @@ tools by following [environment setup instructions].
 
 ```bash
 $ # create workspace
-$ export TII_SEL4_VERSION=<version>
-$ export TII_SEL4_RELEASE=tii_sel4_${TII_SEL4_VERSION}
+$ export VIRTIOSO_VERSION=<version>
+$ export VIRTIOSO_RELEASE=virtioso_${VIRTIOSO_VERSION}
 $ export WORKSPACE=~/sel4-release
 $ mkdir -p "${WORKSPACE}" && cd "${WORKSPACE}"
-$ repo init -u git@github.com:tiiuae/tii_sel4_manifest.git -b tii/development
+$ repo init -u git@github.com:tiiuae/virtioso-manifest.git -b tii/development
 $ repo sync
 ```
 
@@ -57,7 +57,7 @@ $ git checkout <revision>
 $ cd "$(repo --show-toplevel)"
 ```
 
-Then create manifest `releases` within `tiiuae/tii_sel4_manifest` repository:
+Then create manifest `releases` within `tiiuae/virtioso-manifest` repository:
 
 ```bash
 $ # create manifest
@@ -66,17 +66,17 @@ $ repo manifest \
     -r \
     --suppress-upstream-revision \
     --suppress-dest-branch \
-    -o ".repo/manifests/releases/${TII_SEL4_RELEASE}.xml"
+    -o ".repo/manifests/releases/${VIRTIOSO_RELEASE}.xml"
 ```
 
 Commit, and push to release candidate branch, and open pull request for the release, but do *NOT* merge the pull request yet:
 
 ```bash
 $ cd .repo/manifests
-$ git add releases/tii_sel4_<version>.xml
-$ git commit -s -m "Manifest for release ${TII_SEL4_VERSION}"
-$ git push origin "HEAD:release/${TII_SEL4_RELEASE}-rc1"
-$ gh pr create -a "@me" -t "Release candidate for ${TII_SEL4_VERSION}"
+$ git add releases/virtioso_<version>.xml
+$ git commit -s -m "Manifest for release ${VIRTIOSO_VERSION}"
+$ git push origin "HEAD:release/${VIRTIOSO_RELEASE}-rc1"
+$ gh pr create -a "@me" -t "Release candidate for ${VIRTIOSO_VERSION}"
 ```
 
 ## Building the Release
@@ -93,14 +93,14 @@ Initialize the environment for the release with the manifest created in the
 previous step:
 
 ```bash
-$ export TII_SEL4_VERSION=<version>
-$ export TII_SEL4_RELEASE=tii_sel4_${TII_SEL4_VERSION}
-$ export WORKSPACE=~/${TII_SEL4_RELEASE}
+$ export VIRTIOSO_VERSION=<version>
+$ export VIRTIOSO_RELEASE=virtioso_${VIRTIOSO_VERSION}
+$ export WORKSPACE=~/${VIRTIOSO_RELEASE}
 $ mkdir -p "${WORKSPACE}" && cd "${WORKSPACE}"
 $ repo init \
-    -u git@github.com:tiiuae/tii_sel4_manifest.git \
-    -b "release/${TII_SEL4_RELEASE}-rc1" \
-    -m "releases/${TII_SEL4_RELEASE}.xml"
+    -u git@github.com:tiiuae/virtioso-manifest.git \
+    -b "release/${VIRTIOSO_RELEASE}-rc1" \
+    -m "releases/${VIRTIOSO_RELEASE}.xml"
 $ repo sync
 ```
 
@@ -141,12 +141,12 @@ $ make vm_qemu_virtio
 Collect artifacts:
 
 ```bash
-$ mkdir -p "${TII_SEL4_RELEASE}/bin/boot"
+$ mkdir -p "${VIRTIOSO_RELEASE}/bin/boot"
 $ repo manifest \
     -r \
     --suppress-upstream-revision \
     --suppress-dest-branch \
-    -o "${TII_SEL4_RELEASE}/manifest.xml"
+    -o "${VIRTIOSO_RELEASE}/manifest.xml"
 $ declare -A targets=(
     ["rpi4_vm_minimal/images/capdl-loader-image-arm-bcm2711"]=rpi4_vm_minimal
     ["rpi4_vm_multi/images/capdl-loader-image-arm-bcm2711"]=rpi4_vm_multi
@@ -154,7 +154,7 @@ $ declare -A targets=(
     ["rpi4_vm_qemu_virtio/images/capdl-loader-image-arm-bcm2711"]=rpi4_vm_qemu_virtio
     )
 $ for target in "${!targets[@]}"; do
-    cp "$target" "${TII_SEL4_RELEASE}/bin/boot/${targets[$target]}"
+    cp "$target" "${VIRTIOSO_RELEASE}/bin/boot/${targets[$target]}"
   done
 $ declare yocto_targets=(
     "vm-image-driver-vm-*.ext3"
@@ -163,7 +163,7 @@ $ declare yocto_targets=(
     "Image*"
     )
 $ for target in "${yocto_targets[@]}"; do
-    cp -P vm-images/build/tmp/deploy/images/vm-raspberrypi4-64/$target "${TII_SEL4_RELEASE}/bin/"
+    cp -P vm-images/build/tmp/deploy/images/vm-raspberrypi4-64/$target "${VIRTIOSO_RELEASE}/bin/"
   done
 $ declare yocto_boot_targets=(
     "u-boot.bin"
@@ -174,7 +174,7 @@ $ declare yocto_boot_targets=(
     "config.txt"
     )
 $ for target in "${yocto_boot_targets[@]}"; do
-    cp tii_sel4_build/hardware/rpi4/$target "${TII_SEL4_RELEASE}/bin/boot/"
+    cp virtioso-build/hardware/rpi4/$target "${VIRTIOSO_RELEASE}/bin/boot/"
   done
 ```
 
@@ -184,8 +184,8 @@ Create a copy of release documentation and use the instructions within
 the template to fill out the release document:
 
 ```bash
-$ cp projects/virtioso-camkes-vm/docs/reference/release/release_doc_template.md ${TII_SEL4_RELEASE}/${TII_SEL4_RELEASE}.md
-$ ${EDITOR} ${TII_SEL4_RELEASE}/${TII_SEL4_RELEASE}.md
+$ cp projects/virtioso-camkes-vm/docs/reference/release/release_doc_template.md ${VIRTIOSO_RELEASE}/${VIRTIOSO_RELEASE}.md
+$ ${EDITOR} ${VIRTIOSO_RELEASE}/${VIRTIOSO_RELEASE}.md
 ```
 
 ## Release Testing
@@ -223,8 +223,8 @@ The release package directory contains the required contents, and that the
 layout follows the one specified in chapter [Release Package](#release-package):
 
 ```bash
-$ tree ${TII_SEL4_RELEASE}
-tii_sel4_0.1/
+$ tree ${VIRTIOSO_RELEASE}
+virtioso_0.1/
 ├── bin
 │   ├── boot
 │   │   ├── bootcode.bin
@@ -244,7 +244,7 @@ tii_sel4_0.1/
 │   ├── vm-image-driver-vm-raspberrypi4-64.ext3 -> vm-image-driver-vm-raspberrypi4-64-20220318110254.rootfs.ext3
 │   ├── vm-image-driver-vm-raspberrypi4-64.manifest -> vm-image-driver-vm-raspberrypi4-64-20220318110254.rootfs.manifest
 │   └── vm-image-driver-vm-raspberrypi4-64.tar.bz2 -> vm-image-driver-vm-raspberrypi4-64-20220318110254.rootfs.tar.bz2
-└── tii_sel4_0.1.md
+└── virtioso_0.1.md
 
 2 directories, 18 files
 ```
@@ -252,11 +252,11 @@ tii_sel4_0.1/
 Create release package:
 
 ```bash
-$ fakeroot tar -cjf "${TII_SEL4_RELEASE}.tar.bz2" "${TII_SEL4_RELEASE}"
+$ fakeroot tar -cjf "${VIRTIOSO_RELEASE}.tar.bz2" "${VIRTIOSO_RELEASE}"
 ```
 
 Finally upload the release to [TII JFrog artifactory TII seL4 release repository](https://artifactory.ssrcdevops.tii.ae:443/artifactory/tii-sel4-releases/). Make sure to use correct release version.
 
 ---
 
-[environment setup instructions]: https://github.com/tiiuae/tii_sel4_build#setting-up-the-build-environment
+[environment setup instructions]: https://github.com/tiiuae/virtioso-build#setting-up-the-build-environment

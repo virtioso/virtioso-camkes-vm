@@ -12,7 +12,7 @@ export WORKSPACE=~/sel4
 mkdir -p $WORKSPACE && cd $WORKSPACE
 
 # Initialize repo with TII manifest
-repo init -u git@github.com:tiiuae/tii_sel4_manifest.git -b tii/development
+repo init -u git@github.com:tiiuae/virtioso-manifest.git -b tii/development
 
 # Sync all repositories
 repo sync -j$(nproc)
@@ -35,7 +35,7 @@ $WORKSPACE/
 │   └── ...
 ├── tools/
 │   └── seL4/              # seL4 tools
-├── tii_sel4_build/        # Build system
+├── virtioso-build/        # Build system
 ├── vm-images/
 │   └── meta-sel4/         # Yocto layer
 ├── Makefile               # Symlink to build system
@@ -156,7 +156,7 @@ export WORKSPACE=~/sel4
 mkdir -p $WORKSPACE && cd $WORKSPACE
 
 # 2. Initialize and sync
-repo init -u git@github.com:tiiuae/tii_sel4_manifest.git -b tii/development
+repo init -u git@github.com:tiiuae/virtioso-manifest.git -b tii/development
 repo sync -j$(nproc)
 
 # 3. Build Docker
@@ -214,7 +214,7 @@ The build uses cached Haskell packages:
 make build_cache
 ```
 
-Cache location: `~/.tii_sel4_build/stack/`
+Cache location: `~/.virtioso-build/stack/`
 
 ### Yocto Shared State
 

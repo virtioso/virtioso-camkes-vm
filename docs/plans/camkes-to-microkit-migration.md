@@ -901,7 +901,7 @@ io_proxy_t *io_proxies[] = { &vm0_io_proxy, &vm1_io_proxy };
 │                    Current Build Stack                       │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
-│  tii_sel4_build/Makefile                                    │
+│  virtioso-build/Makefile                                    │
 │         │                                                    │
 │         ├─► Docker container (build environment)            │
 │         │                                                    │
@@ -949,7 +949,7 @@ io_proxy_t *io_proxies[] = { &vm0_io_proxy, &vm1_io_proxy };
 Keep existing CAmkES build, add Microkit alongside:
 
 ```
-tii_sel4_build/
+virtioso-build/
 ├── Makefile                    # Top-level orchestration
 ├── camkes/                     # Existing CAmkES build
 │   └── CMakeLists.txt

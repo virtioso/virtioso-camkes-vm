@@ -1,5 +1,5 @@
 /*
- * Copyright 2024, Technology Innovation Institute
+ * Copyright 2024, Unikie
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -71,10 +71,25 @@ static void hyp_ftrace_do_dump(void)
 /* Public: notify that an IRQ was injected */
 void hyp_ftrace_irq_injected(void)
 {
+    static int call_count = 0;
+    static int armed_call_count = 0;
+    call_count++;
+
+    /* Log first few calls to confirm callback is connected */
+    if (call_count <= 3) {
+        ZF_LOGE("hyp_ftrace_irq_injected: call #%d (armed=%d)", call_count, hyp_ftrace_armed);
+    }
+
     if (hyp_ftrace_armed) {
+        armed_call_count++;
         hyp_ftrace_ticks_since_irq = 0;
+        /* Log when IRQ injection resets the timer while armed */
+        if (armed_call_count <= 5) {
+            ZF_LOGE("hyp_ftrace_irq_injected: timer reset (armed call #%d)", armed_call_count);
+        }
     }
 }
+
 
 /* Public: handle timer notification (called every 1 second) */
 void hyp_ftrace_handle_timer_notification(void)
@@ -145,6 +160,11 @@ void hyp_ftrace_init(vm_t *vm, void *cookie)
     res = vm_reserve_memory_at(vm, hf->base, hf->size,
                                hyp_ftrace_fault_handler, cookie);
     ZF_LOGF_IF(!res, "hyp_ftrace: cannot reserve memory at 0x%"PRIxPTR, hf->base);
+
+    /* Register callback to be notified on every vm_inject_irq() call */
+    vgic_set_irq_inject_callback(hyp_ftrace_irq_injected);
+    ZF_LOGE("hyp_ftrace: registered vGIC IRQ injection callback");
+
 #ifdef CONFIG_ENABLE_BENCHMARKS
     ZF_LOGE("hyp_ftrace: registered at 0x%"PRIxPTR" (size 0x%zx, benchmarks enabled)",
             hf->base, hf->size);

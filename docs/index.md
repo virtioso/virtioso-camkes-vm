@@ -123,7 +123,7 @@ graph TB
 
 ```bash
 # Clone and sync repositories
-repo init -u git@github.com:tiiuae/tii_sel4_manifest.git -b tii/development
+repo init -u git@github.com:tiiuae/virtioso-manifest.git -b tii/development
 repo sync
 
 # Build Docker container
@@ -151,7 +151,7 @@ See [Getting Started](start-here/prerequisites.md) for detailed instructions.
 | `projects/vm-linux/` | Guest Linux integration |
 | `sources/kmod-sel4-virt/` | Kernel module bridging QEMU and seL4 RPC |
 | `sources/qemu-sel4-virtio/` | QEMU with seL4 accelerator for virtio backends |
-| `tii_sel4_build/` | Build system and Docker |
+| `virtioso-build/` | Build system and Docker |
 | `vm-images/meta-sel4/` | Yocto layer for guest images |
 
 ## Supported Platforms

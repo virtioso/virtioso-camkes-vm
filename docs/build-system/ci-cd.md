@@ -69,14 +69,14 @@ graph LR
 ### Workflow Definition
 
 ```yaml
-# tii_sel4_build/.github/workflows/build-vm-images.yml
+# virtioso-build/.github/workflows/build-vm-images.yml
 name: Build vm images
 on:
   workflow_call:
     inputs:
       manifest-url:
         description: 'Manifest repository'
-        default: 'git@github.com:tiiuae/tii_sel4_manifest.git'
+        default: 'git@github.com:tiiuae/virtioso-manifest.git'
         type: string
       manifest-revision:
         description: 'Manifest revision'
@@ -283,7 +283,7 @@ artifacts:
 ### Test Workflow
 
 ```yaml
-# tii_sel4_build/.github/workflows/run_tests.yml
+# virtioso-build/.github/workflows/run_tests.yml
 name: Run tests
 on:
   workflow_call:
@@ -353,7 +353,7 @@ tii-sel4-artifacts/
 ### Pull Request Trigger
 
 ```yaml
-# tii_sel4_build/.github/workflows/trigger-pr.yml
+# virtioso-build/.github/workflows/trigger-pr.yml
 name: PR Build
 on:
   pull_request:
@@ -371,7 +371,7 @@ jobs:
 ### Nightly Trigger
 
 ```yaml
-# tii_sel4_build/.github/workflows/trigger-nightly.yml
+# virtioso-build/.github/workflows/trigger-nightly.yml
 name: Nightly Build
 on:
   schedule:
@@ -388,7 +388,7 @@ jobs:
 ### Manual Trigger
 
 ```yaml
-# tii_sel4_build/.github/workflows/trigger-manual.yml
+# virtioso-build/.github/workflows/trigger-manual.yml
 name: Manual Build
 on:
   workflow_dispatch:
@@ -456,7 +456,7 @@ gh run view <run-id> --log
 
 ```bash
 # Reproduce CI build locally
-cd tii_sel4_build
+cd virtioso-build
 make docker
 make raspberrypi4-64_defconfig
 make vm_qemu_virtio
@@ -475,9 +475,9 @@ make vm_qemu_virtio
 
 | File | Description |
 |------|-------------|
-| `tii_sel4_build/.github/workflows/` | Workflow definitions |
-| `tii_sel4_build/.github/actions/` | Custom actions |
-| `tii_sel4_build/scripts/` | Build scripts |
+| `virtioso-build/.github/workflows/` | Workflow definitions |
+| `virtioso-build/.github/actions/` | Custom actions |
+| `virtioso-build/scripts/` | Build scripts |
 
 ## Related Documentation
 

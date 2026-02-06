@@ -408,7 +408,7 @@ kernel/tools/decode_ftrace_binary.py results/sel4.log \
 ### Configuration
 | File | Purpose |
 |------|---------|
-| `tii_sel4_build/configs/orinagx_defconfig` | seL4 kernel config with benchmarks |
+| `virtioso-build/configs/orinagx_defconfig` | seL4 kernel config with benchmarks |
 | `projects/vm-examples/.../orinagx/devices.camkes` | CAmkES VM configuration |
 
 ## Future Enhancements

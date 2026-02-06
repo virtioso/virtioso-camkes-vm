@@ -158,7 +158,7 @@ The kernel runs with virtual addresses (0x8080xxxxxxxx) but physical memory star
 | `kernel/tools/dts/orinagx-diag.dts` | Diagnostic mode DTS (RAM at 0x80032000) |
 | `kernel/src/plat/orinagx/config.cmake` | Platform config, KernelOrinAGXDiagRegion option |
 | `tools/seL4/cmake-tool/helpers/application_settings.cmake` | IMAGE_START_ADDR logic |
-| `tii_sel4_build/scripts/build_sel4.sh` | DIAG_REGION build variable |
+| `virtioso-build/scripts/build_sel4.sh` | DIAG_REGION build variable |
 
 ## Build Commands
 

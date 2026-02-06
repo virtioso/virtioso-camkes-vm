@@ -36,8 +36,8 @@ From test `20251221-163258`:
 ### Build System
 | File | Changes |
 |------|---------|
-| `tii_sel4_build/scripts/build_sel4.sh` | Added `BENCHMARK_TRACK` variable support |
-| `tii_sel4_build/Makefile` | Added `BENCHMARK_TRACK=ON` to ftrace defconfig |
+| `virtioso-build/scripts/build_sel4.sh` | Added `BENCHMARK_TRACK` variable support |
+| `virtioso-build/Makefile` | Added `BENCHMARK_TRACK=ON` to ftrace defconfig |
 
 ### Test Driver
 | File | Changes |

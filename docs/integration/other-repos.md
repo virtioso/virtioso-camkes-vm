@@ -12,7 +12,7 @@ This document summarizes TII modifications across all seL4 ecosystem repositorie
 | `projects/vm-linux/` | rpi4 | Guest Linux integration |
 | `projects/vm-examples/` | rpi4 | Example applications |
 | `tools/seL4/` | rpi4 | seL4 tools and elfloader |
-| `tii_sel4_build/` | tii/development | Build system |
+| `virtioso-build/` | tii/development | Build system |
 | `vm-images/meta-sel4/` | tii/development | Yocto layer |
 
 ## seL4 Projects Libraries (sel4_projects_libs)
@@ -165,7 +165,7 @@ int vm_ram_reserve_at(vm_t *vm, uintptr_t gpa, size_t size);
 - ARM32 defaults for RPi4
 - Platform detection
 
-## Build System (tii_sel4_build)
+## Build System (virtioso-build)
 
 ### Docker Environment
 

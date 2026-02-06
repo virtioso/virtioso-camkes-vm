@@ -100,7 +100,7 @@ The `scarthgap` branch matches our Yocto release (both use scarthgap).
 
 #### 2. Update setup.sh
 
-**File**: `tii_sel4_build/yocto/setup.sh`
+**File**: `virtioso-build/yocto/setup.sh`
 
 Added meta-tegra to the layer configuration:
 
@@ -492,7 +492,7 @@ Output: `vm-images/build/tmp/deploy/images/vm-jetson-agx-orin/`
 
 ```bash
 # Configure for Orin AGX
-# (Requires orinagx_defconfig in tii_sel4_build/Makefile)
+# (Requires orinagx_defconfig in virtioso-build/Makefile)
 
 # Build vm_minimal
 make vm_minimal

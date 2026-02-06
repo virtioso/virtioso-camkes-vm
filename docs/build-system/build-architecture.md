@@ -36,9 +36,9 @@ graph TB
 
 ```
 $WORKSPACE/
-├── Makefile                    # Symlink to tii_sel4_build/Makefile
+├── Makefile                    # Symlink to virtioso-build/Makefile
 ├── .config                     # Platform configuration
-├── tii_sel4_build/
+├── virtioso-build/
 │   ├── Makefile               # Main build orchestration
 │   ├── docker/
 │   │   ├── Dockerfile         # Build container
@@ -87,7 +87,7 @@ flowchart TD
 The container provides a consistent build environment:
 
 ```dockerfile
-# tii_sel4_build/docker/Dockerfile
+# virtioso-build/docker/Dockerfile
 FROM debian:bullseye
 
 # Install build dependencies
@@ -136,7 +136,7 @@ docker run -it \
 ### Top-Level Makefile
 
 ```makefile
-# tii_sel4_build/Makefile
+# virtioso-build/Makefile
 
 # Docker targets
 docker:
@@ -300,7 +300,7 @@ CapDL tool requires Haskell Stack:
 make build_cache
 ```
 
-Cache location: `~/.tii_sel4_build/stack/`
+Cache location: `~/.virtioso-build/stack/`
 
 ### Yocto Shared State
 

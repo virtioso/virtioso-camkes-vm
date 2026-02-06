@@ -74,7 +74,7 @@ export YOCTO_SOURCE_MIRROR_DIR=~/yocto-downloads
 mkdir -p $YOCTO_SOURCE_MIRROR_DIR
 
 # Build cache for Haskell packages
-export BUILD_CACHE_DIR=~/.tii_sel4_build
+export BUILD_CACHE_DIR=~/.virtioso-build
 mkdir -p ${BUILD_CACHE_DIR}/stack
 ```
 

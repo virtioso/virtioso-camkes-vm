@@ -91,6 +91,7 @@ graph TB
 - [Orin AGX RAS Errors](platforms/orin-agx/ras-errors.md) - Canonical RAS problem statement and status
 - [Orin AGX Debugging Guide](platforms/orin-agx/orin-agx-debugging-guide.md) - Start here for Orin AGX work
 - [Orin AGX Complete Debugging Reference](platforms/orin-agx/orin-agx-complete-debugging-reference.md)
+- [Orin AGX Cache Investigation](platforms/orin-agx/investigations/orin-cache-investigation.md)
 - [Orin AGX Porting Guide](platforms/orin-agx/porting/orinagx-camkes-porting.md)
 - [Orin AGX: vm_qemu_virtio Port](platforms/orin-agx/porting/vm-qemu-virtio-orinagx.md)
 - [Orin AGX: vm-image-minimal Port](platforms/orin-agx/porting/vm-image-minimal-orinagx.md)
@@ -144,7 +145,7 @@ See [Getting Started](start-here/prerequisites.md) for detailed instructions.
 
 | Repository | Description |
 |------------|-------------|
-| `projects/tii-sel4-vm` | Main TII project (this documentation) |
+| `projects/virtioso-camkes-vm` | Main TII project (this documentation) |
 | `kernel/` | seL4 kernel with TII modifications |
 | `projects/sel4_projects_libs/` | VMM libraries with large page, PCIe, IRQ enhancements |
 | `projects/vm-linux/` | Guest Linux integration |

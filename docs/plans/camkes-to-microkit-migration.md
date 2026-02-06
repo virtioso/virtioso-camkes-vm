@@ -51,7 +51,7 @@ CAmkES Stack:                    Microkit Stack:
 
 ## Current CAmkES Usage Analysis
 
-### CAmkES Features Used in tii-sel4-vm
+### CAmkES Features Used in virtioso-camkes-vm
 
 **1. Component Definitions**
 
@@ -561,7 +561,7 @@ This section provides detailed analysis and mitigation approaches for each major
 
 ### Challenge 1: VM Support Maturity (libsel4vm vs libvmm)
 
-#### Current libsel4vm Usage in tii-sel4-vm
+#### Current libsel4vm Usage in virtioso-camkes-vm
 
 Analysis of source code reveals these libsel4vm APIs are used:
 

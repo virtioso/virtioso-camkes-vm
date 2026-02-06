@@ -18,7 +18,7 @@ The root cause was fixed in `sel4_projects_lib` commit `e1d6ab168068dafbc0a0b539
 | Observation | Implication |
 |-------------|-------------|
 | vm_minimal works | Base VMM code is correct |
-| vm_qemu_virtio broken | Something in tii-sel4-vm causes the issue |
+| vm_qemu_virtio broken | Something in virtioso-camkes-vm causes the issue |
 | vm_qemu_virtio with VM1 removed still broken | NOT an RPC issue between VM0 and VM1 |
 | Guest VCPU in Restart state but not in ready queue | Reply never sent to resume guest |
 | VMM blocks on seL4_Recv() without calling seL4_Reply() | Fault handling path broken somewhere |
@@ -60,9 +60,9 @@ Scheduler instrumentation captured this pattern:
 
 ---
 
-### Hypothesis 2: tii-sel4-vm Module Interference ⚠️ INVESTIGATING
+### Hypothesis 2: virtioso-camkes-vm Module Interference ⚠️ INVESTIGATING
 
-**Theory:** A module added by tii-sel4-vm interferes with VM0's fault handling or notification processing.
+**Theory:** A module added by virtioso-camkes-vm interferes with VM0's fault handling or notification processing.
 
 **Status:** Under investigation
 
@@ -70,12 +70,12 @@ Scheduler instrumentation captured this pattern:
 
 | Component | vm_minimal | vm_qemu_virtio |
 |-----------|------------|----------------|
-| Base VMM | projects/vm/ | projects/vm/ + tii-sel4-vm |
+| Base VMM | projects/vm/ | projects/vm/ + virtioso-camkes-vm |
 | Modules | Standard | + hyp_ftrace, guest_config, trace, fdt_plat_customize |
 | Fault handlers | Standard | + hyp_ftrace_fault_handler, potentially others |
 | Notification handlers | Standard | + potentially additional handlers |
 
-**tii-sel4-vm modules to investigate:**
+**virtioso-camkes-vm modules to investigate:**
 
 1. **hyp_ftrace** (`src/camkes/modules/hyp_ftrace.c`)
    - Registers fault handler for memory region
@@ -101,7 +101,7 @@ Scheduler instrumentation captured this pattern:
 
 **Next steps:**
 - [ ] Check if io_proxy module is compiled in even without VM1
-- [ ] Check what notification handlers are registered by tii-sel4-vm
+- [ ] Check what notification handlers are registered by virtioso-camkes-vm
 - [ ] Compare `handle_async_event()` callback registration between vm_minimal and vm_qemu_virtio
 - [ ] Add logging to identify which code path handles the fault
 
@@ -160,15 +160,15 @@ If the badge is somehow wrong, the fault would be treated as a notification and 
 
 ### Configuration B: vm_qemu_virtio with VM0+VM1 (BROKEN)
 - Two VMs with virtio RPC
-- Uses projects/vm/ + tii-sel4-vm
-- Additional modules from tii-sel4-vm
+- Uses projects/vm/ + virtioso-camkes-vm
+- Additional modules from virtioso-camkes-vm
 
 ### Configuration C: vm_qemu_virtio with VM0 only (BROKEN)
 - Single VM (VM1 removed from CAmkES)
-- Uses projects/vm/ + tii-sel4-vm
-- Still has tii-sel4-vm modules
+- Uses projects/vm/ + virtioso-camkes-vm
+- Still has virtioso-camkes-vm modules
 
-**Key insight:** Configuration C is broken while Configuration A works. The difference is tii-sel4-vm code, NOT the presence of VM1 or RPC.
+**Key insight:** Configuration C is broken while Configuration A works. The difference is virtioso-camkes-vm code, NOT the presence of VM1 or RPC.
 
 ## Investigation Log
 
@@ -179,7 +179,7 @@ If the badge is somehow wrong, the fault would be treated as a notification and 
 3. Identified that VMM blocks on seL4_Recv() without sending seL4_Reply()
 4. Initial hypothesis: Driver VM RPC notification callback bug
 5. User reported bug occurs even with VM1 removed → hypothesis disproven
-6. New direction: investigate tii-sel4-vm modules that affect VM0
+6. New direction: investigate virtioso-camkes-vm modules that affect VM0
 
 ### 2026-02-02: Comparing vm_minimal vs vm_qemu_virtio
 

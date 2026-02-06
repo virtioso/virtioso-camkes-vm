@@ -52,7 +52,7 @@ Known issues:
 
 *Update <SHA1> to point the release HEAD, and make sure that the link works.*
 
-The release can be build by following [release build instructions](https://github.com/tiiuae/tii-sel4-vm/blob/<SHA1>/docs/release_instructions.md#building-the-release).
+The release can be build by following [release build instructions](https://github.com/virtioso/virtioso-camkes-vm/blob/<SHA1>/docs/reference/release/release_instructions.md#building-the-release).
 
 ## Run Instructions
 

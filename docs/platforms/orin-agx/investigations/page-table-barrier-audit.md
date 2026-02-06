@@ -422,7 +422,7 @@ Either:
 - ARM ARM DDI 0487: R_LFHQG - Speculative page table walks
 - Linux KVM: `arch/arm64/kvm/hyp/pgtable.c` - kvm_pgtable_walk()
 - Linux KVM commit: "Synchronise speculative page table walks on translation regime change"
-- seL4 Orin AGX debugging guide: `docs/reference/orin-agx-debugging-guide.md`
+- seL4 Orin AGX debugging guide: `docs/platforms/orin-agx/orin-agx-debugging-guide.md`
 
 ---
 

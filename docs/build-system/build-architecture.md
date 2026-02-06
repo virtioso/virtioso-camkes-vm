@@ -188,7 +188,7 @@ cmake -G Ninja \
     -DCAMKES_VM_APP=${CAMKES_VM_APP} \
     -DAARCH64=${AARCH64} \
     -B ${BUILD_DIR} \
-    -S projects/tii-sel4-vm
+    -S projects/virtioso-camkes-vm
 
 # Build
 ninja -C ${BUILD_DIR}
@@ -197,10 +197,10 @@ ninja -C ${BUILD_DIR}
 ### CMake Configuration
 
 ```cmake
-# projects/tii-sel4-vm/CMakeLists.txt
+# projects/virtioso-camkes-vm/CMakeLists.txt
 
 cmake_minimum_required(VERSION 3.12)
-project(tii-sel4-vm C ASM)
+project(virtioso-camkes-vm C ASM)
 
 # Find seL4 packages
 find_package(seL4 REQUIRED)

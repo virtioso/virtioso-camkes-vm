@@ -224,4 +224,4 @@ mcp__sel4-autopilot__test_vm_minimal(binary_path="...")
 
 - `projects/vm-examples/apps/Arm/vm_minimal/orinagx/devices.camkes` - Single VM Orin AGX config
 - `apps/Arm/vm_qemu_virtio/rpi4/devices.camkes` - RPi4 2-VM config (reference)
-- `projects/tii-sel4-vm/docs/architecture/` - Virtio architecture docs
+- `projects/virtioso-camkes-vm/docs/architecture/` - Virtio architecture docs

@@ -32,7 +32,7 @@ This ensures autopilot data stays within the project directory and survives cont
 
 **ALWAYS READ BEFORE ANY ORIN AGX WORK:**
 
-📚 **Master Guide**: `projects/tii-sel4-vm/docs/reference/orin-agx-debugging-guide.md`
+📚 **Master Guide**: `projects/virtioso-camkes-vm/docs/platforms/orin-agx/orin-agx-debugging-guide.md`
 
 This guide links to all investigation documents and contains:
 - Current bug status (what's fixed, what's in progress)
@@ -110,7 +110,7 @@ rm -rf vm-images/build/tmp
 | Directory | Description |
 |-----------|-------------|
 | `kernel/` | seL4 microkernel (TII fork with modifications) |
-| `projects/tii-sel4-vm/` | Main TII project - virtio VMM components |
+| `projects/virtioso-camkes-vm/` | Main TII project - virtio VMM components |
 | `projects/sel4_projects_libs/` | VMM libraries (libsel4vm, libsel4vmmplatsupport) |
 | `projects/vm/` | CAmkES VM framework |
 | `projects/vm-linux/` | Guest Linux integration, camkes-connector modules |
@@ -145,7 +145,7 @@ rm -rf vm-images/build/tmp
 - SWIOTLB provides cross-VM DMA bounce buffer
 - GICv2m emulation enables MSI for vhost acceleration
 
-## Key Source Files (projects/tii-sel4-vm/)
+## Key Source Files (projects/virtioso-camkes-vm/)
 
 | File | Purpose |
 |------|---------|
@@ -202,14 +202,14 @@ make shell
 
 ## Documentation
 
-Detailed documentation in `projects/tii-sel4-vm/docs/`:
+Detailed documentation in `projects/virtioso-camkes-vm/docs/`:
 - `architecture/` - System overview, virtio architecture, RPC protocol
 - `components/` - I/O Proxy, PCI passthrough, interrupt handling
-- `getting-started/` - Build and run instructions
+- `start-here/` - Build and run instructions
 - `integration/` - QEMU backend, kernel modifications, kmod-sel4-virt
-- `reference/tegra-cache-operations.md` - **CRITICAL: Tegra dc civac vs dc cisw issue**
-- `reference/tegra-whole-cache-operations.md` - **ARM64 whole-cache operations (dc cisw broken on ALL ARM64)**
-- `reference/orin-ras-error-investigation.md` - RAS error investigation on Orin AGX
+- `platforms/orin-agx/reference/tegra-cache-operations.md` - **CRITICAL: Tegra dc civac vs dc cisw issue**
+- `platforms/orin-agx/reference/tegra-whole-cache-operations.md` - **ARM64 whole-cache operations (dc cisw broken on ALL ARM64)**
+- `platforms/orin-agx/investigations/orin-ras-error-investigation.md` - RAS error investigation on Orin AGX
 
 ## Tegra Platform Notes (Xavier/Orin)
 
@@ -219,11 +219,11 @@ The `dc cisw` (clean and invalidate by set/way) instruction does not work correc
 
 **Always use `dc civac` (clean and invalidate by VA to PoC) for cache maintenance on Tegra.**
 
-See `projects/tii-sel4-vm/docs/reference/tegra-cache-operations.md` for details, code examples, and affected components that need auditing.
+See `projects/virtioso-camkes-vm/docs/platforms/orin-agx/reference/tegra-cache-operations.md` for details, code examples, and affected components that need auditing.
 
 **OPEN BUG: RAS Errors on Orin AGX**
 
-⚠️ **MUST READ**: See master guide at `projects/tii-sel4-vm/docs/reference/orin-agx-debugging-guide.md`
+⚠️ **MUST READ**: See master guide at `projects/virtioso-camkes-vm/docs/platforms/orin-agx/orin-agx-debugging-guide.md`
 
 **Status (2025-12-20):**
 - **Bug B (0x0xxx errors)**: ✓ FIXED - safe PTEs during unmap
@@ -323,7 +323,21 @@ cp -r build/workspace/attic/sources/linux-jammy-nvidia-tegra.* \
 devtool modify linux-jammy-nvidia-tegra --no-extract
 ```
 
-See: `projects/tii-sel4-vm/docs/getting-started/kernel-development-workflow.md`
+See: `projects/virtioso-camkes-vm/docs/start-here/kernel-development-workflow.md`
+
+## Repo Roots & Symlinked Paths
+
+This workspace is a repo manifest checkout, not a single git repository. Many
+paths at `~/tii-sel4` are linkfiles/symlinks into other repos.
+
+Before `git add` or `git commit`, always work from the real repo root:
+
+```bash
+git -C <path> rev-parse --show-toplevel
+```
+
+If you are editing `docs/` (linked to this repo), commit from:
+`projects/virtioso-camkes-vm/`.
 
 ## Orin AGX Testing with Autopilot
 

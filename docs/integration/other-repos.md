@@ -1,6 +1,6 @@
 # Other Repository Changes
 
-This document summarizes TII modifications across all seL4 ecosystem repositories beyond the main `tii-sel4-vm` project.
+This document summarizes TII modifications across all seL4 ecosystem repositories beyond the main `virtioso-camkes-vm` project.
 
 ## Repository Overview
 

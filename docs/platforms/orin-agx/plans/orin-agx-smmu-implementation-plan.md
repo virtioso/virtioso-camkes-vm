@@ -405,7 +405,7 @@ struct smmu_device_config *camkes_get_smmu_config(const char *name) {
 
 #### 3.2 VMM IOMMU Manager
 
-**New file**: `projects/tii-sel4-vm/src/iommu_manager.c`
+**New file**: `projects/virtioso-camkes-vm/src/iommu_manager.c`
 
 ```c
 /*

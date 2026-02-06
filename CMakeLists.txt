@@ -7,10 +7,10 @@
 
 cmake_minimum_required(VERSION 3.12.0)
 include(settings.cmake)
-project(tii-camkes-vm C CXX ASM)
+project(virtioso-camkes-vm C CXX ASM)
 
-find_package(tii-camkes-vm REQUIRED)
-tii_camkes_vm_setup()
+find_package(virtioso-camkes-vm REQUIRED)
+virtioso_camkes_vm_setup()
 
 file(
     GLOB

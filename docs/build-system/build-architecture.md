@@ -210,7 +210,7 @@ find_package(CAmkES REQUIRED)
 include(tii_camkes_vm_helpers.cmake)
 
 # Build library
-add_library(tii_sel4vm OBJECT
+add_library(virtioso_camkes_vm OBJECT
     src/libsel4vm_glue.c
     src/io_proxy.c
     src/fdt.c

@@ -88,7 +88,7 @@ Entry 1: IRQ number
 
 Latest test with kernel entry/exit logging:
 ```
-/home/hlyytine/pkvm/autopilot/results/20251221-163258/
+/home/hlyytine/autopilot/results/20251221-163258/
 ├── ftrace.bin      # 180MB raw binary
 ├── ftrace.meta     # JSON metadata
 ├── sel4.log        # Console output

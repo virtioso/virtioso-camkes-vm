@@ -845,7 +845,7 @@ mcp__sel4-autopilot__get_sel4_log(request_id="...")
 
 ```bash
 # Analyze sel4test log for RAS errors
-/home/hlyytine/pkvm/autopilot/analyze_sel4log.py <results>/sel4.log
+/home/hlyytine/autopilot/analyze_sel4log.py <results>/sel4.log
 
 # Decode ftrace binary data
 /home/hlyytine/tii-sel4/kernel/tools/decode_ftrace_binary.py <ftrace_data>
@@ -863,9 +863,9 @@ mcp__sel4-autopilot__get_sel4_log(request_id="...")
 
 ## Results Location
 
-- Filtered seL4 output: `/home/hlyytine/pkvm/autopilot/results/<timestamp>/sel4.log`
-- Raw UART capture: `/home/hlyytine/pkvm/autopilot/results/<timestamp>/uart-raw.log`
-- Multi-run logs: `/home/hlyytine/pkvm/autopilot/results/<timestamp>/run_N/sel4.log`
+- Filtered seL4 output: `/home/hlyytine/autopilot/results/<timestamp>/sel4.log`
+- Raw UART capture: `/home/hlyytine/autopilot/results/<timestamp>/uart-raw.log`
+- Multi-run logs: `/home/hlyytine/autopilot/results/<timestamp>/run_N/sel4.log`
 
 ---
 

@@ -53,7 +53,7 @@ This prevents confusion with old binaries and frees EFI partition space.
 
 #### 1.1 Add `build_capdl_app()` function to MCP server
 
-**File**: `/home/hlyytine/pkvm/autopilot/sel4_mcp_server.py`
+**File**: `/home/hlyytine/autopilot/sel4_mcp_server.py`
 
 ```python
 async def build_capdl_app(app: str, mode: str = "el2") -> dict:
@@ -88,7 +88,7 @@ Ensure CAmkES-specific variables are mapped:
 
 #### 2.1 Add cleanup step to upload harness
 
-**File**: `/home/hlyytine/pkvm/autopilot/seL4BootHarness.py`
+**File**: `/home/hlyytine/autopilot/seL4BootHarness.py`
 
 Modify `SeL4UploadHarness` and `SeL4UploadOnlyHarness` to clean up old binaries:
 
@@ -122,7 +122,7 @@ Apply the same cleanup to sel4test uploads for consistency:
 
 #### 3.1 Reuse existing `log_port()` function
 
-**File**: `/home/hlyytine/pkvm/autopilot/BootHarness.py` (lines 48-55)
+**File**: `/home/hlyytine/autopilot/BootHarness.py` (lines 48-55)
 
 ```python
 def log_port(dev, fname, stop_event, baud=115200):
@@ -181,7 +181,7 @@ results/<timestamp>/
 
 #### 4.1 Create `filter_capdl_start.py`
 
-**File**: `/home/hlyytine/pkvm/autopilot/filter_capdl_start.py`
+**File**: `/home/hlyytine/autopilot/filter_capdl_start.py`
 
 ```python
 #!/usr/bin/env python3
@@ -225,7 +225,7 @@ if __name__ == "__main__":
 
 #### 4.2 Create `filter_vm_console.py` for VM UART
 
-**File**: `/home/hlyytine/pkvm/autopilot/filter_vm_console.py`
+**File**: `/home/hlyytine/autopilot/filter_vm_console.py`
 
 ```python
 #!/usr/bin/env python3
@@ -274,7 +274,7 @@ Success criteria will be added later. For now, just capture the logs.
 
 #### 5.1 Add `capdl` request type
 
-**File**: `/home/hlyytine/pkvm/autopilot/orin_kernel_autopilot.py`
+**File**: `/home/hlyytine/autopilot/orin_kernel_autopilot.py`
 
 Add new branch in request processing:
 
@@ -357,7 +357,7 @@ def process_capdl_request(request, result_dir):
 
 #### 6.1 Add CAmkES-specific MCP tools
 
-**File**: `/home/hlyytine/pkvm/autopilot/sel4_mcp_server.py`
+**File**: `/home/hlyytine/autopilot/sel4_mcp_server.py`
 
 ```python
 # VM boot detection settings
@@ -419,7 +419,7 @@ async def get_vm_logs(request_id: str) -> dict:
 
 #### 7.1 Extend `sel4_client.py`
 
-**File**: `/home/hlyytine/pkvm/autopilot/sel4_client.py`
+**File**: `/home/hlyytine/autopilot/sel4_client.py`
 
 ```python
 def submit_capdl_test(
@@ -503,7 +503,7 @@ def get_capdl_logs(timestamp: str) -> dict:
 
 Apply cleanup to existing sel4test workflow for consistency:
 
-**File**: `/home/hlyytine/pkvm/autopilot/seL4BootHarness.py`
+**File**: `/home/hlyytine/autopilot/seL4BootHarness.py`
 
 ```python
 def cleanup_old_binaries():

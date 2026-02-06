@@ -772,7 +772,7 @@ From UEFI CPER specification, populated by firmware in GHES error status block:
 
 #### Actual RAS Errors Observed on Orin with seL4
 
-From test logs (`/home/hlyytine/autopilot/results/20251212-194320/sel4.log`):
+From test logs (`/home/hlyytine/autopilot/results/20251212-194320/console/sel4.log`):
 
 **IOB Error:**
 ```

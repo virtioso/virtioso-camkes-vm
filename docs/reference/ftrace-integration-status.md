@@ -91,8 +91,9 @@ Latest test with kernel entry/exit logging:
 /home/hlyytine/autopilot/results/20251221-163258/
 ├── ftrace.bin      # 180MB raw binary
 ├── ftrace.meta     # JSON metadata
-├── sel4.log        # Console output
-└── uart-raw.log    # Raw UART capture
+├── console/
+│   ├── sel4.log    # Profile-defined console output (if configured)
+│   └── tty0.raw    # Raw UART capture (profile-defined)
 ```
 
 ## Fast Indexed Format (NEW)

@@ -371,7 +371,7 @@ FTRACE: SysBenchmarkFinalizeLog called, dumping ftrace...
 
 Decode with:
 ```bash
-kernel/tools/decode_ftrace_binary.py results/sel4.log \
+kernel/tools/decode_ftrace_binary.py results/console/<profile-defined-log> \
     --kernel orinagx_vm_qemu_virtio/kernel/kernel.elf
 ```
 

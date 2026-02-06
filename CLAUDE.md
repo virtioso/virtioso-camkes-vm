@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## IMPORTANT: Read AGENTS.md First
+
+Before using this repository, read `AGENTS.md` and follow its preflight requirements and defaults.
+
 ## CRITICAL: Autopilot Working Directory Configuration
 
 **MANDATORY:** When calling ANY autopilot MCP tool, ALWAYS pass the `autopilot_dir` parameter set to `<working_directory>/autopilot`.
@@ -13,18 +17,7 @@ The working directory is shown in your environment info (e.g., `Working director
 autopilot_dir="/home/hlyytine/tii-sel4/autopilot"
 ```
 
-**Affected tools (pass autopilot_dir to ALL of these):**
-- `mcp__sel4-autopilot__build_sel4test`
-- `mcp__sel4-autopilot__test_sel4_binary`
-- `mcp__sel4-autopilot__test_sel4_multi_run`
-- `mcp__sel4-autopilot__check_sel4_test`
-- `mcp__sel4-autopilot__get_sel4_log`
-- `mcp__sel4-autopilot__get_multi_run_logs`
-- `mcp__sel4-autopilot__query_ftrace`
-- `mcp__sel4-autopilot__build_vm_minimal`
-- `mcp__sel4-autopilot__test_vm_minimal`
-- `mcp__sel4-autopilot__get_vm_logs`
-- `mcp__sel4-autopilot__list_sel4_tests`
+**Affected tools:** All `sel4-autopilot` MCP tools. See `AGENTS.md` for the current tool list and workflow.
 
 This ensures autopilot data stays within the project directory and survives context compaction.
 
@@ -370,38 +363,12 @@ cd /home/hlyytine/autopilot
 ### Autopilot Features
 - Automatic UEFI menu navigation to EFI shell
 - Captures output until 30 seconds quiescent
-- Filters bootloader/UEFI output, returns clean seL4 log
+- Filters bootloader/UEFI output via profile-defined `analyze_logs` steps
 - Automatic recovery to stock Linux after each test
 - Skips unnecessary reboots when board is already ready
-- **Multi-run mode**: Run same binary N times to detect intermittent failures
-
-### Multi-Run Testing
-
-For stress testing or detecting intermittent issues:
-
-```python
-from sel4_client import submit_multi_run_test, wait_for_result, get_multi_run_logs
-
-# Run same binary 5 times
-timestamp = submit_multi_run_test(
-    binary_path='/path/to/sel4test.efi',
-    run_count=5,
-    test_type='sel4'
-)
-result = wait_for_result(timestamp, timeout=300 * 5)
-logs = get_multi_run_logs(timestamp)
-print(f"Completed: {logs['summary']['completed_runs']}/{logs['summary']['total_runs']}")
-```
-
-```bash
-# From command line
-./sel4_client.py submit-multi /path/to/binary.efi --runs 5 --type sel4 --wait
-```
-
+ 
 ### Results Location
-- Filtered seL4 output: `/home/hlyytine/tii-sel4/autopilot/results/<timestamp>/sel4.log`
-- Raw UART capture: `/home/hlyytine/tii-sel4/autopilot/results/<timestamp>/uart-raw.log`
-- Multi-run logs: `/home/hlyytine/tii-sel4/autopilot/results/<timestamp>/run_N/sel4.log`
+- Profile-defined logs live under: `/home/hlyytine/tii-sel4/autopilot/results/<timestamp>/console/`
 
 ### UART Reliability
 
@@ -411,203 +378,10 @@ If you encounter LZ4 decompression failures in ftrace data, the issue is in the 
 - No matches within 12 bytes of uncompressed end (MFLIMIT check)
 - Last 5 bytes must be literals (LASTLITERALS check)
 
-### MANDATORY: Build and Test Workflow for Orin AGX
+### Build/Test Workflow (Authoritative)
 
-**CRITICAL:** Before submitting ANY test to the Orin AGX board, you MUST use the MCP tools to build and test. Do NOT run `make sel4test` directly or check timestamps - always use the MCP tools for a clean, reproducible build.
-
-**Available MCP Tools (sel4-autopilot server):**
-- `mcp__sel4-autopilot__build_sel4test` - Build sel4test (always clean build)
-- `mcp__sel4-autopilot__test_sel4_binary` - Test a binary on hardware
-- `mcp__sel4-autopilot__test_sel4_multi_run` - Run N iterations for stress testing
-- `mcp__sel4-autopilot__get_sel4_log` - Get console output from a test
-- `mcp__sel4-autopilot__list_sel4_tests` - List pending/completed/failed tests
-- `mcp__sel4-autopilot__query_ftrace` - Query indexed ftrace data (for el2-ftrace builds)
-
-**Workflow:**
-1. **Build** - Use `mcp__sel4-autopilot__build_sel4test` with mode `el2` (default) or `el1`
-   - `el2` = hypervisor mode (`orinagx_defconfig`) - **DEFAULT**
-   - `el1` = no hypervisor (`orinagx_nohyp_defconfig`)
-   - `el2-ftrace` = hypervisor with function tracing (for debugging)
-   - Returns `binary_path` on success
-
-2. **Test** - Use `mcp__sel4-autopilot__test_sel4_binary` with the binary path
-   - Automatically uploads, boots, and captures output
-   - Returns console output when complete
-
-3. **Analyze** - Run the analyzer on results:
-   ```bash
-   /home/hlyytine/autopilot/analyze_sel4log.py <results>/sel4.log
-   ```
-
-### Automatic RAS Error Testing Workflow
-
-**IMPORTANT:** When investigating or fixing RAS errors, ALWAYS use the automated test-and-analyze workflow after building changes:
-
-1. Use `mcp__sel4-autopilot__build_sel4test` with mode `el2` (or `el1` if explicitly requested)
-
-2. Use `mcp__sel4-autopilot__test_sel4_binary` or `mcp__sel4-autopilot__test_sel4_multi_run` to run the test
-
-3. Analyze results: `/home/hlyytine/autopilot/analyze_sel4log.py <results>/sel4.log`
-   - Text summary (for user): error counts, affected tests, top addresses
-   - JSON file (for comparison): `<logfile>.analysis.json`
-
-4. Compare results against baseline to determine if fix helped:
-   - Baseline (2025-12-16): 645 SCC errors, CANCEL_BADGED_SENDS_0002: 510, FPU0001: 126
-
-### Ftrace Analysis Workflow
-
-When debugging with function tracing enabled:
-
-1. **Build with ftrace** - Use `mcp__sel4-autopilot__build_sel4test` with mode `el2-ftrace`
-
-2. **Run test** - Ftrace data is automatically extracted and indexed after each test
-
-3. **Query ftrace** - Use `mcp__sel4-autopilot__query_ftrace`:
-   ```python
-   # Summary statistics
-   query_ftrace(request_id="20251221-163258", summary=True)
-
-   # Filter by event type
-   query_ftrace(request_id="...", event_type="KERNEL_ENTRY", limit=50)
-
-   # Random access with context
-   query_ftrace(request_id="...", event_index=51517274, context=10)
-   ```
-
-4. **Manual query** - For complex analysis:
-   ```bash
-   # Fast indexed query (O(1) access, 35ms filtering)
-   kernel/tools/ftrace_indexed.py results/*/ftrace.idx --type KERNEL_ENTRY --limit 100
-
-   # Decode with symbol resolution
-   kernel/tools/decode_ftrace_binary.py results/*/sel4.log --kernel orinagx_sel4test/kernel/kernel.elf
-   ```
-
-See `kernel/docs/ftrace.md` for complete documentation.
-
-### MANDATORY: vm_minimal Test Workflow for Orin AGX
-
-**CRITICAL:** When testing vm_minimal changes (init script, device tree, kernel modules), you MUST follow this exact workflow:
-
-1. **Make changes** to source files (e.g., init script in `vm-images/virtioso-yocto-layers/...`)
-
-2. **Build Linux image** - Run from `~/tii-sel4`:
-   ```bash
-   make linux-image
-   ```
-   **NOTE:** Do NOT use `container="skip"`. Build MUST run inside Docker container.
-
-3. **Copy initramfs** to CAmkES images directory:
-   ```bash
-   cp ~/tii-sel4/vm-images/build/tmp/deploy/images/vm-jetson-agx-orin/vm-image-boot-vm-jetson-agx-orin.rootfs.cpio.gz \
-      ~/tii-sel4/projects/camkes-vm-images/orinagx/rootfs.cpio.gz
-   ```
-
-4. **Copy kernel** to CAmkES images directory:
-   ```bash
-   cp ~/tii-sel4/vm-images/build/tmp/deploy/images/vm-jetson-agx-orin/Image \
-      ~/tii-sel4/projects/camkes-vm-images/orinagx/linux
-   ```
-
-5. **Build vm_minimal** - Use MCP tool:
-   ```
-   mcp__sel4-autopilot__build_vm_minimal
-   ```
-
-6. **Test on hardware** - Use MCP tool:
-   ```
-   mcp__sel4-autopilot__test_vm_minimal(binary_path="...")
-   ```
-
-7. **Analyze results** - Guest kernel output spans BOTH log files:
-   - `vm.log` - Early kernel boot (before console switch)
-   - `sel4.log` - Init script output and later kernel messages
-   - Read vm.log FIRST, then sel4.log for complete picture
-
-**Results location:** `/home/hlyytine/autopilot/results/<timestamp>/`
-
-### MANDATORY: vm_qemu_virtio Test Workflow for Orin AGX
-
-**CRITICAL:** When testing vm_qemu_virtio (2-VM virtio demo with device VM + driver VM), follow this workflow:
-
-**Architecture Overview:**
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     seL4 Microkernel                        │
-├─────────────────────────────────────────────────────────────┤
-│  VM0 (Device VM)              │  VM1 (Driver VM)            │
-│  ┌──────────────────────┐     │  ┌──────────────────────┐  │
-│  │ Linux + QEMU         │     │  │ Linux (QEMU guest)   │  │
-│  │ Real HW: TCU, MGBE,  │     │  │ virtio-console (hvc0)│  │
-│  │   GPIO, HSP, BPMP    │     │  │ virtio-blk (rootfs)  │  │
-│  │ RAM: 512MB           │     │  │ virtio-net (tap)     │  │
-│  │ console: TCU         │     │  │ RAM: 256MB           │  │
-│  └──────────┬───────────┘     │  └──────────┬───────────┘  │
-│             └─────── Virtio RPC (8.5MB shared) ──────┘      │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**VM Roles:**
-- **VM0 (Device VM)**: Runs `qemu-rnd-helper` which starts QEMU with seL4 accelerator
-- **VM1 (Driver VM)**: QEMU's guest - boots from virtio-blk, uses virtio-console for I/O
-
-**QEMU provides to Driver VM** (see `qemu-rnd-helper`):
-- `virtio-blk-pci` - Root filesystem from qcow2 image
-- `virtio-serial-pci` + `virtconsole` - Console (hvc0)
-- `virtio-net-pci` - Network via tap device
-- `virtfs` - 9P shared directory
-
-**Workflow:**
-
-1. **Make changes** to source files (same as vm_minimal for Linux/initrd changes)
-
-2. **Build Linux image** (if needed) - Run from `~/tii-sel4`:
-   ```bash
-   make linux-image
-   ```
-
-3. **Copy images** to CAmkES images directory (if Linux was rebuilt):
-   ```bash
-   cp ~/tii-sel4/vm-images/build/tmp/deploy/images/vm-jetson-agx-orin/vm-image-boot-vm-jetson-agx-orin.rootfs.cpio.gz \
-      ~/tii-sel4/projects/camkes-vm-images/orinagx/rootfs.cpio.gz
-   cp ~/tii-sel4/vm-images/build/tmp/deploy/images/vm-jetson-agx-orin/Image \
-      ~/tii-sel4/projects/camkes-vm-images/orinagx/linux
-   ```
-
-4. **Build vm_qemu_virtio** - Run from `~/tii-sel4`:
-   ```bash
-   make vm_qemu_virtio
-   ```
-   **Output binary:** `~/tii-sel4/orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx`
-
-5. **Test on hardware** - Use MCP tool (same as vm_minimal):
-   ```
-   mcp__sel4-autopilot__test_vm_minimal(binary_path="/home/hlyytine/tii-sel4/orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx")
-   ```
-
-6. **Analyze results** - Output spans BOTH log files:
-   - `sel4.log` - seL4/capdl-loader output + Device VM console (ttyACM0/TCU)
-   - `vm.log` - Additional VM console output (ttyACM1)
-   - Device VM (QEMU host) output appears on TCU
-   - Driver VM (QEMU guest) output via virtio-console to QEMU's stdio
-
-**Key differences from vm_minimal:**
-| Aspect | vm_minimal | vm_qemu_virtio |
-|--------|-----------|-----------------|
-| VMs | 1 | 2 (device + driver) |
-| Binary size | ~56MB | ~59MB |
-| Hardware access | Full passthrough | VM0 gets HW, VM1 gets virtio |
-| Driver VM console | N/A | virtio-console (hvc0) |
-| Driver VM rootfs | N/A | virtio-blk (qcow2) |
-| Driver VM network | N/A | virtio-net (tap) |
-
-**Results location:** `/home/hlyytine/autopilot/results/<timestamp>/`
-
-**Clean rebuild** (if needed):
-```bash
-rm -rf ~/tii-sel4/orinagx_vm_qemu_virtio
-make vm_qemu_virtio
-```
+Build/test workflows, tool selection, and log locations are governed by `AGENTS.md`.
+This section intentionally defers to `AGENTS.md` to avoid drift or conflicts.
 
 ## External Dependencies
 

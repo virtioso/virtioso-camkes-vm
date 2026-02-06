@@ -120,7 +120,7 @@ This proves:
 
 ### Test Logs Show 3 Doorbell IRQs Only
 
-From `sel4.log`:
+From `console/sel4.log` (profile-defined):
 - Physical IRQ 208 (HSP doorbell) only fires 3 times during early boot
 - All during channel reset phase
 - No doorbell IRQs after channel becomes ESTABLISHED

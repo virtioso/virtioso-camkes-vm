@@ -831,21 +831,18 @@ On most platforms, `KERNEL_ELF_BASE_OFFSET == PPTR_BASE_OFFSET`, so both functio
 # Build
 mcp__sel4-autopilot__build_sel4test(mode="el2")  # or "el1", "el2-ftrace"
 
-# Test single run
-mcp__sel4-autopilot__test_sel4_binary(binary_path="...")
-
-# Stress test (multiple runs)
-mcp__sel4-autopilot__test_sel4_multi_run(binary_path="...", run_count=10)
+# Test
+mcp__sel4-autopilot__test_sel4_efi(binary_path="...", profile="sel4test")
 
 # Get logs
-mcp__sel4-autopilot__get_sel4_log(request_id="...")
+mcp__sel4-autopilot__get_logs(request_id="...", include_contents=false)
 ```
 
 ## Analyzing Results
 
 ```bash
 # Analyze sel4test log for RAS errors
-/home/hlyytine/autopilot/analyze_sel4log.py <results>/sel4.log
+/home/hlyytine/autopilot/analyze_sel4log.py <results>/console/<profile-defined-log>
 
 # Decode ftrace binary data
 /home/hlyytine/tii-sel4/kernel/tools/decode_ftrace_binary.py <ftrace_data>
@@ -863,9 +860,7 @@ mcp__sel4-autopilot__get_sel4_log(request_id="...")
 
 ## Results Location
 
-- Filtered seL4 output: `/home/hlyytine/autopilot/results/<timestamp>/sel4.log`
-- Raw UART capture: `/home/hlyytine/autopilot/results/<timestamp>/uart-raw.log`
-- Multi-run logs: `/home/hlyytine/autopilot/results/<timestamp>/run_N/sel4.log`
+- Profile-defined logs: `/home/hlyytine/autopilot/results/<timestamp>/console/`
 
 ---
 

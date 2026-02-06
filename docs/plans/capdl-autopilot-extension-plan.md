@@ -1,5 +1,7 @@
 # Plan: Extend Autopilot for capdl-loader Testing
 
+> **Note:** This plan is historical. Current build/test workflow, tooling, and log layout are defined in `AGENTS.md`.
+
 ## Overview
 
 Extend the existing autopilot framework to support building and testing CAmkES applications (vm_minimal, vm_qemu_virtio, etc.) on Orin AGX hardware. The capdl-loader serves as the init process for these applications.

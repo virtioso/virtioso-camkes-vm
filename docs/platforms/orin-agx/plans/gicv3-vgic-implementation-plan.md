@@ -2581,7 +2581,7 @@ This causes IRQ 208 (BPMP) to preempt everything, potentially causing priority i
    mcp__sel4-autopilot__test_vm_minimal
    ```
 
-3. **Verify BPMP initialization** in vm.log/sel4.log:
+3. **Verify BPMP initialization** in profile-defined console logs under `results/<id>/console/`:
    - Look for `tegra-bpmp` probe success
    - No "timeout" or "stuck" messages
    - Clock/reset/power domain operations complete

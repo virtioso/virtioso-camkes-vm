@@ -1,6 +1,6 @@
 # Kernel Development Workflow with Devtool
 
-This document describes the recommended workflow for developing and testing changes to the guest Linux kernel in the TII seL4 VM platform.
+This document describes the recommended workflow for developing and testing changes to the guest Linux kernel in the Virtioso CAmkES VM platform.
 
 ## Overview
 

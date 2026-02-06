@@ -25,6 +25,17 @@ If the task involves Autopilot or interactive console sessions, also read:
 Note: `AUTOPILOT_DIR` is the working directory (queues/results/profiles),
 not the code path. Code lives in `~/pkvm/jetson-pkvm/autopilot`.
 
+## MCP Server (Autopilot) Availability
+
+This repo provides an MCP server definition at `~/tii-sel4/.mcp.json`:
+
+- Server name: `sel4-autopilot`
+- Command: `python3 /home/hlyytine/pkvm/autopilot/sel4_mcp_server.py`
+- Default `AUTOPILOT_DIR`: `/home/hlyytine/tii-sel4/autopilot`
+
+Some clients auto-load MCP servers from `.mcp.json`; some do not.
+If MCP is unavailable, fall back to the request/result queues in `AUTOPILOT_DIR`.
+
 If the task involves build, Yocto, or CI/CD, also read:
 
 7. `docs/build-system/build-architecture.md`

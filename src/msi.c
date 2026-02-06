@@ -6,7 +6,7 @@
  * Stubs for handling MSIs.
  */
 
-#include <tii/msi.h>
+#include <virtioso/msi.h>
 
 int WEAK handle_msi(io_proxy_t *io_proxy, unsigned int op, rpcmsg_t *msg)
 {

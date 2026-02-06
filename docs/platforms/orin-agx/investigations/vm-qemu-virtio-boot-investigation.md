@@ -4,7 +4,7 @@
 
 vm_minimal boots successfully on Orin AGX with BPMP working, but vm_qemu_virtio hangs even when:
 1. VM1 is removed entirely
-2. DeclareTIICAmkESVM is changed to DeclareCAmkESARMVM
+2. DeclareVirtiosoCAmkESVM is changed to DeclareCAmkESARMVM
 
 This means the issue is NOT in TII templates/modules - it's in the camkes configuration itself.
 
@@ -90,9 +90,9 @@ vm##num.sem_value = 0;
 | App | Include |
 |-----|---------|
 | vm_minimal | `#include <configurations/vm.h>` |
-| vm_qemu_virtio | `#include <configurations/tii/vm.h>` |
+| vm_qemu_virtio | `#include <configurations/virtioso/vm.h>` |
 
-Note: tii/vm.h includes vm.h, so all standard macros are available.
+Note: virtioso/vm.h includes vm.h, so all standard macros are available.
 
 ### 6. Kernel Image Name
 
@@ -114,7 +114,7 @@ DeclareCAmkESRootserver(vm_minimal.camkes ...)
 
 **vm_qemu_virtio:**
 ```cmake
-include(${TII_CAMKES_VM_HELPERS_PATH})  # Includes CAMKES_ARM_VM_HELPERS_PATH
+include(${VIRTIOSO_CAMKES_VM_HELPERS_PATH})  # Includes CAMKES_ARM_VM_HELPERS_PATH
 DeclareCAmkESARMVM(VM0)  # Explicitly declares VM0 component
 DeclareCAmkESRootserver(vm_qemu_virtio.camkes ...)
 ```
@@ -319,7 +319,7 @@ DeclareCAmkESARMVM(VM0)  # Compiles standard VM_Arm sources
 
 But vm_qemu_virtio.camkes STILL uses TII macros:
 ```camkes
-#include <configurations/tii/vm.h>
+#include <configurations/virtioso/vm.h>
 
 component VM0 {
     VM_TII_INIT_DEF()         // TII macro - expects TII attributes!
@@ -339,13 +339,13 @@ configuration {
 
 **The test should either:**
 1. Change camkes file to use `VM_INIT_DEF()` and `VM_CONFIGURATION_DEF(0)`, OR
-2. Keep DeclareTIICAmkESVM in CMakeLists.txt
+2. Keep DeclareVirtiosoCAmkESVM in CMakeLists.txt
 
 ## Summary of Most Likely Culprits
 
 1. **MISMATCH: TII camkes macros + DeclareCAmkESARMVM** - Incompatible combination
 2. **cnode_size_bits: 23 vs 18** - vm_minimal comment says 18 fixed 2MB frame issue on RPi4
-3. **Include header** - `configurations/tii/vm.h` redefines VM_COMPONENT_DEF
+3. **Include header** - `configurations/virtioso/vm.h` redefines VM_COMPONENT_DEF
 4. **vm0.irqs = []** - explicit empty array vs default (may affect IRQ routing)
 5. **Component architecture** - vm_qemu_virtio defines `component VM0` separately vs vm_minimal using pre-defined `VM`
 
@@ -360,7 +360,7 @@ configuration {
 
 1. **FIX MISMATCH: Make camkes file match CMakeLists.txt** - Either:
    - Option A: Change camkes to use `VM_INIT_DEF()` + `VM_CONFIGURATION_DEF(0)` + `#include <configurations/vm.h>`, OR
-   - Option B: Revert CMakeLists.txt to use `DeclareTIICAmkESVM(VM0)`
+   - Option B: Revert CMakeLists.txt to use `DeclareVirtiosoCAmkESVM(VM0)`
 2. **Test cnode_size_bits = 18** - Most likely fix based on vm_minimal TODO comment
 3. **Remove vm0.irqs = []** - Match vm_minimal (don't explicitly set)
 4. **Import VM_Arm/VM.camkes** - Use pre-defined VM component like vm_minimal
@@ -379,4 +379,4 @@ configuration {
 
 ### Configuration Headers
 - Standard: `projects/vm/components/VM_Arm/configurations/vm.h`
-- TII: `projects/virtioso-camkes-vm/configurations/tii/vm.h`
+- TII: `projects/virtioso-camkes-vm/configurations/virtioso/vm.h`

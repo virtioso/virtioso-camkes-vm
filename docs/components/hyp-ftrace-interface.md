@@ -393,10 +393,10 @@ kernel/tools/decode_ftrace_binary.py results/sel4.log \
 | File | Purpose |
 |------|---------|
 | `projects/virtioso-camkes-vm/src/camkes/modules/hyp_ftrace.c` | MMIO fault handler |
-| `projects/virtioso-camkes-vm/include/tii/camkes/hyp_ftrace.h` | Header file |
+| `projects/virtioso-camkes-vm/include/virtioso/camkes/hyp_ftrace.h` | Header file |
 | `projects/virtioso-camkes-vm/templates/hyp_ftrace.template.c` | CAmkES template |
 | `projects/virtioso-camkes-vm/src/plat/orinagx/fdt.c` | Device tree generation |
-| `projects/virtioso-camkes-vm/tii_camkes_vm_helpers.cmake` | Build integration |
+| `projects/virtioso-camkes-vm/virtioso_camkes_vm_helpers.cmake` | Build integration |
 
 ### Guest Linux (Built-in Driver)
 | File | Purpose |

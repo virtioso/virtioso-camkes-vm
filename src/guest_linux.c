@@ -6,12 +6,12 @@
 
 #include <utils/util.h>
 
-#include <tii/io_proxy.h>
-#include <tii/fdt.h>
-#include <tii/guest.h>
-#include <tii/pci.h>
-#include <tii/vmm.h>
-#include <tii/libsel4vm/guest.h>
+#include <virtioso/io_proxy.h>
+#include <virtioso/fdt.h>
+#include <virtioso/guest.h>
+#include <virtioso/pci.h>
+#include <virtioso/vmm.h>
+#include <virtioso/libsel4vm/guest.h>
 
 static int fdt_generate_pci_config(void *fdt)
 {

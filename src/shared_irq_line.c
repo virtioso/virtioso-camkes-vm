@@ -6,7 +6,7 @@
 
 #include <sel4vm/guest_irq_controller.h>
 
-#include <tii/shared_irq_line.h>
+#include <virtioso/shared_irq_line.h>
 
 static void shared_irq_ack(vm_vcpu_t *vcpu, int irq, void *cookie)
 {

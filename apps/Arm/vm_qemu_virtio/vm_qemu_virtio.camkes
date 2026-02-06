@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <configurations/tii/vm.h>
+#include <configurations/virtioso/vm.h>
 
 import <std_connector.camkes>;
 import <global-connectors.camkes>;

@@ -8,7 +8,7 @@
 #include <vmlinux.h>
 #include <utils/util.h>
 
-#include <tii/camkes/pl011.h>
+#include <virtioso/camkes/pl011.h>
 /*- set pl011 = configuration[me.name].get('pl011') -*/
 /*- if pl011 is not none -*/
 static pl011_t pl011 = {

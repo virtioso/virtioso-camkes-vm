@@ -23,7 +23,7 @@ typedef uint64_t __u64;
 
 #include "sel4/sel4_virt_types.h"
 
-#include <tii/guest.h>
+#include <virtioso/guest.h>
 
 #define SEL4_MMIO_MAX_VCPU              16
 #define SEL4_MMIO_NATIVE_BASE           SEL4_MMIO_MAX_VCPU

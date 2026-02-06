@@ -153,7 +153,7 @@ rm -rf vm-images/build/tmp
 | `src/io_proxy.c` | I/O request/response lifecycle, fault handling |
 | `src/fdt.c` | Device tree generation for guest VMs |
 | `src/msi.c` | MSI/GICv2m interrupt handling |
-| `configurations/tii/vm.h` | CAmkES component macros (VIRTIO_COMPOSITION_DEF) |
+| `configurations/virtioso/vm.h` | CAmkES component macros (VIRTIO_COMPOSITION_DEF) |
 | `templates/*.template.c` | CAmkES component templates for virtio VMs |
 | `apps/Arm/vm_qemu_virtio/` | Main 2-VM demo application |
 | `include/sel4/rpc.h` | RPC opcode definitions |

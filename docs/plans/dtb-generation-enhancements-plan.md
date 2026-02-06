@@ -282,7 +282,7 @@ With upstream adoption of either approach:
 | `src/camkes/modules/fdt_plat_customize.c` | **REDUNDANT** | Module wrapper no longer needed |
 | `src/plat/rpi4/fdt.c` | **KEEP** (move) | Move to `projects/vm/plat/rpi4/` |
 | `src/fdt.c` | **PARTIAL** | Some helpers useful, others duplicate libfdt |
-| `include/tii/fdt.h` | **PARTIAL** | `fdt_plat_customize` declaration moves upstream |
+| `include/virtioso/fdt.h` | **PARTIAL** | `fdt_plat_customize` declaration moves upstream |
 
 ### Specific Functions
 

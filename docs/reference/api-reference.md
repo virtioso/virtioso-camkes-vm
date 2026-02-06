@@ -67,7 +67,7 @@ typedef struct vso_driver_rpc {
 I/O proxy structure for managing VM-to-QEMU communication.
 
 ```c
-// include/tii/io_proxy.h
+// include/virtioso/io_proxy.h
 typedef struct io_proxy {
     vm_t *vm;                          // Associated VM
     vso_rpc_t rpc;                     // RPC context
@@ -97,7 +97,7 @@ typedef struct io_proxy {
 Single IRQ line structure.
 
 ```c
-// include/tii/irq_line.h
+// include/virtioso/irq_line.h
 typedef struct irq_line {
     vm_t *vm;           // Target VM
     int irq;            // IRQ number
@@ -110,7 +110,7 @@ typedef struct irq_line {
 Shared IRQ line for multiple sources.
 
 ```c
-// include/tii/shared_irq_line.h
+// include/virtioso/shared_irq_line.h
 typedef struct shared_irq_line {
     uint64_t sources;   // Bitmap of active sources
     int irq;            // Guest IRQ number
@@ -123,7 +123,7 @@ typedef struct shared_irq_line {
 GICv2m MSI controller structure.
 
 ```c
-// include/tii/gicv2m.h
+// include/virtioso/gicv2m.h
 typedef struct gicv2m {
     vm_t *vm;           // Associated VM
     uintptr_t base;     // GICv2m frame base address
@@ -563,7 +563,7 @@ void shared_irq_pulse(shared_irq_line_t *line, int source);
 GICv2m MSI controller structure (full definition).
 
 ```c
-// include/tii/gicv2m.h
+// include/virtioso/gicv2m.h
 #define GICV2M_IRQ_MAX 128
 
 typedef struct gicv2m {
@@ -685,7 +685,7 @@ int handle_msi(io_proxy_t *io_proxy, unsigned int op, rpcmsg_t *msg);
 Register an FDT node generator.
 
 ```c
-// include/tii/fdt.h
+// include/virtioso/fdt.h
 #define DEFINE_FDT_NODE(name, fn) \
     static fdt_node_t __fdt_node_##name \
     __attribute__((used, section("_fdt_node"))) = { \
@@ -867,11 +867,11 @@ typedef enum vso_rpc_id {
 |------|-------------|
 | `include/sel4/rpc.h` | RPC structures and API |
 | `include/sel4/rpc_queue.h` | Queue implementation |
-| `include/tii/io_proxy.h` | I/O proxy API |
-| `include/tii/irq_line.h` | IRQ line API |
-| `include/tii/shared_irq_line.h` | Shared IRQ API |
-| `include/tii/gicv2m.h` | GICv2m API |
-| `include/tii/fdt.h` | FDT API |
+| `include/virtioso/io_proxy.h` | I/O proxy API |
+| `include/virtioso/irq_line.h` | IRQ line API |
+| `include/virtioso/shared_irq_line.h` | Shared IRQ API |
+| `include/virtioso/gicv2m.h` | GICv2m API |
+| `include/virtioso/fdt.h` | FDT API |
 
 ## Related Documentation
 

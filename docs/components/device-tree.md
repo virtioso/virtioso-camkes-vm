@@ -51,7 +51,7 @@ graph TB
 FDT nodes are registered using a linker section:
 
 ```c
-// From include/tii/fdt.h
+// From include/virtioso/fdt.h
 #define DEFINE_FDT_NODE(name, fn) \
     static fdt_node_t __fdt_node_##name \
     __attribute__((used, section("_fdt_node"))) = { \
@@ -369,7 +369,7 @@ dtc -I dtb -O dts guest.dtb
 |------|-------------|
 | `src/fdt.c` | Core FDT generation |
 | `src/plat/rpi4/fdt.c` | RPi4-specific nodes |
-| `include/tii/fdt.h` | FDT API |
+| `include/virtioso/fdt.h` | FDT API |
 
 ## Related Documentation
 

@@ -7,7 +7,7 @@
 #include <camkes.h>
 #include <vmlinux.h>
 
-#include <tii/fdt.h>
+#include <virtioso/fdt.h>
 
 int WEAK fdt_plat_customize(vm_t *vm, void *dtb_buf)
 {

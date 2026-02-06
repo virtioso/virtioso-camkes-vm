@@ -21,11 +21,12 @@
 
 #include <sel4vm/guest_vm.h>
 #include <sel4vm/guest_vcpu_fault.h>
+#include <sel4vm/guest_irq_controller.h>
 #include <utils/util.h>
 
 #include <vmlinux.h>
 
-#include <tii/camkes/hyp_ftrace.h>
+#include <virtioso/camkes/hyp_ftrace.h>
 
 /* Register offsets */
 #define HYP_FTRACE_CMD      0x00    /* Command register (write-only) */

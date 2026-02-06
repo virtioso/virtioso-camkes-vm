@@ -6,8 +6,8 @@
 
 #include <sync/sem.h>
 
-#include <tii/io_proxy.h>
-#include <tii/guest.h>
+#include <virtioso/io_proxy.h>
+#include <virtioso/guest.h>
 
 typedef struct ioreq_native {
     int slot;

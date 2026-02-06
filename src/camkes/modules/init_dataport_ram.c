@@ -12,7 +12,7 @@
 #include <sel4vm/guest_ram.h>
 #include <vmlinux.h>
 
-#include <tii/ram_dataport.h>
+#include <virtioso/ram_dataport.h>
 
 /* TODO: add proper definition to libsel4vm's include/sel4vm/guest_ram.h */
 extern bool is_ram_region(vm_t *vm, uintptr_t addr, size_t size);

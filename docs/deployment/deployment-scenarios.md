@@ -631,7 +631,7 @@ qemu-system-aarch64 \
 |------|-------------|
 | `apps/Arm/vm_qemu_virtio/` | Two-VM demo |
 | `apps/Arm/vm_virtio_multi_user/` | Multi-user demo |
-| `configurations/tii/vm.h` | VM configuration macros |
+| `configurations/virtioso/vm.h` | VM configuration macros |
 
 ## Related Documentation
 

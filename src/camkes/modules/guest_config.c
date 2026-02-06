@@ -7,8 +7,8 @@
 #include <camkes.h>
 #include <vmlinux.h>
 
-#include <tii/guest.h>
-#include <tii/libsel4vm/guest.h>
+#include <virtioso/guest.h>
+#include <virtioso/libsel4vm/guest.h>
 
 static void camkes_guest_configure(vm_t *vm, void *cookie)
 {

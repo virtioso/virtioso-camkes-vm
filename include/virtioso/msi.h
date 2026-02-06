@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include <tii/io_proxy.h>
+#include <virtioso/io_proxy.h>
 
 int handle_msi(io_proxy_t *io_proxy, unsigned int op, rpcmsg_t *msg);
 int msi_init(vm_t *vm);

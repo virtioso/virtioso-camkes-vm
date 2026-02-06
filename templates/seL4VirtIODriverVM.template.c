@@ -7,11 +7,11 @@
 #include <camkes.h>
 #include <vmlinux.h>
 
-#include <tii/guest.h>
-#include <tii/ram_dataport.h>
-#include <tii/io_proxy.h>
-#include <tii/camkes/io_proxy.h>
-#include <tii/fdt.h>
+#include <virtioso/guest.h>
+#include <virtioso/ram_dataport.h>
+#include <virtioso/io_proxy.h>
+#include <virtioso/camkes/io_proxy.h>
+#include <virtioso/fdt.h>
 
 /*- set vm_virtio_driver_channels = configuration[me.name].get('vm_virtio_driver_channels') -*/
 

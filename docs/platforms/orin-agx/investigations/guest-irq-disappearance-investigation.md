@@ -187,7 +187,7 @@ Key differences identified:
 
 | Aspect | vm_minimal | vm_qemu_virtio |
 |--------|------------|----------------|
-| Config include | `configurations/vm.h` | `configurations/tii/vm.h` |
+| Config include | `configurations/vm.h` | `configurations/virtioso/vm.h` |
 | VM macro | `VM_INIT_DEF()` | `VM_TII_INIT_DEF()` |
 | Extra attributes | None | tracebuffer, ramoops, hyp_ftrace_timer, virtio channels |
 

@@ -11,8 +11,8 @@
 #include <sel4vm/boot.h>
 #include <utils/util.h>
 
-#include <tii/gicv2m.h>
-#include <tii/irq_line.h>
+#include <virtioso/gicv2m.h>
+#include <virtioso/irq_line.h>
 
 #define V2M_MSI_TYPER           0x008
 #define V2M_MSI_SETSPI_NS       0x040

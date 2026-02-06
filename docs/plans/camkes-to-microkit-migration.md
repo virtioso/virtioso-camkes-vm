@@ -80,7 +80,7 @@ component VM1 {
 **3. Macro-Based Configuration**
 
 ```c
-// configurations/tii/vm.h - Heavy macro usage
+// configurations/virtioso/vm.h - Heavy macro usage
 #define VIRTIO_COMPOSITION_DEF(_dev, _drv) \
     connection seL4SharedDataWithCaps vm##_dev##_vm##_drv##_iobuf(...); \
     connection seL4SharedDataWithCaps vm##_dev##_vm##_drv##_memdev(...); \

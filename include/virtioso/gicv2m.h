@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include <tii/irq_line.h>
+#include <virtioso/irq_line.h>
 
 #define GICV2M_IRQ_MAX          128
 

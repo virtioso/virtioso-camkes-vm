@@ -8,7 +8,7 @@
 
 #include <utils/util.h>
 
-#include <tii/fdt.h>
+#include <virtioso/fdt.h>
 
 #define USB_PCI_NODE_PATH   "/scb/pcie@7d500000/pci@0,0"
 #define USB_NODE_NAME       "usb@0,0"

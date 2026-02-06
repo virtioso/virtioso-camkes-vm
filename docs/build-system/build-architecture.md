@@ -207,7 +207,7 @@ find_package(seL4 REQUIRED)
 find_package(CAmkES REQUIRED)
 
 # Include TII helpers
-include(tii_camkes_vm_helpers.cmake)
+include(virtioso_camkes_vm_helpers.cmake)
 
 # Build library
 add_library(virtioso_camkes_vm OBJECT

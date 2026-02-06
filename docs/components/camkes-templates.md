@@ -30,7 +30,7 @@ graph LR
 Adds virtio device/driver attributes to VM components:
 
 ```c
-// From configurations/tii/vm.h
+// From configurations/virtioso/vm.h
 #define VM_TII_INIT_DEF() \
     attribute { \
         int id; \
@@ -172,7 +172,7 @@ Header with declarations:
 
 #pragma once
 
-#include <tii/io_proxy.h>
+#include <virtioso/io_proxy.h>
 
 /*- for driver in drivers -*/
 extern io_proxy_t io_proxy_/*? driver.id ?*/;
@@ -192,7 +192,7 @@ Generated code for driver VM (uses virtio):
 
 #include <sel4/sel4.h>
 #include <camkes.h>
-#include <tii/vmm.h>
+#include <virtioso/vmm.h>
 
 // Per-device VM connections
 /*- for device in devices -*/
@@ -358,10 +358,10 @@ CAmkESAddTemplatesPath(${CMAKE_CURRENT_LIST_DIR}/templates)
 ### Template Path Registration
 
 ```cmake
-# From tii_camkes_vm_helpers.cmake
-macro(DeclareTIICAmkESVM N)
+# From virtioso_camkes_vm_helpers.cmake
+macro(DeclareVirtiosoCAmkESVM N)
     CAmkESAddTemplatesPath(
-        ${TII_CAMKES_VM_DIR}/templates
+        ${VIRTIOSO_CAMKES_VM_DIR}/templates
     )
 
     # Add VM component
@@ -376,7 +376,7 @@ endmacro()
 | `templates/seL4VirtIODeviceVM.template.c` | Device VM template |
 | `templates/seL4VirtIODeviceVM.template.h` | Device VM header |
 | `templates/seL4VirtIODriverVM.template.c` | Driver VM template |
-| `configurations/tii/vm.h` | Configuration macros |
+| `configurations/virtioso/vm.h` | Configuration macros |
 
 ## Related Documentation
 

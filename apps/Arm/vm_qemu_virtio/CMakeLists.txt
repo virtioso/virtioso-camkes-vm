@@ -9,7 +9,7 @@ cmake_minimum_required(VERSION 3.8.2)
 
 project(vm-qemu-virtio C)
 
-include(${TII_CAMKES_VM_HELPERS_PATH})
+include(${VIRTIOSO_CAMKES_VM_HELPERS_PATH})
 
 config_option(
     UserVmDtb
@@ -40,8 +40,8 @@ endif()
 
 DefineCAmkESVMFileServer()
 
-DeclareTIICAmkESVM(VM0)
-DeclareTIICAmkESVM(VM1)
+DeclareVirtiosoCAmkESVM(VM0)
+DeclareVirtiosoCAmkESVM(VM1)
 
 # Declare root server
 DeclareCAmkESRootserver(

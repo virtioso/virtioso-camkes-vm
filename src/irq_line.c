@@ -6,8 +6,8 @@
 
 #include <sel4vm/guest_irq_controller.h>
 
-#include <tii/irq_line.h>
-#include <tii/camkes/hyp_ftrace.h>
+#include <virtioso/irq_line.h>
+#include <virtioso/camkes/hyp_ftrace.h>
 
 static void irq_line_ack(vm_vcpu_t *vcpu, int irq, void *cookie)
 {

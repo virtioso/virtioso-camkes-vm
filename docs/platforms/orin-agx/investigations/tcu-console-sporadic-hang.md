@@ -108,7 +108,7 @@ The IVC state machine might not be completing properly despite IRQs being delive
 - `/home/hlyytine/tii-sel4/tools/seL4/elfloader-tool/src/plat/orinagx/fan.c` - Elfloader BPMP usage
 - `/home/hlyytine/source/kernel/kernel-jammy-src/drivers/firmware/tegra/bpmp-tegra186.c` - Linux BPMP driver
 - `/home/hlyytine/source/kernel/kernel-jammy-src/drivers/firmware/tegra/ivc.c` - IVC protocol
-- `/home/hlyytine/tii-sel4/projects/tii-sel4-vm/apps/Arm/vm_qemu_virtio/orinagx/devices.camkes` - VM config
+- `/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/Arm/vm_qemu_virtio/orinagx/devices.camkes` - VM config
 
 ## Next Steps
 

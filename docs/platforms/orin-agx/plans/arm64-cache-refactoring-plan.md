@@ -147,7 +147,7 @@ From [commit ef4f9c6b8](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds
 
 **Justification - seL4 project docs**:
 
-From `docs/reference/tegra-whole-cache-operations.md`:
+From `docs/platforms/orin-agx/reference/tegra-whole-cache-operations.md`:
 > "dc cisw (clean/invalidate by set/way) is broken on Tegra Xavier/Orin... But this is actually an architectural limitation of ALL modern ARM64 SoCs."
 
 ---
@@ -167,7 +167,7 @@ From seL4 `include/arch/arm/arch/machine.h` comment:
 
 **Justification - SMP cross-core visibility**:
 
-From `docs/reference/arm64-cache-maintenance-barriers-smp.md`:
+From `docs/reference/kernel/arm64-cache-maintenance-barriers-smp.md`:
 > "PoU is not a 'global meeting point' across cores. PoC is the correct rendezvous for shared memory contents."
 
 ---
@@ -486,7 +486,7 @@ These barriers will be part of the new VA-based cache operations implementation.
 2. `armv_contextSwitch()` - Barrier ordering vs PTW completion
 3. Barrier strength: `dsb(nsh)` vs `dsb(ish)` per KVM patches
 
-Reference: `projects/tii-sel4-vm/docs/reference/arm-speculative-ptw-research.md`
+Reference: `projects/virtioso-camkes-vm/docs/platforms/orin-agx/reference/arm-speculative-ptw-research.md`
 
 ## Risk Mitigation
 

@@ -28,7 +28,7 @@ After sync, the workspace contains:
 $WORKSPACE/
 ├── kernel/                 # seL4 microkernel
 ├── projects/
-│   ├── tii-sel4-vm/       # Main TII project
+│   ├── virtioso-camkes-vm/       # Main TII project
 │   ├── sel4_projects_libs/ # VMM libraries
 │   ├── vm/                # CAmkES VM framework
 │   ├── vm-linux/          # Guest Linux integration

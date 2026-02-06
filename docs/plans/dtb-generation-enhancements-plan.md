@@ -32,7 +32,7 @@ projects/vm/components/VM_Arm/src/main.c:
     └── vm_ram_touch(...)           # Load DTB to guest
 ```
 
-## Current Architecture (TII tii-sel4-vm)
+## Current Architecture (TII virtioso-camkes-vm)
 
 TII adds a post-generation hook via the existing `DEFINE_MODULE` infrastructure:
 
@@ -273,7 +273,7 @@ int fdt_plat_customize(vm_t *vm, void *dtb_buf)
 
 ---
 
-## What Becomes Redundant in tii-sel4-vm
+## What Becomes Redundant in virtioso-camkes-vm
 
 With upstream adoption of either approach:
 
@@ -290,7 +290,7 @@ With upstream adoption of either approach:
 - `DEFINE_MODULE(fdt_plat_customize, ...)` wrapper
 - `fdt_plat_customize_init()` module init
 
-**Keep in tii-sel4-vm (TII-specific features):**
+**Keep in virtioso-camkes-vm (TII-specific features):**
 - `fdt_node_t` infrastructure for dynamic node registration
 - `DEFINE_FDT_NODE` macro
 - `fdt_generate_reserved_node()` - for shared memory regions
@@ -349,7 +349,7 @@ if (vm_config->generate_dtb) {
 
 This is ~10 lines added to upstream. Clean, minimal, no module system involvement.
 
-**Layer 2: TII (tii-sel4-vm)** - Thin wrapper for module ordering
+**Layer 2: TII (virtioso-camkes-vm)** - Thin wrapper for module ordering
 
 ```c
 // src/camkes/modules/fdt_plat_customize.c
@@ -376,7 +376,7 @@ int fdt_plat_customize(vm_t *vm, void *dtb_buf)
 }
 ```
 
-**Layer 3: Platform (tii-sel4-vm/src/plat/orinagx/)** - Actual customization
+**Layer 3: Platform (virtioso-camkes-vm/src/plat/orinagx/)** - Actual customization
 
 ```c
 // src/plat/orinagx/fdt.c
@@ -401,7 +401,7 @@ projects/vm (upstream):
   ad66b65  ... existing commit ...
   NEW      Add fdt_plat_customize weak hook for platform DTB customization
 
-projects/tii-sel4-vm (TII fork):
+projects/virtioso-camkes-vm (TII fork):
   ... existing TII commits ...
   KEEP     Module wrapper with DEFINE_MODULE_DEP (rebases cleanly on upstream hook)
   NEW      Add orinagx/fdt.c with TCU node generation

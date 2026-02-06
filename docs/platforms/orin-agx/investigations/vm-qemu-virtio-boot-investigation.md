@@ -35,7 +35,7 @@ This suggests cnode_size_bits=23 can cause issues with frame mapping.
 
 **Files:**
 - vm_minimal: `projects/vm-examples/apps/Arm/vm_minimal/vm_minimal.camkes:35`
-- vm_qemu_virtio: `projects/tii-sel4-vm/apps/Arm/vm_qemu_virtio/vm_qemu_virtio.camkes:59`
+- vm_qemu_virtio: `projects/virtioso-camkes-vm/apps/Arm/vm_qemu_virtio/vm_qemu_virtio.camkes:59`
 
 ### 2. Priority Settings
 
@@ -374,9 +374,9 @@ configuration {
 - Devices: `projects/vm-examples/apps/Arm/vm_minimal/orinagx/devices.camkes`
 
 ### vm_qemu_virtio
-- Main: `projects/tii-sel4-vm/apps/Arm/vm_qemu_virtio/vm_qemu_virtio.camkes`
-- Devices: `projects/tii-sel4-vm/apps/Arm/vm_qemu_virtio/orinagx/devices.camkes`
+- Main: `projects/virtioso-camkes-vm/apps/Arm/vm_qemu_virtio/vm_qemu_virtio.camkes`
+- Devices: `projects/virtioso-camkes-vm/apps/Arm/vm_qemu_virtio/orinagx/devices.camkes`
 
 ### Configuration Headers
 - Standard: `projects/vm/components/VM_Arm/configurations/vm.h`
-- TII: `projects/tii-sel4-vm/configurations/tii/vm.h`
+- TII: `projects/virtioso-camkes-vm/configurations/tii/vm.h`

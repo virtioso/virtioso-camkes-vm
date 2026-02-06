@@ -900,7 +900,7 @@ The ATF RAS handler includes special seL4 debugging:
 
 1. **Cache Operations:** Uses `dc civac` instead of `dc cisw`
    - `dc cisw` doesn't work correctly on Tegra Xavier/Orin
-   - See: `docs/reference/tegra-cache-operations.md`
+   - See: `docs/platforms/orin-agx/reference/tegra-cache-operations.md`
 
 2. **CBB Error Reporting:** Non-standard fabric error logger
    - Custom Master ID lookup tables

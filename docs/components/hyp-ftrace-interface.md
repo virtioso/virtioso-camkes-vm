@@ -115,7 +115,7 @@ exception_t handle_SysBenchmarkFinalizeLog(void)
 
 **Key change**: The guard was changed from `CONFIG_KERNEL_FUNCTION_TRACE` to `CONFIG_FTRACE_BUFFER`, enabling ftrace dump in `el2-ras` mode without requiring full function tracing overhead.
 
-### 2. VMM Module (`projects/tii-sel4-vm/src/camkes/modules/hyp_ftrace.c`)
+### 2. VMM Module (`projects/virtioso-camkes-vm/src/camkes/modules/hyp_ftrace.c`)
 
 The VMM intercepts guest MMIO accesses and translates them to seL4 syscalls:
 
@@ -392,11 +392,11 @@ kernel/tools/decode_ftrace_binary.py results/sel4.log \
 ### VMM (CAmkES)
 | File | Purpose |
 |------|---------|
-| `projects/tii-sel4-vm/src/camkes/modules/hyp_ftrace.c` | MMIO fault handler |
-| `projects/tii-sel4-vm/include/tii/camkes/hyp_ftrace.h` | Header file |
-| `projects/tii-sel4-vm/templates/hyp_ftrace.template.c` | CAmkES template |
-| `projects/tii-sel4-vm/src/plat/orinagx/fdt.c` | Device tree generation |
-| `projects/tii-sel4-vm/tii_camkes_vm_helpers.cmake` | Build integration |
+| `projects/virtioso-camkes-vm/src/camkes/modules/hyp_ftrace.c` | MMIO fault handler |
+| `projects/virtioso-camkes-vm/include/tii/camkes/hyp_ftrace.h` | Header file |
+| `projects/virtioso-camkes-vm/templates/hyp_ftrace.template.c` | CAmkES template |
+| `projects/virtioso-camkes-vm/src/plat/orinagx/fdt.c` | Device tree generation |
+| `projects/virtioso-camkes-vm/tii_camkes_vm_helpers.cmake` | Build integration |
 
 ### Guest Linux (Built-in Driver)
 | File | Purpose |

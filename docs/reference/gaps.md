@@ -1,6 +1,6 @@
 # Documentation Gaps and Fixups
 
-This file tracks documentation gaps found during a review of `projects/tii-sel4-vm/docs`.
+This file tracks documentation gaps found during a review of `projects/virtioso-camkes-vm/docs`.
 
 ## Broken Links
 

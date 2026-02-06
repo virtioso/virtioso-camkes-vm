@@ -59,7 +59,7 @@ The `vso_rpc` library provides the RPC communication layer used by guest-side co
 ### Header Location
 
 ```
-projects/tii-sel4-vm/include/sel4/rpc.h
+projects/virtioso-camkes-vm/include/sel4/rpc.h
 ```
 
 ### Core Structures

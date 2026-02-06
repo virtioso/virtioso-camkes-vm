@@ -184,7 +184,7 @@ Create a copy of release documentation and use the instructions within
 the template to fill out the release document:
 
 ```bash
-$ cp projects/tii-sel4-vm/docs/release_doc_template.md ${TII_SEL4_RELEASE}/${TII_SEL4_RELEASE}.md
+$ cp projects/virtioso-camkes-vm/docs/reference/release/release_doc_template.md ${TII_SEL4_RELEASE}/${TII_SEL4_RELEASE}.md
 $ ${EDITOR} ${TII_SEL4_RELEASE}/${TII_SEL4_RELEASE}.md
 ```
 
@@ -260,4 +260,3 @@ Finally upload the release to [TII JFrog artifactory TII seL4 release repository
 ---
 
 [environment setup instructions]: https://github.com/tiiuae/tii_sel4_build#setting-up-the-build-environment
-

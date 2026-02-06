@@ -987,7 +987,7 @@ VMM: Inject vLPI via ICH_LRn_EL2
 
 #### Option C: GICv2m Emulation (Current Approach)
 
-The existing tii-sel4-vm uses GICv2m for MSI (see `src/msi.c`):
+The existing virtioso-camkes-vm uses GICv2m for MSI (see `src/msi.c`):
 - Emulates GICv2m MSI frame at fixed address
 - MSI writes converted to SPI injection
 - Works with GICv3 in GICv2 compatibility mode

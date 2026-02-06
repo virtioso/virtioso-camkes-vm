@@ -1,6 +1,6 @@
 # KVM vs pKVM vs seL4 Virtualization
 
-This document compares three virtualization approaches for ARM platforms: traditional KVM, protected KVM (pKVM), and TII's seL4-based virtualization.
+This document compares three virtualization approaches for ARM platforms: traditional KVM, protected KVM (pKVM), and Virtioso's seL4-based virtualization.
 
 ## Overview
 
@@ -86,7 +86,7 @@ This document compares three virtualization approaches for ARM platforms: tradit
 - Host kernel compromise does not compromise pVM memory
 - Designed for Android Virtualization Framework (AVF)
 
-### seL4-based (TII Architecture)
+### seL4-based (Virtioso Architecture)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -830,7 +830,7 @@ seL4 does NOT guarantee: What happens inside the VM
 | **Years in production** | ~15+ | ~3 | ~10+ | KVM most mature |
 | **Supported architectures** | x86, ARM, others | ARM only | ARM, x86, RISC-V | KVM broadest support |
 | **Active contributors** | 1000+ | ~50 | ~100 | KVM largest community |
-| **Commercial support** | Red Hat, others | Google | TII, others | All have commercial backing |
+| **Commercial support** | Red Hat, others | Google | Virtioso, others | All have commercial backing |
 | **Learning curve** | Moderate | Moderate | Steep | seL4 requires capability understanding |
 
 ### Overall Score Card (1-5, higher is better)

@@ -1,6 +1,6 @@
 # Prerequisites
 
-This document describes the requirements for building and running the TII seL4 virtio virtualization platform.
+This document describes the requirements for building and running the Virtioso seL4 virtio virtualization platform.
 
 ## System Requirements
 

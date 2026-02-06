@@ -1,4 +1,4 @@
-# Integration Plan: Upstream seL4 Tracing → TII Ftrace
+# Integration Plan: Upstream seL4 Tracing → Virtioso Ftrace
 
 ## Executive Summary
 

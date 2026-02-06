@@ -36,7 +36,10 @@
 #define VM1_INITRD_ADDR VM1_DTB_ADDR - VM_INITRD_MAX_SIZE
 #define VM1_ENTRY_ADDR  VM1_RAM_BASE + GUEST_ENTRY_OFFSET
 
-/* Virtio shared memory regions */
+/* Virtio shared memory regions
+ * SWIOTLB (DATA) is at 0xC0000000, which gets added to Linux memory map.
+ * PCI memory window starts at 0xC1000000 (after SWIOTLB + gap).
+ * CTRL must be within PCI memory region for virtio MMIO. */
 #if VMSWIOTLB
 #define VM0_VM1_VIRTIO_DATA_BASE        0xC0000000
 #define VM0_VM1_VIRTIO_DATA_SIZE        0x800000    /* 8 MB SWIOTLB bounce buffer */
@@ -45,7 +48,7 @@
 #define VM0_VM1_VIRTIO_DATA_SIZE        VM1_RAM_SIZE
 #endif
 
-#define VM0_VM1_VIRTIO_CTRL_BASE        0xC0800000
+#define VM0_VM1_VIRTIO_CTRL_BASE        0xC1000000  /* Within PCI_MEM_REGION */
 #define VM0_VM1_VIRTIO_CTRL_SIZE        0x00080000  /* 512 KB RPC queues */
 
 assembly {
@@ -70,11 +73,6 @@ assembly {
             "kernel_bootcmdline" :
                 "console=ttyTCU0 "
                 "earlycon=pl011,mmio32,0x09000000 "
-                "keep_bootcon "
-                "debug "
-                "loglevel=8 "
-                "ignore_loglevel "
-                "printk.devkmsg=on "
                 "rdinit=/init "
                 "arm64.nopauth "
                 "maxcpus=1 "
@@ -224,6 +222,7 @@ assembly {
                 "rw "
                 "debug "
                 "loglevel=8 "
+                "arm64.nopauth "
                 "swiotlb=512 ",
             "kernel_stdout" : "hvc0",
             "generate_dtb" : true,

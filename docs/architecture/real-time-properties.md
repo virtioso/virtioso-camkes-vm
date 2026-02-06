@@ -1,6 +1,6 @@
 # Real-Time Properties and WCET Guarantees
 
-This document explains the real-time properties of the TII seL4 virtualization platform, including Worst Case Execution Time (WCET) guarantees and their implications for safety-critical systems.
+This document explains the real-time properties of the Virtioso seL4 virtualization platform, including Worst Case Execution Time (WCET) guarantees and their implications for safety-critical systems.
 
 ## Overview
 

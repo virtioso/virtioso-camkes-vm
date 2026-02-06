@@ -1,6 +1,6 @@
 # Running on Raspberry Pi 4
 
-This document describes how to deploy and run the TII seL4 virtio platform on Raspberry Pi 4 hardware.
+This document describes how to deploy and run the Virtioso seL4 virtio platform on Raspberry Pi 4 hardware.
 
 ## Hardware Requirements
 

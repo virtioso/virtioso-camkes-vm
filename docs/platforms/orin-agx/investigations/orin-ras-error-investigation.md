@@ -2059,7 +2059,7 @@ LOG_LEVEL=50
 Added missing errata workarounds for Cortex-A78AE r0p1:
 
 ```makefile
-# platform_t234.mk - TII additions
+# platform_t234.mk - Virtioso additions
 ERRATA_A78_AE_1941500 := 1
 ERRATA_A78_AE_1951502 := 1
 ERRATA_A78_AE_2376748 := 1

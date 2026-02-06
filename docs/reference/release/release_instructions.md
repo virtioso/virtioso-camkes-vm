@@ -8,14 +8,14 @@ By following these instructions, any Hypervisor team member should be able to cr
 Use following naming scheme to refer the release in *all* release content,
 such as release documents, commits, filenames etc.
 
-`sel4_tii_<version>`
+`sel4_virtioso_<version>`
 
 * All lower case
 * `version` follows [semantic versioning](https://semver.org/).
 
 ##### Example
 
-`sel4_tii_0.1`
+`sel4_virtioso_0.1`
 
 ## Release Package
 
@@ -44,7 +44,7 @@ $ export VIRTIOSO_VERSION=<version>
 $ export VIRTIOSO_RELEASE=virtioso_${VIRTIOSO_VERSION}
 $ export WORKSPACE=~/sel4-release
 $ mkdir -p "${WORKSPACE}" && cd "${WORKSPACE}"
-$ repo init -u git@github.com:tiiuae/virtioso-manifest.git -b tii/development
+$ repo init -u git@github.com:virtioso/virtioso-manifest.git -b virtioso/development
 $ repo sync
 ```
 
@@ -57,7 +57,7 @@ $ git checkout <revision>
 $ cd "$(repo --show-toplevel)"
 ```
 
-Then create manifest `releases` within `tiiuae/virtioso-manifest` repository:
+Then create manifest `releases` within `virtioso/virtioso-manifest` repository:
 
 ```bash
 $ # create manifest
@@ -98,7 +98,7 @@ $ export VIRTIOSO_RELEASE=virtioso_${VIRTIOSO_VERSION}
 $ export WORKSPACE=~/${VIRTIOSO_RELEASE}
 $ mkdir -p "${WORKSPACE}" && cd "${WORKSPACE}"
 $ repo init \
-    -u git@github.com:tiiuae/virtioso-manifest.git \
+    -u git@github.com:virtioso/virtioso-manifest.git \
     -b "release/${VIRTIOSO_RELEASE}-rc1" \
     -m "releases/${VIRTIOSO_RELEASE}.xml"
 $ repo sync
@@ -132,7 +132,7 @@ $ make vm_multi
 $ make sel4test
 ```
 
-Build supported TII seL4 images:
+Build supported Virtioso seL4 images:
 
 ```bash
 $ make vm_qemu_virtio
@@ -255,8 +255,8 @@ Create release package:
 $ fakeroot tar -cjf "${VIRTIOSO_RELEASE}.tar.bz2" "${VIRTIOSO_RELEASE}"
 ```
 
-Finally upload the release to [TII JFrog artifactory TII seL4 release repository](https://artifactory.ssrcdevops.tii.ae:443/artifactory/tii-sel4-releases/). Make sure to use correct release version.
+Finally upload the release to [Virtioso JFrog artifactory Virtioso seL4 release repository](https://artifactory.ssrcdevops.unikie.com/artifactory/virtioso-releases/). Make sure to use correct release version.
 
 ---
 
-[environment setup instructions]: https://github.com/tiiuae/virtioso-build#setting-up-the-build-environment
+[environment setup instructions]: https://github.com/virtioso/virtioso-build#setting-up-the-build-environment

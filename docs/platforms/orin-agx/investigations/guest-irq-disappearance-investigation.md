@@ -188,10 +188,10 @@ Key differences identified:
 | Aspect | vm_minimal | vm_qemu_virtio |
 |--------|------------|----------------|
 | Config include | `configurations/vm.h` | `configurations/virtioso/vm.h` |
-| VM macro | `VM_INIT_DEF()` | `VM_TII_INIT_DEF()` |
+| VM macro | `VM_INIT_DEF()` | `VM_VIRTIOSO_INIT_DEF()` |
 | Extra attributes | None | tracebuffer, ramoops, hyp_ftrace_timer, virtio channels |
 
-**TII modules compiled in (even with VM1 removed):**
+**Virtioso modules compiled in (even with VM1 removed):**
 - `trace.c` - tracebuffer/ramoops shared memory setup
 - `hyp_ftrace.c` - hypervisor ftrace control, registers vGIC IRQ callback
 - `guest_config.c` - guest configuration
@@ -220,5 +220,5 @@ Key differences identified:
 
 1. What badge value is received when the guest traps and VMM doesn't resume it?
 2. Is the message being treated as a notification instead of a VCPU fault?
-3. Is there a TII module fault handler that's "eating" faults without resuming?
+3. Is there a Virtioso module fault handler that's "eating" faults without resuming?
 4. Does the hyp_ftrace module's vGIC callback somehow interfere with interrupt delivery?

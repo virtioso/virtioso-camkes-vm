@@ -1,10 +1,10 @@
 # seL4 Kernel Modifications
 
-This document describes the TII modifications to the seL4 microkernel for improved virtualization support.
+This document describes the Virtioso modifications to the seL4 microkernel for improved virtualization support.
 
 ## Overview
 
-TII made several enhancements to the seL4 kernel:
+Virtioso made several enhancements to the seL4 kernel:
 
 | Category | Modification | Impact |
 |----------|--------------|--------|
@@ -22,7 +22,7 @@ When a guest VM executes WFI (Wait For Interrupt), the vCPU would idle-loop in t
 
 ### Solution
 
-TII modified the kernel to yield to other threads when a vCPU executes WFI:
+Virtioso modified the kernel to yield to other threads when a vCPU executes WFI:
 
 ```c
 // kernel/include/arch/arm/armv/armv8-a/64/armv/vcpu.h
@@ -289,7 +289,7 @@ set(KernelRootCNodeSizeBits 18)
 
 ## Commit History
 
-Key TII commits:
+Key Virtioso commits:
 
 | Commit | Title | Author |
 |--------|-------|--------|

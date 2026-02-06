@@ -1,6 +1,6 @@
 # Virtio Architecture
 
-This document describes how virtio devices are implemented across multiple VMs in the TII seL4 virtualization platform.
+This document describes how virtio devices are implemented across multiple VMs in the Virtioso seL4 virtualization platform.
 
 ## Overview
 
@@ -56,7 +56,7 @@ graph LR
 |----------|------------------|----------|-------------|
 | KVM/QEMU | Host userspace | Medium | High |
 | Xen PV | Dom0 kernel | Low | High |
-| **TII seL4** | Guest VM (QEMU) | High | Medium |
+| **Virtioso seL4** | Guest VM (QEMU) | High | Medium |
 
 ## Virtio Device Types
 

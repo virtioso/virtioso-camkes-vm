@@ -32,9 +32,9 @@ projects/vm/components/VM_Arm/src/main.c:
     └── vm_ram_touch(...)           # Load DTB to guest
 ```
 
-## Current Architecture (TII virtioso-camkes-vm)
+## Current Architecture (Virtioso virtioso-camkes-vm)
 
-TII adds a post-generation hook via the existing `DEFINE_MODULE` infrastructure:
+Virtioso adds a post-generation hook via the existing `DEFINE_MODULE` infrastructure:
 
 ```c
 // src/camkes/modules/fdt_plat_customize.c
@@ -53,7 +53,7 @@ int fdt_plat_customize(vm_t *vm, void *dtb_buf) {
 }
 ```
 
-**Key insight**: TII's approach uses `gen_dtb_buf` as module cookie, so the hook receives the generated DTB buffer and can modify it.
+**Key insight**: Virtioso's approach uses `gen_dtb_buf` as module cookie, so the hook receives the generated DTB buffer and can modify it.
 
 ---
 
@@ -166,7 +166,7 @@ AddToFileServer("console-tcu.dtbo" "${CMAKE_CURRENT_BINARY_DIR}/console-tcu.dtbo
 
 ### B) Programmatic Post-Generation Hook (Upstream-Compatible)
 
-Upstream the TII approach with minimal changes.
+Upstream the Virtioso approach with minimal changes.
 
 #### B.1 Changes to projects/vm
 
@@ -277,7 +277,7 @@ int fdt_plat_customize(vm_t *vm, void *dtb_buf)
 
 With upstream adoption of either approach:
 
-| TII File | Status | Notes |
+| Virtioso File | Status | Notes |
 |----------|--------|-------|
 | `src/camkes/modules/fdt_plat_customize.c` | **REDUNDANT** | Module wrapper no longer needed |
 | `src/plat/rpi4/fdt.c` | **KEEP** (move) | Move to `projects/vm/plat/rpi4/` |
@@ -290,7 +290,7 @@ With upstream adoption of either approach:
 - `DEFINE_MODULE(fdt_plat_customize, ...)` wrapper
 - `fdt_plat_customize_init()` module init
 
-**Keep in virtioso-camkes-vm (TII-specific features):**
+**Keep in virtioso-camkes-vm (Virtioso-specific features):**
 - `fdt_node_t` infrastructure for dynamic node registration
 - `DEFINE_FDT_NODE` macro
 - `fdt_generate_reserved_node()` - for shared memory regions
@@ -305,7 +305,7 @@ With upstream adoption of either approach:
    - Minimal upstream changes
    - Single weak function + default implementation
    - Platforms override as needed
-   - TII removes module wrapper, keeps platform overrides
+   - Virtioso removes module wrapper, keeps platform overrides
 
 2. **Phase 2: DTB Overlay Support** (Option A)
    - More powerful but more complex
@@ -319,8 +319,8 @@ With upstream adoption of either approach:
 
 ### The DEFINE_MODULE_DEP Challenge
 
-TII's current implementation uses `DEFINE_MODULE` with `DEFINE_MODULE_DEP` to ensure
-`fdt_plat_customize` runs **after** other TII modules that also modify the DTB. A simple
+Virtioso's current implementation uses `DEFINE_MODULE` with `DEFINE_MODULE_DEP` to ensure
+`fdt_plat_customize` runs **after** other Virtioso modules that also modify the DTB. A simple
 weak function call in upstream `main.c` wouldn't preserve this inter-module ordering.
 
 ### Recommended Layered Approach
@@ -349,11 +349,11 @@ if (vm_config->generate_dtb) {
 
 This is ~10 lines added to upstream. Clean, minimal, no module system involvement.
 
-**Layer 2: TII (virtioso-camkes-vm)** - Thin wrapper for module ordering
+**Layer 2: Virtioso (virtioso-camkes-vm)** - Thin wrapper for module ordering
 
 ```c
 // src/camkes/modules/fdt_plat_customize.c
-// This wrapper ensures fdt_plat_customize runs after other TII modules
+// This wrapper ensures fdt_plat_customize runs after other Virtioso modules
 
 static int fdt_plat_customize_impl(vm_t *vm, void *dtb_buf);
 
@@ -367,7 +367,7 @@ static void fdt_plat_customize_module_init(vm_t *vm, void *cookie)
 }
 
 DEFINE_MODULE(fdt_plat_customize, gen_dtb_buf, fdt_plat_customize_module_init)
-DEFINE_MODULE_DEP(fdt_plat_customize, some_other_tii_module)
+DEFINE_MODULE_DEP(fdt_plat_customize, some_other_virtioso_module)
 
 // Override upstream weak function
 int fdt_plat_customize(vm_t *vm, void *dtb_buf)
@@ -390,8 +390,8 @@ static int fdt_plat_customize_impl(vm_t *vm, void *dtb_buf)
 ### Benefits of This Layered Approach
 
 1. **Upstream stays minimal**: Just a weak function call, no module system changes
-2. **TII keeps ordering control**: `DEFINE_MODULE_DEP` ensures proper sequencing
-3. **Clean rebase**: TII changes layer on top of upstream without conflicts
+2. **Virtioso keeps ordering control**: `DEFINE_MODULE_DEP` ensures proper sequencing
+3. **Clean rebase**: Virtioso changes layer on top of upstream without conflicts
 4. **Platforms can be simple**: If no ordering needed, just override weak function directly
 
 ### Git History Structure
@@ -401,8 +401,8 @@ projects/vm (upstream):
   ad66b65  ... existing commit ...
   NEW      Add fdt_plat_customize weak hook for platform DTB customization
 
-projects/virtioso-camkes-vm (TII fork):
-  ... existing TII commits ...
+projects/virtioso-camkes-vm (Virtioso fork):
+  ... existing Virtioso commits ...
   KEEP     Module wrapper with DEFINE_MODULE_DEP (rebases cleanly on upstream hook)
   NEW      Add orinagx/fdt.c with TCU node generation
 ```

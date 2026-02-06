@@ -8,7 +8,7 @@
 
 #include <configurations/vm.h>
 
-#define VM_TII_INIT_DEF() \
+#define VM_VIRTIOSO_INIT_DEF() \
     VM_INIT_DEF() \
     attribute int tracebuffer_base; \
     attribute int tracebuffer_size; \
@@ -35,7 +35,7 @@
         string ctrl_size; \
     } vm_virtio_device_channels[] = []; \
 
-#define VM_TII_CONFIGURATION_DEF(num) \
+#define VM_VIRTIOSO_CONFIGURATION_DEF(num) \
     vm##num.fs_shmem_size = 0x100000; \
     vm##num.global_endpoint_base = 1 << 27; \
     vm##num.asid_pool = true; \

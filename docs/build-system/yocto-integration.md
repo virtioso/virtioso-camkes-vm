@@ -4,7 +4,7 @@ This document describes the Yocto/OpenEmbedded integration for building guest VM
 
 ## Overview
 
-TII uses Yocto to build Linux guest images for both device and driver VMs:
+Virtioso uses Yocto to build Linux guest images for both device and driver VMs:
 
 ```mermaid
 graph TB
@@ -41,7 +41,7 @@ graph TB
 
 ```
 vm-images/
-├── meta-sel4/                    # TII Yocto layer
+├── meta-sel4/                    # Virtioso Yocto layer
 │   ├── classes/
 │   │   ├── vm-guest-image.bbclass
 │   │   ├── vm-guest-images-install.bbclass
@@ -190,7 +190,7 @@ FEATURE_PACKAGES_qemu-virtualization = "\
 
 FEATURE_PACKAGES_benchmark = " \
     screen \
-    tii-benchmark \
+    virtioso-benchmark \
 "
 
 FEATURE_PACKAGES_gui-benchmark = " \
@@ -241,8 +241,8 @@ meta-sel4/recipes-devtools/
 
 ```
 meta-sel4/recipes-benchmark/
-└── tii-benchmark/
-    └── tii-benchmark_%.bb        # TII benchmark suite
+└── virtioso-benchmark/
+    └── virtioso-benchmark_%.bb        # Virtioso benchmark suite
 ```
 
 ## Build Configuration
@@ -476,7 +476,7 @@ vm_qemu_virtio: linux-image
 
 | File | Description |
 |------|-------------|
-| `vm-images/meta-sel4/` | TII Yocto layer |
+| `vm-images/meta-sel4/` | Virtioso Yocto layer |
 | `vm-images/meta-sel4/images/` | Image recipes |
 | `vm-images/meta-sel4/classes/` | BBClasses |
 | `vm-images/meta-sel4/recipes-*/` | Package recipes |

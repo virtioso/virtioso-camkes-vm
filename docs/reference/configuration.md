@@ -1,6 +1,6 @@
 # Configuration Reference
 
-This document provides a reference for all configuration options in the TII seL4 virtio system.
+This document provides a reference for all configuration options in the Virtioso seL4 virtio system.
 
 ## CMake Configuration
 
@@ -56,7 +56,7 @@ set(VmVirtioConsole ON CACHE BOOL "Enable virtio console")
 set(VmInitRdFile "" CACHE FILEPATH "InitRD image file")
 ```
 
-### TII-Specific Options
+### Virtioso-Specific Options
 
 ```cmake
 # Large page support
@@ -76,7 +76,7 @@ set(KernelBenchmarkTrackKernelEntries ON CACHE BOOL "Track kernel entries")
 ```camkes
 component VM {
     VM_INIT_DEF()
-    VM_TII_INIT_DEF()
+    VM_VIRTIOSO_INIT_DEF()
 
     // Virtio device connections (for device VM)
     VIRTIO_COMPONENT_DEF(device_id, driver_id)
@@ -179,12 +179,12 @@ Standard VM initialization macro (from seL4 CAmkES VM):
     // ... standard VM interfaces
 ```
 
-### VM_TII_INIT_DEF()
+### VM_VIRTIOSO_INIT_DEF()
 
-TII virtio extensions:
+Virtioso virtio extensions:
 
 ```c
-#define VM_TII_INIT_DEF() \
+#define VM_VIRTIOSO_INIT_DEF() \
     attribute { \
         int id; \
         string data_base; \
@@ -419,7 +419,7 @@ assembly {
 
 | File | Description |
 |------|-------------|
-| `configurations/virtioso/vm.h` | TII CAmkES macros |
+| `configurations/virtioso/vm.h` | Virtioso CAmkES macros |
 | `configs/*.defconfig` | Platform configurations |
 | `CMakeLists.txt` | CMake configuration |
 

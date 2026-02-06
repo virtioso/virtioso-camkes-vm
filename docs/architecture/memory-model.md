@@ -1,6 +1,6 @@
 # Memory Model
 
-This document describes the memory architecture for the TII seL4 virtio virtualization platform, including shared memory regions, SWIOTLB, and large page support.
+This document describes the memory architecture for the Virtioso seL4 virtio virtualization platform, including shared memory regions, SWIOTLB, and large page support.
 
 ## Overview
 
@@ -83,7 +83,7 @@ The `memdev` dataport provides shared data memory:
 
 ### Overview
 
-The TII platform achieves **zero-copy** data transfer between driver and device VMs in **both** configuration modes. This is possible because the virtio data region is always a CAmkES shared memory dataport accessible by both VMs.
+The Virtioso platform achieves **zero-copy** data transfer between driver and device VMs in **both** configuration modes. This is possible because the virtio data region is always a CAmkES shared memory dataport accessible by both VMs.
 
 ### How Zero-Copy Works
 
@@ -193,7 +193,7 @@ int fdt_node_generate_swiotlb(fdt_node_t *node, void *fdt)
 App Buffer → Copy → SWIOTLB Bounce → Device DMA → Copy → Device Buffer
 ```
 
-**TII Architecture (both modes - zero-copy between VMs):**
+**Virtioso Architecture (both modes - zero-copy between VMs):**
 ```
 VMSWIOTLB=0: App Buffer (in RAM) ══════════════════╗
                                                    ║ Same physical
@@ -404,7 +404,7 @@ vm1.vm_virtio_drivers = [{
 
 ### 2MB Large Pages
 
-TII modifications enable 2MB large page mappings for improved performance:
+Virtioso modifications enable 2MB large page mappings for improved performance:
 
 | Page Size | TLB Entries | Coverage |
 |-----------|-------------|----------|
@@ -529,7 +529,7 @@ Driver VM Capabilities:
 For correct DMA operation:
 - ARM D-cache cleaning before DMA read
 - ARM D-cache invalidation after DMA write
-- TII kernel includes ARM reference D-cache implementation
+- Virtioso kernel includes ARM reference D-cache implementation
 
 ### Memory Bandwidth
 

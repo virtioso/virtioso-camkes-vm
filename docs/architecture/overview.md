@@ -1,6 +1,6 @@
 # System Architecture Overview
 
-This document describes the high-level architecture of the TII seL4 Virtio Virtualization Platform.
+This document describes the high-level architecture of the Virtioso seL4 Virtio Virtualization Platform.
 
 ## Architecture Diagram
 
@@ -195,7 +195,7 @@ graph LR
 
 ## Flexible VM Topology
 
-A key architectural differentiator of the TII seL4 platform is its support for **arbitrary VM topologies**. Unlike traditional hypervisors with fixed host-guest hierarchies, VMs in this system are peers that can form any relationship graph.
+A key architectural differentiator of the Virtioso seL4 platform is its support for **arbitrary VM topologies**. Unlike traditional hypervisors with fixed host-guest hierarchies, VMs in this system are peers that can form any relationship graph.
 
 ### Any-to-Any Relationships
 

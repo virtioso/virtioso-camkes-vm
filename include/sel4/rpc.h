@@ -1,5 +1,6 @@
 /*
- * Copyright 2022, 2023, 2024, Unikie
+ * Copyright 2022, 2023,, Unikie
+ * Copyright 2024, Unikie
  *
  * SPDX-License-Identifier: Apache-2.0
  */

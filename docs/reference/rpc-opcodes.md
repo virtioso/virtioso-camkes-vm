@@ -1,6 +1,6 @@
 # RPC Opcodes Reference
 
-This document provides a complete reference for all RPC operation codes used in the TII seL4 virtio system.
+This document provides a complete reference for all RPC operation codes used in the Virtioso seL4 virtio system.
 
 ## Overview
 

@@ -6,7 +6,7 @@ vm_minimal boots successfully on Orin AGX with BPMP working, but vm_qemu_virtio 
 1. VM1 is removed entirely
 2. DeclareVirtiosoCAmkESVM is changed to DeclareCAmkESARMVM
 
-This means the issue is NOT in TII templates/modules - it's in the camkes configuration itself.
+This means the issue is NOT in Virtioso templates/modules - it's in the camkes configuration itself.
 
 ## Symptom
 
@@ -61,7 +61,7 @@ vm_qemu_virtio needs larger heap for LZ4 kernel decompression.
 | App | Macro |
 |-----|-------|
 | vm_minimal | `VM_CONFIGURATION_DEF(0)` |
-| vm_qemu_virtio | `VM_TII_CONFIGURATION_DEF(0)` |
+| vm_qemu_virtio | `VM_VIRTIOSO_CONFIGURATION_DEF(0)` |
 
 `VM_CONFIGURATION_DEF` sets:
 ```c
@@ -75,7 +75,7 @@ vm##num.sem_value = 0;
 vm##num.heap_size = 0x300000;
 ```
 
-`VM_TII_CONFIGURATION_DEF` sets:
+`VM_VIRTIOSO_CONFIGURATION_DEF` sets:
 ```c
 vm##num.fs_shmem_size = 0x100000;
 vm##num.global_endpoint_base = 1 << 27;
@@ -122,7 +122,7 @@ DeclareCAmkESRootserver(vm_qemu_virtio.camkes ...)
 Key insight: vm_minimal imports `<VM_Arm/VM.camkes>` which pre-defines a `VM` component.
 The VM_Arm/CMakeLists.txt calls `DeclareCAmkESARMVM(VM)` for this pre-defined component.
 
-vm_qemu_virtio defines its own `component VM0 { VM_TII_INIT_DEF() }` and calls
+vm_qemu_virtio defines its own `component VM0 { VM_VIRTIOSO_INIT_DEF() }` and calls
 `DeclareCAmkESARMVM(VM0)` separately.
 
 ### 8. Component Definition
@@ -141,7 +141,7 @@ assembly {
 ```camkes
 // Does NOT import VM_Arm/VM.camkes
 component VM0 {
-    VM_TII_INIT_DEF()  // Custom component with TII extensions
+    VM_VIRTIOSO_INIT_DEF()  // Custom component with Virtioso extensions
 }
 assembly {
     composition {
@@ -150,7 +150,7 @@ assembly {
 }
 ```
 
-Note: `VM_TII_INIT_DEF()` expands `VM_INIT_DEF()` and adds:
+Note: `VM_VIRTIOSO_INIT_DEF()` expands `VM_INIT_DEF()` and adds:
 ```c
 attribute int tracebuffer_base;
 attribute int tracebuffer_size;
@@ -174,7 +174,7 @@ AddToFileServerCompressed("linux" "${VM_IMAGE_LINUX}")  # Different function!
 AddToFileServer("linux-initrd" ${VM_IMAGE_INITRD})
 ```
 
-`AddToFileServerCompressed` is a TII function that handles LZ4 compression.
+`AddToFileServerCompressed` is a Virtioso function that handles LZ4 compression.
 This may affect how the kernel is stored and loaded.
 
 ### 10. CAmkES Import Structure
@@ -199,9 +199,9 @@ import <devices.camkes>;
 Note: VM_Arm/VM.camkes internally imports FileServer, SerialServer, TimeServer, so both
 should end up with similar components. But vm_qemu_virtio does explicit imports.
 
-### 11. TII VM Configuration Override
+### 11. Virtioso VM Configuration Override
 
-TII's vm.h **undefines and redefines** VM_COMPONENT_DEF:
+Virtioso's vm.h **undefines and redefines** VM_COMPONENT_DEF:
 ```c
 #undef VM_COMPONENT_DEF
 #define VM_COMPONENT_DEF(num) \
@@ -210,7 +210,7 @@ TII's vm.h **undefines and redefines** VM_COMPONENT_DEF:
 
 This means:
 - **Standard vm.h**: `VM_COMPOSITION_DEF(0)` → `component VM vm0;` (generic type)
-- **TII vm.h**: `VM_COMPOSITION_DEF(0)` → `component VM0 vm0;` (specific type)
+- **Virtioso vm.h**: `VM_COMPOSITION_DEF(0)` → `component VM0 vm0;` (specific type)
 
 This requires vm_qemu_virtio to define its own `component VM0 { ... }`.
 
@@ -317,25 +317,25 @@ CMakeLists.txt:
 DeclareCAmkESARMVM(VM0)  # Compiles standard VM_Arm sources
 ```
 
-But vm_qemu_virtio.camkes STILL uses TII macros:
+But vm_qemu_virtio.camkes STILL uses Virtioso macros:
 ```camkes
 #include <configurations/virtioso/vm.h>
 
 component VM0 {
-    VM_TII_INIT_DEF()         // TII macro - expects TII attributes!
+    VM_VIRTIOSO_INIT_DEF()         // Virtioso macro - expects Virtioso attributes!
 }
 
 configuration {
-    VM_TII_CONFIGURATION_DEF(0)  // TII macro!
+    VM_VIRTIOSO_CONFIGURATION_DEF(0)  // Virtioso macro!
 }
 ```
 
 **This is a mismatch:**
-- CAmkES generates code expecting TII attributes:
+- CAmkES generates code expecting Virtioso attributes:
   - `tracebuffer_base`, `tracebuffer_size`
   - `ramoops_base`, `ramoops_size`
   - `vm_virtio_driver_channels[]`, `vm_virtio_device_channels[]`
-- But DeclareCAmkESARMVM doesn't compile TII sources that would USE these attributes
+- But DeclareCAmkESARMVM doesn't compile Virtioso sources that would USE these attributes
 
 **The test should either:**
 1. Change camkes file to use `VM_INIT_DEF()` and `VM_CONFIGURATION_DEF(0)`, OR
@@ -343,7 +343,7 @@ configuration {
 
 ## Summary of Most Likely Culprits
 
-1. **MISMATCH: TII camkes macros + DeclareCAmkESARMVM** - Incompatible combination
+1. **MISMATCH: Virtioso camkes macros + DeclareCAmkESARMVM** - Incompatible combination
 2. **cnode_size_bits: 23 vs 18** - vm_minimal comment says 18 fixed 2MB frame issue on RPi4
 3. **Include header** - `configurations/virtioso/vm.h` redefines VM_COMPONENT_DEF
 4. **vm0.irqs = []** - explicit empty array vs default (may affect IRQ routing)
@@ -352,7 +352,7 @@ configuration {
 ## Differences Still To Investigate
 
 - [ ] Generated capdl spec differences (compare frame/IRQ allocations)
-- [ ] Any effect of TII #undef VM_COMPONENT_DEF on CAmkES processing
+- [ ] Any effect of Virtioso #undef VM_COMPONENT_DEF on CAmkES processing
 - [ ] Whether larger cnode_size_bits (23 vs 18) causes allocation issues
 - [ ] Whether DTB/initrd address differences affect boot
 
@@ -379,4 +379,4 @@ configuration {
 
 ### Configuration Headers
 - Standard: `projects/vm/components/VM_Arm/configurations/vm.h`
-- TII: `projects/virtioso-camkes-vm/configurations/virtioso/vm.h`
+- Virtioso: `projects/virtioso-camkes-vm/configurations/virtioso/vm.h`

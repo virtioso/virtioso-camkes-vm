@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
- * Copyright 2023, 2024, Unikie
+ * Copyright 2023,, Unikie
+ * Copyright 2024, Unikie
  *
  */
 #ifndef __SEL4_VIRT_TYPES_H

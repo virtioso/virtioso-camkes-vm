@@ -13,18 +13,17 @@ import <seL4VMDTBPassthrough.idl4>;
 import <FileServerInterface.camkes>;
 import <FileServer/FileServer.camkes>;
 import <SerialServer/SerialServer.camkes>;
-import <TimeServer/TimeServer.camkes>;
 import <vm-connectors.camkes>;
 import <devices.camkes>;
 
 component VM0 {
-    VM_TII_INIT_DEF()
+    VM_VIRTIOSO_INIT_DEF()
 
     VIRTIO_DRIVER_COMPONENT_DEF(1)
 }
 
 component VM1 {
-    VM_TII_INIT_DEF()
+    VM_VIRTIOSO_INIT_DEF()
 
     VIRTIO_DEVICE_COMPONENT_DEF(0)
 }
@@ -43,20 +42,11 @@ assembly {
         /* DTB Passthrough */
         connection seL4VMDTBPassthrough vm0_dtb(from vm0.dtb_self, to vm0.dtb);
         connection seL4VMDTBPassthrough vm1_dtb(from vm1.dtb_self, to vm1.dtb);
-
-        /* TimeServer for hyp_ftrace auto-dump timeout */
-        component TimeServer time_server;
-        connection seL4TimeServer vm0_hyp_ftrace_timer(from vm0.hyp_ftrace_timer, to time_server.the_timer);
     }
     configuration {
         VM_GENERAL_CONFIGURATION_DEF()
-        VM_TII_CONFIGURATION_DEF(0)
-        VM_TII_CONFIGURATION_DEF(1)
-
-        /* TimeServer configuration */
-        time_server.timers_per_client = 1;
-        time_server.priority = 255;
-        time_server.simple = true;
+        VM_VIRTIOSO_CONFIGURATION_DEF(0)
+        VM_VIRTIOSO_CONFIGURATION_DEF(1)
 
         /* VM0 needs 80MB heap for LZ4 kernel decompression (~18MB compressed + ~51MB decompressed) */
         vm0.heap_size = 0x5000000;

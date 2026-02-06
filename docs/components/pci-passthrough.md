@@ -147,7 +147,7 @@ static int handle_pci_config(
 
 ### ECAM Support
 
-TII added PCIe Extended Configuration Access Mechanism:
+Virtioso added PCIe Extended Configuration Access Mechanism:
 
 ```c
 // From projects/sel4_projects_libs

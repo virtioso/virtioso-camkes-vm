@@ -27,6 +27,7 @@ static uintptr_t vm/*? dev.id ?*/_iobuf_get(io_proxy_t *io_proxy)
 
 static void vm/*? dev.id ?*/_notify(void *cookie)
 {
+    ZF_LOGE("notify: sending to device VM");
     vm/*? dev.id ?*/_ntfn_send_emit();
 }
 

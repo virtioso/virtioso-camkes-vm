@@ -1,6 +1,6 @@
 # VM Topology Architecture
 
-This document provides a comprehensive guide to the flexible VM topology capabilities of the TII seL4 virtualization platform.
+This document provides a comprehensive guide to the flexible VM topology capabilities of the Virtioso seL4 virtualization platform.
 
 ## Overview
 

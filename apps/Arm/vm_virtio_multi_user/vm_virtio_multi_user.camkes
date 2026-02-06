@@ -18,20 +18,20 @@ import <vm-connectors.camkes>;
 import <devices.camkes>;
 
 component VM0 {
-    VM_TII_INIT_DEF()
+    VM_VIRTIOSO_INIT_DEF()
 
     VIRTIO_DRIVER_COMPONENT_DEF(1)
     VIRTIO_DRIVER_COMPONENT_DEF(2)
 }
 
 component VM1 {
-    VM_TII_INIT_DEF()
+    VM_VIRTIOSO_INIT_DEF()
 
     VIRTIO_DEVICE_COMPONENT_DEF(0)
 }
 
 component VM2 {
-    VM_TII_INIT_DEF()
+    VM_VIRTIOSO_INIT_DEF()
 
     VIRTIO_DEVICE_COMPONENT_DEF(0)
 }
@@ -56,9 +56,9 @@ assembly {
     }
     configuration {
         VM_GENERAL_CONFIGURATION_DEF()
-        VM_TII_CONFIGURATION_DEF(0)
-        VM_TII_CONFIGURATION_DEF(1)
-        VM_TII_CONFIGURATION_DEF(2)
+        VM_VIRTIOSO_CONFIGURATION_DEF(0)
+        VM_VIRTIOSO_CONFIGURATION_DEF(1)
+        VM_VIRTIOSO_CONFIGURATION_DEF(2)
 
         /* VM0 needs 80MB heap for LZ4 kernel decompression */
         vm0.heap_size = 0x5000000;

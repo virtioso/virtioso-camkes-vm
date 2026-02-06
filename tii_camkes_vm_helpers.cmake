@@ -48,7 +48,7 @@ function(DeclareTIICAmkESVM name)
         SOURCES
         ${tii_camkes_vm_sources}
         LIBS
-        tii_sel4vm
+        virtioso_camkes_vm
         tii_camkes_vm_Config
         TEMPLATE_SOURCES
         seL4VirtIODeviceVM.template.c

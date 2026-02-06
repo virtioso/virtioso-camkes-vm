@@ -14,7 +14,7 @@ tii_camkes_vm_setup()
 
 file(
     GLOB
-        tii_sel4vm_sources
+        virtioso_camkes_vm_sources
         src/*.c
 )
 
@@ -23,17 +23,17 @@ if(KernelPlatformRpi4)
 else()
     file(GLOB plat_deps src/plat/${KernelPlatform}/*.c)
 endif()
-list(APPEND tii_sel4vm_sources ${plat_deps})
+list(APPEND virtioso_camkes_vm_sources ${plat_deps})
 
 
-add_library(tii_sel4vm OBJECT ${tii_sel4vm_sources})
+add_library(virtioso_camkes_vm OBJECT ${virtioso_camkes_vm_sources})
 
 target_include_directories(
-    tii_sel4vm
+    virtioso_camkes_vm
     PUBLIC include
 )
 target_link_libraries(
-    tii_sel4vm
+    virtioso_camkes_vm
     fdt
     sel4_autoconf
     sel4sync

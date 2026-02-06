@@ -58,7 +58,7 @@ TII seL4 Virtio Virtualization Platform - runs multiple isolated guest VMs on th
 
 ## Build Commands
 
-All builds run inside a Docker container. **IMPORTANT: Always run `make` commands from the workspace root (`~/tii-sel4/`), NOT from `tii_sel4_build/` subdirectory.** The Makefile is symlinked to the workspace root, and paths in build scripts assume execution from there.
+All builds run inside a Docker container. **IMPORTANT: Always run `make` commands from the workspace root (`~/tii-sel4/`), NOT from `virtioso-build/` subdirectory.** The Makefile is symlinked to the workspace root, and paths in build scripts assume execution from there.
 
 ```bash
 # Build Docker container (first time setup)
@@ -117,7 +117,7 @@ rm -rf vm-images/build/tmp
 | `projects/camkes-tool/` | CAmkES component framework |
 | `sources/kmod-sel4-virt/` | Kernel module bridging QEMU ↔ seL4 RPC (/dev/sel4) |
 | `sources/qemu-sel4-virtio/` | QEMU fork with seL4 accelerator (accel/sel4) |
-| `tii_sel4_build/` | Build system, Docker, scripts, configs |
+| `virtioso-build/` | Build system, Docker, scripts, configs |
 | `vm-images/meta-sel4/` | Yocto layer for guest images |
 | `tools/seL4/` | seL4 build tools (cmake-tool, elfloader) |
 

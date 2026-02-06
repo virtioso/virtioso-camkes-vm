@@ -392,7 +392,7 @@ Multi-backend with VMSWIOTLB=1:
 
 | File | Description |
 |------|-------------|
-| `configurations/tii/vm.h` | VM composition macros |
+| `configurations/virtioso/vm.h` | VM composition macros |
 | `apps/Arm/vm_qemu_virtio/` | Two-VM example |
 | `apps/Arm/vm_virtio_multi_user/` | Multi-VM example |
 

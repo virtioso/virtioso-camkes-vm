@@ -13,7 +13,7 @@
 
 #include <vmlinux.h>
 
-#include <tii/camkes/pl011.h>
+#include <virtioso/camkes/pl011.h>
 
 #define PL011_UARTDR    0x00    /* UARTDR: uart data register */
 #define PL011_UARTFR    0x18    /* UARTFR: uart flag register */

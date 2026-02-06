@@ -7,16 +7,16 @@ cmake_minimum_required(VERSION 3.8.2)
 
 project(vm-virtio-multi-user C)
 
-include(${TII_CAMKES_VM_HELPERS_PATH})
+include(${VIRTIOSO_CAMKES_VM_HELPERS_PATH})
 
 AddToFileServer("linux" "${VM_IMAGE_LINUX}")
 AddToFileServer("linux-initrd" ${VM_IMAGE_INITRD})
 
 DefineCAmkESVMFileServer()
 
-DeclareTIICAmkESVM(VM0)
-DeclareTIICAmkESVM(VM1)
-DeclareTIICAmkESVM(VM2)
+DeclareVirtiosoCAmkESVM(VM0)
+DeclareVirtiosoCAmkESVM(VM1)
+DeclareVirtiosoCAmkESVM(VM2)
 
 # Declare root server
 DeclareCAmkESRootserver(

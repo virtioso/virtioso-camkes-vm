@@ -9,7 +9,7 @@
 #include <sel4vm/guest_ram.h>
 #include <utils/util.h>
 
-#include <tii/ram_dataport.h>
+#include <virtioso/ram_dataport.h>
 
 static USED SECTION("_ram_dataport_definition") struct {} dummy_ram_dataport_definition;
 extern ram_dataport_t __start__ram_dataport_definition[];

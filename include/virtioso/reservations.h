@@ -11,8 +11,8 @@
 #include <sel4vm/guest_vm.h>
 #include <sel4vm/guest_memory.h>
 
-#include <tii/io_proxy.h>
-#include <tii/irq_line.h>
+#include <virtioso/io_proxy.h>
+#include <virtioso/irq_line.h>
 
 /* MMIO reservations */
 int mmio_res_assign(vm_t *vm, memory_fault_callback_fn fault_handler,

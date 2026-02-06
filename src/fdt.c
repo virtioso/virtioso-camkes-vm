@@ -10,11 +10,11 @@
 
 #include <libfdt.h>
 
-#include <tii/fdt.h>
-#include <tii/utils.h>
-#include <tii/pci.h>
-#include <tii/guest.h>
-#include <tii/io_proxy.h>
+#include <virtioso/fdt.h>
+#include <virtioso/utils.h>
+#include <virtioso/pci.h>
+#include <virtioso/guest.h>
+#include <virtioso/io_proxy.h>
 
 #define fdt_format(_buf, _len, _fmt, ...) ({ \
     int _n = snprintf(_buf, _len, _fmt, ##__VA_ARGS__); \

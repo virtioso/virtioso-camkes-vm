@@ -7,8 +7,8 @@
  */
 
 #include <sel4vm/guest_vm.h>
-#include <tii/gicv2m.h>
-#include <tii/msi.h>
+#include <virtioso/gicv2m.h>
+#include <virtioso/msi.h>
 
 static gicv2m_t v2m = {
     .base = 0x08021000,

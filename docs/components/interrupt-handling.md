@@ -50,7 +50,7 @@ graph TB
 For simple devices with dedicated interrupt lines:
 
 ```c
-// From include/tii/irq_line.h
+// From include/virtioso/irq_line.h
 typedef struct irq_line {
     vm_t *vm;               // Target VM
     int irq;                // Guest IRQ number
@@ -90,7 +90,7 @@ void irq_line_pulse(irq_line_t *line) {
 PCI devices may share interrupt lines (INTx). The shared IRQ line tracks multiple sources:
 
 ```c
-// From include/tii/shared_irq_line.h
+// From include/virtioso/shared_irq_line.h
 typedef struct shared_irq_line {
     uint64_t sources;       // Bitmap: bit N = source N active
     int irq;                // Guest IRQ number
@@ -168,7 +168,7 @@ sequenceDiagram
 ### Data Structures
 
 ```c
-// From include/tii/gicv2m.h
+// From include/virtioso/gicv2m.h
 #define GICV2M_IRQ_MAX 128
 
 typedef struct gicv2m {
@@ -570,10 +570,10 @@ typedef enum {
 | `src/plat/rpi4/msi.c` | RPi4 MSI configuration and handling |
 | `src/plat/qemu-arm-virt/msi.c` | QEMU ARM Virt MSI configuration |
 | `src/irq_reservations.c` | IRQ allocation tracking |
-| `include/tii/gicv2m.h` | GICv2m data structures and API |
-| `include/tii/msi.h` | MSI handler API |
-| `include/tii/irq_line.h` | IRQ line API |
-| `include/tii/shared_irq_line.h` | Shared IRQ line API |
+| `include/virtioso/gicv2m.h` | GICv2m data structures and API |
+| `include/virtioso/msi.h` | MSI handler API |
+| `include/virtioso/irq_line.h` | IRQ line API |
+| `include/virtioso/shared_irq_line.h` | Shared IRQ line API |
 | `sel4_projects_libs/.../vgic/` | Virtual GIC implementation |
 
 ## Related Documentation

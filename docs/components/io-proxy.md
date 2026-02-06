@@ -49,7 +49,7 @@ graph TB
 The main I/O proxy structure:
 
 ```c
-// From include/tii/io_proxy.h
+// From include/virtioso/io_proxy.h
 typedef struct io_proxy {
     /* Synchronization */
     sync_sem_t backend_started;     // Backend ready semaphore
@@ -330,7 +330,7 @@ configuration {
 |------|-------------|
 | `src/io_proxy.c` | Core I/O proxy implementation |
 | `src/libsel4vm_glue.c` | VMM integration and callbacks |
-| `include/tii/io_proxy.h` | Public API |
+| `include/virtioso/io_proxy.h` | Public API |
 
 ## Related Documentation
 

@@ -419,7 +419,7 @@ assembly {
 
 | File | Description |
 |------|-------------|
-| `configurations/tii/vm.h` | TII CAmkES macros |
+| `configurations/virtioso/vm.h` | TII CAmkES macros |
 | `configs/*.defconfig` | Platform configurations |
 | `CMakeLists.txt` | CMake configuration |
 

@@ -7,10 +7,10 @@
 #include <camkes.h>
 #include <vmlinux.h>
 
-#include <tii/fdt.h>
-#include <tii/io_proxy.h>
-#include <tii/camkes/io_proxy.h>
-#include <tii/guest.h>
+#include <virtioso/fdt.h>
+#include <virtioso/io_proxy.h>
+#include <virtioso/camkes/io_proxy.h>
+#include <virtioso/guest.h>
 
 extern vka_t _vka; /* from CAmkES VM */
 

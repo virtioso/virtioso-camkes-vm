@@ -17,14 +17,14 @@
 #include <sel4vmmplatsupport/drivers/pci_helper.h>
 #include <pci/helper.h>
 
-#include <tii/fdt.h>
-#include <tii/shared_irq_line.h>
+#include <virtioso/fdt.h>
+#include <virtioso/shared_irq_line.h>
 
-#include <tii/trace.h>
-#include <tii/io_proxy.h>
-#include <tii/pci.h>
-#include <tii/msi.h>
-#include <tii/emulated_device.h>
+#include <virtioso/trace.h>
+#include <virtioso/io_proxy.h>
+#include <virtioso/pci.h>
+#include <virtioso/msi.h>
+#include <virtioso/emulated_device.h>
 
 #include <sel4vmmplatsupport/ioports.h>
 #include <sel4vmmplatsupport/arch/vpci.h>

@@ -194,7 +194,7 @@ VIRTIO_DRIVER_GUEST_RAM_CONFIGURATION_DEF(1)  /* VM1 RAM allocation */
 | `apps/Arm/vm_qemu_virtio/settings.cmake` | Added orinagx to supported platforms |
 | `templates/seL4VirtIODeviceVM.template.c` | Added CONNECTION_BASE_ADDRESS for orinagx, renamed to vm_virtio_device_channels |
 | `templates/seL4VirtIODriverVM.template.c` | Renamed to vm_virtio_driver_channels |
-| `configurations/tii/vm.h` | Renamed attributes and macros for clarity |
+| `configurations/virtioso/vm.h` | Renamed attributes and macros for clarity |
 | `apps/Arm/vm_qemu_virtio/orinagx/devices.camkes` | Created - full platform configuration |
 | `apps/Arm/vm_qemu_virtio/*/devices.camkes` | Updated to new terminology |
 | `apps/Arm/vm_virtio_multi_user/*/devices.camkes` | Updated to new terminology |

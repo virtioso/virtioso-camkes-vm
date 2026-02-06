@@ -15,7 +15,7 @@
  * - MGBE0: 10GbE Ethernet
  * - GPIO, SMMU, SDMMC4
  */
-#include <configurations/tii/vm.h>
+#include <configurations/virtioso/vm.h>
 
 #define GUEST_ENTRY_OFFSET  0x200000
 

@@ -6,10 +6,10 @@
 
 #include <sel4vm/boot.h>
 
-#include <tii/emulated_device.h>
-#include <tii/reservations.h>
-#include <tii/irq_line.h>
-#include <tii/pci.h>
+#include <virtioso/emulated_device.h>
+#include <virtioso/reservations.h>
+#include <virtioso/irq_line.h>
+#include <virtioso/pci.h>
 
 typedef struct emudev_handler {
     vm_t *vm;

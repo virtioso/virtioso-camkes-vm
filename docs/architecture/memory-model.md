@@ -336,7 +336,7 @@ This mode should only be used when device VM is fully trusted.
 
 | File | Role |
 |------|------|
-| `configurations/tii/vm.h:85-97` | VMSWIOTLB configuration macros |
+| `configurations/virtioso/vm.h:85-97` | VMSWIOTLB configuration macros |
 | `templates/seL4VirtIODriverVM.template.c:53-63` | FDT swiotlb node definition |
 | `templates/seL4VirtIODriverVM.template.c:85-101` | `ram_dataport_setup()` |
 | `src/fdt.c:286-295` | `fdt_node_generate_swiotlb()` |

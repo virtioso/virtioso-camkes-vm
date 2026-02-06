@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <configurations/tii/vm.h>
+#include <configurations/virtioso/vm.h>
 
 #define GUEST_ENTRY_OFFSET  0x200000
 

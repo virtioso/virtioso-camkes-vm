@@ -10,7 +10,7 @@
 
 #include <libfdt.h>
 
-#include <tii/guest.h>
+#include <virtioso/guest.h>
 
 typedef struct vm vm_t;
 

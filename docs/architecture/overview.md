@@ -326,7 +326,7 @@ The platform targets ARM processors with:
 |------|-------------|
 | `src/libsel4vm_glue.c` | Core VMM integration, RPC handling |
 | `src/io_proxy.c` | I/O request/response lifecycle |
-| `configurations/tii/vm.h` | CAmkES component macros |
+| `configurations/virtioso/vm.h` | CAmkES component macros |
 | `templates/*.template.c` | CAmkES component templates |
 
 ## Related Documentation

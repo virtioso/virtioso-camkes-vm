@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <tii/reservations.h>
-#include <tii/list.h>
+#include <virtioso/reservations.h>
+#include <virtioso/list.h>
 
 static list_t irqs;
 

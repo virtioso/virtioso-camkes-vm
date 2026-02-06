@@ -15,7 +15,7 @@
 #include <vmlinux.h>
 #include <utils/util.h>
 
-#include <tii/camkes/hyp_ftrace.h>
+#include <virtioso/camkes/hyp_ftrace.h>
 
 /*- set hyp_ftrace = configuration[me.name].get('hyp_ftrace') -*/
 /*- if hyp_ftrace is not none -*/

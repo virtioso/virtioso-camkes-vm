@@ -417,8 +417,8 @@ See [Memory Model](memory-model.md#memory-isolation-vmswiotlb1) for detailed iso
 | `src/gicv2m.c` | GICv2m MSI frame emulation |
 | `src/plat/rpi4/msi.c` | RPi4 MSI configuration |
 | `src/msi.c` | MSI handler stubs |
-| `include/tii/gicv2m.h` | GICv2m data structures |
-| `include/tii/msi.h` | MSI handler API |
+| `include/virtioso/gicv2m.h` | GICv2m data structures |
+| `include/virtioso/msi.h` | MSI handler API |
 
 ## Related Documentation
 

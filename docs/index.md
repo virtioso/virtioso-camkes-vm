@@ -100,6 +100,7 @@ graph TB
 - [API Reference](reference/api-reference.md) - Data structures and functions
 - [RPC Opcodes](reference/rpc-opcodes.md) - Complete opcode reference
 - [Configuration](reference/configuration.md) - CMake and CAmkES options
+- [Autopilot Chain Diagrams](reference/autopilot-chain-diagrams.md)
 - [Kernel Notes](reference/kernel/upstream-addrFromKPPtr-bugs.md) - Kernel-specific notes
 - [Release Instructions](reference/release/release_instructions.md)
 

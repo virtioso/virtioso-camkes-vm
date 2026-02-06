@@ -99,17 +99,24 @@ make vm_qemu_virtio
 
 ### Testing on Hardware
 
-Use the MCP autopilot tools for testing on Orin AGX:
+Use the MCP autopilot tools for testing on Orin AGX. **Test tools are async**
+and return a `request_id` immediately. Poll for completion.
 
 ```
-# For vm_minimal
-mcp__sel4-autopilot__test_vm_minimal(binary_path="...")
-
-# For vm_qemu_virtio
-mcp__sel4-autopilot__test_vm_minimal(
+# Submit (async)
+resp = mcp__sel4-autopilot__test_vm_minimal(
     binary_path="/home/hlyytine/tii-sel4/orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx"
 )
+# resp contains request_id
+
+# Poll status (recommended: 1s interval, 300s overall)
+mcp__sel4-autopilot__get_test_status(request_id="...")
 ```
+
+Notes:
+- **Strict single-request policy**: a new submit fails if any request is pending or processing.
+- Use `mcp__sel4-autopilot__autopilot_status` to see queue summary.
+- Use `mcp__sel4-autopilot__cancel_test(request_id="...")` for hard cancel.
 
 ## Saving Changes to Recipe
 

@@ -266,7 +266,7 @@ cat /proc/device-tree/bpmp/mboxes | xxd
 
 ### Verify IRQ Routing
 
-Check sel4.log for:
+Check the profile-defined console log under `results/<id>/console/` for:
 - `Undelivered IRQ: N` - IRQ N needs passthrough
 - `OnDemandInstall: Created device-backed memory` - device mapping
 

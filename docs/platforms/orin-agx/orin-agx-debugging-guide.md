@@ -110,17 +110,14 @@ immediately with a `request_id`. Poll for completion.
 # Build
 mcp__sel4-autopilot__build_sel4test(mode="el2")  # or "el1", "el2-ftrace"
 
-# Test single run (async submit)
-mcp__sel4-autopilot__test_sel4_binary(binary_path="...")
+# Test (async submit)
+mcp__sel4-autopilot__test_sel4_efi(binary_path="...", profile="sel4test")
 
 # Poll status (recommended: 1s interval, 300s overall)
 mcp__sel4-autopilot__get_test_status(request_id="...")
 
-# Stress test (multiple runs, async submit)
-mcp__sel4-autopilot__test_sel4_multi_run(binary_path="...", run_count=10)
-
 # Get logs after completion
-mcp__sel4-autopilot__get_sel4_log(request_id="...")
+mcp__sel4-autopilot__get_logs(request_id="...", include_contents=false)
 ```
 
 Notes:
@@ -133,7 +130,7 @@ Notes:
 
 ```bash
 # Analyze sel4test log for RAS errors
-/home/hlyytine/autopilot/analyze_sel4log.py <results>/sel4.log
+/home/hlyytine/autopilot/analyze_sel4log.py <results>/console/<profile-defined-log>
 
 # Decode ftrace binary data
 /home/hlyytine/tii-sel4/kernel/tools/decode_ftrace_binary.py <ftrace_data>

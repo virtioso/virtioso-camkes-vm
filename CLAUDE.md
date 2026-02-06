@@ -348,7 +348,7 @@ If you are editing `docs/` (linked to this repo), commit from:
 ```python
 # From Python (e.g., in Claude Code)
 import sys
-sys.path.insert(0, '/home/hlyytine/pkvm/autopilot')
+sys.path.insert(0, '/home/hlyytine/autopilot')
 from sel4_client import submit_sel4_test, wait_for_result, get_sel4_log
 
 # Submit test and wait for results
@@ -363,7 +363,7 @@ print(log)
 
 ```bash
 # From command line
-cd /home/hlyytine/pkvm/autopilot
+cd /home/hlyytine/autopilot
 ./sel4_client.py submit ~/tii-sel4/orinagx_sel4test/images/sel4test-driver-image-arm-orinagx --name sel4test.efi --wait
 ```
 
@@ -436,7 +436,7 @@ If you encounter LZ4 decompression failures in ftrace data, the issue is in the 
 
 3. **Analyze** - Run the analyzer on results:
    ```bash
-   /home/hlyytine/pkvm/autopilot/analyze_sel4log.py <results>/sel4.log
+   /home/hlyytine/autopilot/analyze_sel4log.py <results>/sel4.log
    ```
 
 ### Automatic RAS Error Testing Workflow
@@ -447,7 +447,7 @@ If you encounter LZ4 decompression failures in ftrace data, the issue is in the 
 
 2. Use `mcp__sel4-autopilot__test_sel4_binary` or `mcp__sel4-autopilot__test_sel4_multi_run` to run the test
 
-3. Analyze results: `/home/hlyytine/pkvm/autopilot/analyze_sel4log.py <results>/sel4.log`
+3. Analyze results: `/home/hlyytine/autopilot/analyze_sel4log.py <results>/sel4.log`
    - Text summary (for user): error counts, affected tests, top addresses
    - JSON file (for comparison): `<logfile>.analysis.json`
 
@@ -524,7 +524,7 @@ See `kernel/docs/ftrace.md` for complete documentation.
    - `sel4.log` - Init script output and later kernel messages
    - Read vm.log FIRST, then sel4.log for complete picture
 
-**Results location:** `/home/hlyytine/pkvm/autopilot/results/<timestamp>/`
+**Results location:** `/home/hlyytine/autopilot/results/<timestamp>/`
 
 ### MANDATORY: vm_qemu_virtio Test Workflow for Orin AGX
 
@@ -601,7 +601,7 @@ See `kernel/docs/ftrace.md` for complete documentation.
 | Driver VM rootfs | N/A | virtio-blk (qcow2) |
 | Driver VM network | N/A | virtio-net (tap) |
 
-**Results location:** `/home/hlyytine/pkvm/autopilot/results/<timestamp>/`
+**Results location:** `/home/hlyytine/autopilot/results/<timestamp>/`
 
 **Clean rebuild** (if needed):
 ```bash

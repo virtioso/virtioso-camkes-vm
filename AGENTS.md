@@ -22,17 +22,17 @@ If the task involves kernel tracing, ftrace, or scheduler/IRQ behavior, also rea
 
 If the task involves Autopilot or interactive console sessions, also read:
 
-6. `/home/hlyytine/pkvm/autopilot/docs/ai-interactive-console.md`
+6. `/home/hlyytine/autopilot/docs/ai-interactive-console.md`
 
 Note: `AUTOPILOT_DIR` is the working directory (queues/results/profiles),
-not the code path. Code lives in `/home/hlyytine/pkvm/autopilot`.
+not the code path. Code lives in `/home/hlyytine/autopilot`.
 
 ## MCP Server (Autopilot) Availability
 
 This repo provides an MCP server definition at `~/tii-sel4/.mcp.json`:
 
 - Server name: `sel4-autopilot`
-- Command: `python3 /home/hlyytine/pkvm/autopilot/sel4_mcp_server.py`
+- Command: `python3 /home/hlyytine/autopilot/sel4_mcp_server.py`
 - Default `AUTOPILOT_DIR`: `/home/hlyytine/tii-sel4/autopilot`
 
 Some clients auto-load MCP servers from `.mcp.json`; some do not.

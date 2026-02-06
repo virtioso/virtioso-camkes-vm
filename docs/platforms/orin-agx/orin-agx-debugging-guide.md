@@ -103,21 +103,31 @@ make orinagx_diag_defconfig && make sel4test
 
 ## Testing with Autopilot
 
-Always use MCP tools for Orin AGX testing:
+Always use MCP tools for Orin AGX testing. **Test tools are async** and return
+immediately with a `request_id`. Poll for completion.
 
 ```python
 # Build
 mcp__sel4-autopilot__build_sel4test(mode="el2")  # or "el1", "el2-ftrace"
 
-# Test single run
+# Test single run (async submit)
 mcp__sel4-autopilot__test_sel4_binary(binary_path="...")
 
-# Stress test (multiple runs)
+# Poll status (recommended: 1s interval, 300s overall)
+mcp__sel4-autopilot__get_test_status(request_id="...")
+
+# Stress test (multiple runs, async submit)
 mcp__sel4-autopilot__test_sel4_multi_run(binary_path="...", run_count=10)
 
-# Get logs
+# Get logs after completion
 mcp__sel4-autopilot__get_sel4_log(request_id="...")
 ```
+
+Notes:
+- **Strict single-request policy**: a new submit fails if any request is pending or processing.
+- Use `mcp__sel4-autopilot__autopilot_status` to see queue summary.
+- Use `mcp__sel4-autopilot__cancel_test(request_id="...")` for hard cancel.
+- `wait_for_test` is short-blocking (default max 30s); loop if needed.
 
 ## Analyzing Results
 

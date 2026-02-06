@@ -15,8 +15,9 @@
 #define CONNECTION_BASE_ADDRESS 0xC0000000
 #elif CONFIG_PLAT_BCM2711
 #define CONNECTION_BASE_ADDRESS 0x60000000
-#elif CONFIG_PLAT_ORINAGX
-#define CONNECTION_BASE_ADDRESS 0x72000000
+#elif CONFIG_PLAT_ORIN_AGX
+/* Must be within PCI_MEM_REGION (0xC1000000+), after SWIOTLB (0xC0000000-0xC07FFFFF) */
+#define CONNECTION_BASE_ADDRESS 0xC1000000
 #else
 #define CONNECTION_BASE_ADDRESS 0x3F000000
 #endif
@@ -41,6 +42,9 @@ static struct camkes_crossvm_connection connections[] = {
 static int consume_callback(vm_t *vm, void *cookie)
 {
     struct camkes_crossvm_connection *connection = cookie;
+    ZF_LOGE("consume_callback: badge=%lu name=%s",
+            (unsigned long)connection->consume_badge,
+            connection->connection_name ? connection->connection_name : "(null)");
     consume_connection_event(vm, connection->consume_badge, true);
     return 0;
 }
@@ -49,14 +53,22 @@ static void init_cross_vm_connections(vm_t *vm, void *cookie)
 {
     int err;
 
+    ZF_LOGE("init_cross_vm_connections: %zu connections at base 0x%lx",
+            ARRAY_SIZE(connections), (unsigned long)CONNECTION_BASE_ADDRESS);
+
 /*- for drv in vm_virtio_device_channels -*/
     connections[/*? loop.index0 ?*/].consume_badge = vm/*? drv.id ?*/_ntfn_recv_notification_badge();
+    ZF_LOGE("connection[%d] name=%s badge=%lu",
+            /*? loop.index0 ?*/,
+            connections[/*? loop.index0 ?*/].connection_name ? connections[/*? loop.index0 ?*/].connection_name : "(null)",
+            (unsigned long)connections[/*? loop.index0 ?*/].consume_badge);
     err = register_async_event_handler(connections[/*? loop.index0 ?*/].consume_badge, consume_callback, &connections[/*? loop.index0 ?*/]);
     ZF_LOGF_IF(err, "Failed to register_async_event_handler for init_cross_vm_connections.");
 /*- endfor -*/
 
     err = cross_vm_connections_init(vm, CONNECTION_BASE_ADDRESS, connections, ARRAY_SIZE(connections));
     ZF_LOGF_IF(err, "init_cross_vm_connections() failed");
+    ZF_LOGE("init_cross_vm_connections: completed");
 }
 
 /*- if vm_virtio_device_channels|length > 0 -*/

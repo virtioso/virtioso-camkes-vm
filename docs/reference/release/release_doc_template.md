@@ -1,4 +1,4 @@
-# TII seL4 release <version> (YYYY-MM-DD)
+# Virtioso seL4 release <version> (YYYY-MM-DD)
 
 ## Overview
 

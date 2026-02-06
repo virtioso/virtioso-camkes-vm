@@ -1,6 +1,6 @@
 # Deployment Scenarios
 
-This document describes deployment configurations and multi-VM architectures for the TII seL4 virtio system.
+This document describes deployment configurations and multi-VM architectures for the Virtioso seL4 virtio system.
 
 ## Overview
 

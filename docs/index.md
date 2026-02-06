@@ -1,10 +1,10 @@
-# TII seL4 Virtio Virtualization Platform
+# Virtioso seL4 Virtio Virtualization Platform
 
 This project extends the seL4 microkernel and CAmkES component framework to enable **virtio device virtualization** across multiple guest VMs. Virtio backends run inside guest Linux VMs using QEMU, providing a flexible and secure architecture for device sharing.
 
 ## What We Built
 
-Technology Innovation Institute (TII) developed a virtualization platform that:
+Technology Innovation Institute (Virtioso) developed a virtualization platform that:
 
 - Runs **multiple isolated guest VMs** on the seL4 microkernel (ARM architecture)
 - Enables **virtio devices** in driver VMs with backends served by device VMs
@@ -70,13 +70,13 @@ graph TB
 - [Device Tree Passthrough](components/passthru.md) - DTB passthrough analysis
 
 ### Integration
-- [seL4 Kernel Modifications](integration/kernel-modifications.md) - TII changes to seL4 kernel
+- [seL4 Kernel Modifications](integration/kernel-modifications.md) - Virtioso changes to seL4 kernel
 - [QEMU Backend](integration/qemu-backend.md) - QEMU seL4 accelerator details
 - [QEMU seL4 Accelerator](integration/qemu-sel4-accelerator.md) - QEMU accel/sel4 implementation details
 - [kmod-sel4-virt](integration/kmod-sel4-virt.md) - Kernel module providing KVM-like API
 - [Guest-Side Components](integration/guest-side-components.md) - Code running inside guest VMs
 - [Guest Linux Configuration](integration/guest-linux.md) - Guest kernel and driver setup
-- [Other Repository Changes](integration/other-repos.md) - Changes across TII repositories
+- [Other Repository Changes](integration/other-repos.md) - Changes across Virtioso repositories
 
 ### Build System
 - [Build Architecture](build-system/build-architecture.md) - Docker, Make, CMake, Yocto
@@ -123,7 +123,7 @@ graph TB
 
 ```bash
 # Clone and sync repositories
-repo init -u git@github.com:tiiuae/virtioso-manifest.git -b tii/development
+repo init -u git@github.com:virtioso/virtioso-manifest.git -b virtioso/development
 repo sync
 
 # Build Docker container
@@ -145,8 +145,8 @@ See [Getting Started](start-here/prerequisites.md) for detailed instructions.
 
 | Repository | Description |
 |------------|-------------|
-| `projects/virtioso-camkes-vm` | Main TII project (this documentation) |
-| `kernel/` | seL4 kernel with TII modifications |
+| `projects/virtioso-camkes-vm` | Main Virtioso project (this documentation) |
+| `kernel/` | seL4 kernel with Virtioso modifications |
 | `projects/sel4_projects_libs/` | VMM libraries with large page, PCIe, IRQ enhancements |
 | `projects/vm-linux/` | Guest Linux integration |
 | `sources/kmod-sel4-virt/` | Kernel module bridging QEMU and seL4 RPC |

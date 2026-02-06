@@ -1,6 +1,6 @@
 # Build Architecture
 
-This document describes the multi-layered build system architecture for the TII seL4 virtio platform.
+This document describes the multi-layered build system architecture for the Virtioso seL4 virtio platform.
 
 ## Overview
 
@@ -53,7 +53,7 @@ $WORKSPACE/
 │   └── yocto/
 │       └── conf/              # Yocto layer config
 └── vm-images/
-    ├── meta-sel4/             # TII Yocto layer
+    ├── meta-sel4/             # Virtioso Yocto layer
     ├── poky/                  # Poky reference
     └── setup.sh               # Yocto setup script
 ```
@@ -127,7 +127,7 @@ docker run -it \
     -v ${BUILD_CACHE_DIR}/stack:${HOME}/.stack \
     -v ${YOCTO_SOURCE_MIRROR_DIR}:${WORKSPACE}/downloads \
     -w ${WORKSPACE} \
-    tiiuae/build:latest \
+    virtioso/build:latest \
     "$@"
 ```
 
@@ -140,7 +140,7 @@ docker run -it \
 
 # Docker targets
 docker:
-	docker build -t tiiuae/build docker/
+	docker build -t virtioso/build docker/
 
 # Configuration targets
 %_defconfig:
@@ -206,7 +206,7 @@ project(virtioso-camkes-vm C ASM)
 find_package(seL4 REQUIRED)
 find_package(CAmkES REQUIRED)
 
-# Include TII helpers
+# Include Virtioso helpers
 include(virtioso_camkes_vm_helpers.cmake)
 
 # Build library
@@ -350,7 +350,7 @@ Build artifacts are published to Artifactory:
 make docker DOCKER_OPTS="--no-cache"
 
 # Debug container
-docker run -it tiiuae/build /bin/bash
+docker run -it virtioso/build /bin/bash
 ```
 
 ### CMake Issues

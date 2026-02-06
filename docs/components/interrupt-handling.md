@@ -408,9 +408,9 @@ lspci -vvv | grep -A10 "MSI:"
 
 ## Virtual GIC
 
-### TII Enhancements
+### Virtioso Enhancements
 
-TII added level-triggered IRQ support to the vGIC:
+Virtioso added level-triggered IRQ support to the vGIC:
 
 ```c
 // From projects/sel4_projects_libs/libsel4vm/src/arch/arm/vgic/

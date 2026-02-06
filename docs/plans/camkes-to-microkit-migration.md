@@ -5,7 +5,7 @@
 
 ## Executive Summary
 
-This document investigates the feasibility and approach for migrating the TII seL4 virtio virtualization platform from CAmkES to seL4 Microkit. The migration would align the project with the seL4 community's direction while potentially simplifying the build system and reducing toolchain complexity.
+This document investigates the feasibility and approach for migrating the Virtioso seL4 virtio virtualization platform from CAmkES to seL4 Microkit. The migration would align the project with the seL4 community's direction while potentially simplifying the build system and reducing toolchain complexity.
 
 ## Background
 
@@ -58,12 +58,12 @@ CAmkES Stack:                    Microkit Stack:
 ```camkes
 // Current: CAmkES component definition
 component VM0 {
-    VM_TII_INIT_DEF()
+    VM_VIRTIOSO_INIT_DEF()
     VIRTIO_DRIVER_COMPONENT_DEF(1)
 }
 
 component VM1 {
-    VM_TII_INIT_DEF()
+    VM_VIRTIOSO_INIT_DEF()
     VIRTIO_DEVICE_COMPONENT_DEF(0)
 }
 ```
@@ -415,7 +415,7 @@ Before diving into challenges, it's important to understand the layer separation
 │                              seL4 VMM │                                      │
 │                                       ▼                                      │
 │   ┌─────────────────────────────────────────────────────────────────────┐   │
-│   │              INTER-VM RPC (TII's "VM Admin" Protocol)                │   │
+│   │              INTER-VM RPC (Virtioso's "VM Admin" Protocol)                │   │
 │   │                                                                      │   │
 │   │   This is a THIRD control plane - for VMM ↔ Backend communication   │   │
 │   │                                                                      │   │
@@ -710,7 +710,7 @@ Process:
 1. Start with libvmm base
 2. Port vpci/gicv2m as libvmm extensions
 3. Upstream after validation
-4. Keep tii-specific features in separate layer
+4. Keep virtioso-specific features in separate layer
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -718,13 +718,13 @@ Process:
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │              tii-sel4-vm-microkit                     │   │
-│  │  (TII-specific: io_proxy, RPC queues, templates)     │   │
+│  │              virtioso-sel4-vm-microkit                     │   │
+│  │  (Virtioso-specific: io_proxy, RPC queues, templates)     │   │
 │  └──────────────────────────────────────────────────────┘   │
 │                            │                                 │
 │                            ▼                                 │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │              tii-libvmm-extensions                    │   │
+│  │              virtioso-libvmm-extensions                    │   │
 │  │  (vpci, gicv2m, cross-vm PCI - upstreamable)         │   │
 │  └──────────────────────────────────────────────────────┘   │
 │                            │                                 │
@@ -993,7 +993,7 @@ LICENSE = "BSD-2-Clause"
 
 DEPENDS = "microkit-sdk"
 
-SRC_URI = "git://github.com/tiiuae/tii-sel4-vm-microkit.git;branch=main"
+SRC_URI = "git://github.com/virtioso/virtioso-sel4-vm-microkit.git;branch=main"
 
 do_compile() {
     oe_runmake MICROKIT_SDK=${STAGING_DIR_HOST}/opt/microkit
@@ -1112,10 +1112,10 @@ The Device VM needs to see a PCI device that provides access to shared memory an
 **VMM Side (`cross_vm_connection.c` in libsel4vmmplatsupport):**
 
 ```c
-// PCI device with TII-specific vendor/device ID
+// PCI device with Virtioso-specific vendor/device ID
 vmm_pci_device_def_t pci_config = {
     .vendor_id = 0x1af4,           // Red Hat/QEMU
-    .device_id = 0xa111,           // TII custom (NOT a VirtIO device)
+    .device_id = 0xa111,           // Virtioso custom (NOT a VirtIO device)
     .class_code = PCI_CLASS_MEMORY_RAM,
     .bar0 = event_address | PCI_BASE_ADDRESS_SPACE_MEMORY,   // Doorbell registers
     .bar1 = dataport_address | PCI_BASE_ADDRESS_SPACE_MEMORY, // Shared memory
@@ -1138,14 +1138,14 @@ vso_rpc_init(&vmm->rpc, vso_rpc_device_km, iobuf, doorbell_cb, cookie);
 
 **Key insight: This is NOT a VirtIO device.** It's a custom PCI device with:
 - Vendor 0x1af4 (Red Hat/QEMU range)
-- Device 0xa111 (TII-allocated ID)
+- Device 0xa111 (Virtioso-allocated ID)
 - No VirtIO capabilities - just two memory BARs
 
 #### libvmm virtio-pci Analysis
 
 **What libvmm provides (`src/virtio/pci.c`):**
 
-| Feature | libvmm virtio-pci | TII needs |
+| Feature | libvmm virtio-pci | Virtioso needs |
 |---------|-------------------|-----------|
 | **ECAM config space** | ✅ Full emulation | ✅ Basic config space |
 | **BAR allocation** | ✅ Via `virtio_pci_alloc_memory_bar()` | ✅ Two fixed BARs |
@@ -1187,7 +1187,7 @@ vso_rpc_init(&vmm->rpc, vso_rpc_device_km, iobuf, doorbell_cb, cookie);
 
 #### Migration Options for Cross-VM PCI
 
-**Option A: Port TII vpci + cross_vm_connection (Recommended)**
+**Option A: Port Virtioso vpci + cross_vm_connection (Recommended)**
 
 Port the existing vpci from libsel4vmmplatsupport to work with libvmm:
 
@@ -1331,7 +1331,7 @@ Extract the non-VirtIO parts from libvmm's pci.c, make it generic:
 
 1. After migration validated, contribute generic PCI to libvmm
 2. Benefits whole community
-3. TII becomes libvmm contributor
+3. Virtioso becomes libvmm contributor
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐

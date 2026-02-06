@@ -182,7 +182,7 @@ QEMU is an open-source machine emulator and virtualizer:
 **Accelerators:**
 - TCG: Software emulation
 - KVM: Hardware virtualization
-- seL4: TII custom accelerator
+- seL4: Virtioso custom accelerator
 
 **Device Models:**
 ```bash
@@ -199,7 +199,7 @@ QEMU is an open-source machine emulator and virtualizer:
 
 ### seL4 CAmkES VM
 
-The base VM framework used by TII:
+The base VM framework used by Virtioso:
 
 | Resource | URL |
 |----------|-----|

@@ -1,6 +1,6 @@
 # Building
 
-This document provides step-by-step instructions for building the TII seL4 virtio virtualization platform.
+This document provides step-by-step instructions for building the Virtioso seL4 virtio virtualization platform.
 
 ## Workspace Initialization
 
@@ -11,8 +11,8 @@ This document provides step-by-step instructions for building the TII seL4 virti
 export WORKSPACE=~/sel4
 mkdir -p $WORKSPACE && cd $WORKSPACE
 
-# Initialize repo with TII manifest
-repo init -u git@github.com:tiiuae/virtioso-manifest.git -b tii/development
+# Initialize repo with Virtioso manifest
+repo init -u git@github.com:virtioso/virtioso-manifest.git -b virtioso/development
 
 # Sync all repositories
 repo sync -j$(nproc)
@@ -28,7 +28,7 @@ After sync, the workspace contains:
 $WORKSPACE/
 ├── kernel/                 # seL4 microkernel
 ├── projects/
-│   ├── virtioso-camkes-vm/       # Main TII project
+│   ├── virtioso-camkes-vm/       # Main Virtioso project
 │   ├── sel4_projects_libs/ # VMM libraries
 │   ├── vm/                # CAmkES VM framework
 │   ├── vm-linux/          # Guest Linux integration
@@ -53,7 +53,7 @@ cd $WORKSPACE
 make docker
 ```
 
-This creates `tiiuae/build:latest` with all build dependencies.
+This creates `virtioso/build:latest` with all build dependencies.
 
 ## Configure Platform
 
@@ -156,7 +156,7 @@ export WORKSPACE=~/sel4
 mkdir -p $WORKSPACE && cd $WORKSPACE
 
 # 2. Initialize and sync
-repo init -u git@github.com:tiiuae/virtioso-manifest.git -b tii/development
+repo init -u git@github.com:virtioso/virtioso-manifest.git -b virtioso/development
 repo sync -j$(nproc)
 
 # 3. Build Docker
@@ -231,7 +231,7 @@ Location: `vm-images/build/sstate-cache/`
 sudo systemctl status docker
 
 # Rebuild without cache
-docker build --no-cache -t tiiuae/build docker/
+docker build --no-cache -t virtioso/build docker/
 ```
 
 ### Yocto Build Fails

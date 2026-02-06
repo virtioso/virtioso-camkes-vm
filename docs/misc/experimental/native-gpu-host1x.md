@@ -400,7 +400,7 @@ Phase 4: Production
 
 ## Relationship to Current Architecture
 
-This proposal extends the existing TII seL4 virtio architecture:
+This proposal extends the existing Virtioso seL4 virtio architecture:
 
 - **Complements virtio**: GPU Manager is another "device" like virtio-net, virtio-blk
 - **Uses same IPC patterns**: seL4 IPC, CAmkES connections, shared memory

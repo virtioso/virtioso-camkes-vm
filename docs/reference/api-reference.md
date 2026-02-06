@@ -1,6 +1,6 @@
 # API Reference
 
-This document provides a comprehensive reference for data structures and APIs used in the TII seL4 virtio system.
+This document provides a comprehensive reference for data structures and APIs used in the Virtioso seL4 virtio system.
 
 ## Core Data Structures
 

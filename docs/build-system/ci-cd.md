@@ -1,6 +1,6 @@
 # CI/CD Pipeline
 
-This document describes the GitHub Actions CI/CD pipeline for building and testing the TII seL4 virtio project.
+This document describes the GitHub Actions CI/CD pipeline for building and testing the Virtioso seL4 virtio project.
 
 ## Overview
 
@@ -76,11 +76,11 @@ on:
     inputs:
       manifest-url:
         description: 'Manifest repository'
-        default: 'git@github.com:tiiuae/virtioso-manifest.git'
+        default: 'git@github.com:virtioso/virtioso-manifest.git'
         type: string
       manifest-revision:
         description: 'Manifest revision'
-        default: 'tii/development'
+        default: 'virtioso/development'
         type: string
       platform:
         description: 'Platform config'
@@ -320,7 +320,7 @@ jobs:
 ### Artifactory Structure
 
 ```
-tii-sel4-artifacts/
+virtioso-sel4-artifacts/
 ├── rpi4_vm_qemu_virtio/
 │   ├── capdl-loader-image-arm-bcm2711
 │   ├── vm-image-driver-vm-raspberrypi4-64.tar.bz2
@@ -344,8 +344,8 @@ tii-sel4-artifacts/
     rt-url: ${{ secrets.rt-url }}
     build-num: ${{ github.run_number }}
     input-paths: |
-      workspace/rpi4_vm_qemu_virtio/images/capdl-loader-image-arm-bcm2711:tii-sel4-artifacts/rpi4_vm_qemu_virtio/
-      workspace/vm-images/build/tmp/deploy/images/vm-raspberrypi4-64/vm-image-driver-vm-raspberrypi4-64.tar.bz2:tii-sel4-artifacts/rpi4_vm_qemu_virtio/
+      workspace/rpi4_vm_qemu_virtio/images/capdl-loader-image-arm-bcm2711:virtioso-sel4-artifacts/rpi4_vm_qemu_virtio/
+      workspace/vm-images/build/tmp/deploy/images/vm-raspberrypi4-64/vm-image-driver-vm-raspberrypi4-64.tar.bz2:virtioso-sel4-artifacts/rpi4_vm_qemu_virtio/
 ```
 
 ## Trigger Configuration
@@ -358,7 +358,7 @@ name: PR Build
 on:
   pull_request:
     branches:
-      - 'tii/**'
+      - 'virtioso/**'
 
 jobs:
   build:
@@ -381,7 +381,7 @@ jobs:
   build:
     uses: ./.github/workflows/build-vm-images.yml
     with:
-      manifest-revision: 'tii/development'
+      manifest-revision: 'virtioso/development'
     secrets: inherit
 ```
 

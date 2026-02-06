@@ -1,6 +1,6 @@
 # Other Repository Changes
 
-This document summarizes TII modifications across all seL4 ecosystem repositories beyond the main `virtioso-camkes-vm` project.
+This document summarizes Virtioso modifications across all seL4 ecosystem repositories beyond the main `virtioso-camkes-vm` project.
 
 ## Repository Overview
 
@@ -12,8 +12,8 @@ This document summarizes TII modifications across all seL4 ecosystem repositorie
 | `projects/vm-linux/` | rpi4 | Guest Linux integration |
 | `projects/vm-examples/` | rpi4 | Example applications |
 | `tools/seL4/` | rpi4 | seL4 tools and elfloader |
-| `virtioso-build/` | tii/development | Build system |
-| `vm-images/meta-sel4/` | tii/development | Yocto layer |
+| `virtioso-build/` | virtioso/development | Build system |
+| `vm-images/meta-sel4/` | virtioso/development | Yocto layer |
 
 ## seL4 Projects Libraries (sel4_projects_libs)
 
@@ -255,16 +255,16 @@ IMAGE_FEATURES += "qemu-virtualization benchmark"
 
 | Name | Email | Areas |
 |------|-------|-------|
-| Hannu Lyytinen | hannux@ssrc.tii.ae | Kernel, VMM, build |
-| Markku Ahvenjärvi | markkux@ssrc.tii.ae | PCI, device tree |
+| Hannu Lyytinen | hannux@ssrc.unikie.com | Kernel, VMM, build |
+| Markku Ahvenjärvi | markkux@ssrc.unikie.com | PCI, device tree |
 | Ivan Kuznetsov | jsvapiav@gmail.com | RPi4, PCIe |
-| Joonas Onatsu | joonasx@ssrc.tii.ae | Platform support |
+| Joonas Onatsu | joonasx@ssrc.unikie.com | Platform support |
 
 ## Upstream Compatibility
 
-TII modifications maintain compatibility with upstream seL4:
+Virtioso modifications maintain compatibility with upstream seL4:
 
-- Changes are on separate branches (`rpi4`, `tii/development`)
+- Changes are on separate branches (`rpi4`, `virtioso/development`)
 - Core APIs preserved
 - Additional features are opt-in via configuration
 

@@ -1,6 +1,6 @@
 # Production Guide
 
-This document provides guidance for deploying the TII seL4 virtio system in production environments.
+This document provides guidance for deploying the Virtioso seL4 virtio system in production environments.
 
 ## Overview
 

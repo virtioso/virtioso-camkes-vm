@@ -1,6 +1,6 @@
 # Running on QEMU
 
-This document describes how to run the TII seL4 virtio platform on QEMU ARM Virt.
+This document describes how to run the Virtioso seL4 virtio platform on QEMU ARM Virt.
 
 ## Prerequisites
 

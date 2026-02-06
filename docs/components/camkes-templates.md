@@ -25,13 +25,13 @@ graph LR
 
 ## Configuration Macros
 
-### VM_TII_INIT_DEF()
+### VM_VIRTIOSO_INIT_DEF()
 
 Adds virtio device/driver attributes to VM components:
 
 ```c
 // From configurations/virtioso/vm.h
-#define VM_TII_INIT_DEF() \
+#define VM_VIRTIOSO_INIT_DEF() \
     attribute { \
         int id; \
         string data_base; \
@@ -231,17 +231,17 @@ int run(void) {
 ```camkes
 // vm_qemu_virtio.camkes
 import <VM/vm.camkes>;
-import "tii/vm.h";
+import "virtioso/vm.h";
 
 component VM0 {
     VM_INIT_DEF()
-    VM_TII_INIT_DEF()
+    VM_VIRTIOSO_INIT_DEF()
     VIRTIO_COMPONENT_DEF(0, 1)
 }
 
 component VM1 {
     VM_INIT_DEF()
-    VM_TII_INIT_DEF()
+    VM_VIRTIOSO_INIT_DEF()
 }
 
 assembly {
@@ -313,7 +313,7 @@ assembly {
 component MyDevice {
     // Standard VM init
     VM_INIT_DEF()
-    VM_TII_INIT_DEF()
+    VM_VIRTIOSO_INIT_DEF()
 
     // Custom interfaces
     provides MyDeviceInterface api;

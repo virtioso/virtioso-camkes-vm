@@ -1,6 +1,6 @@
 # Glossary
 
-This glossary defines terms used throughout the TII seL4 virtio documentation.
+This glossary defines terms used throughout the Virtioso seL4 virtio documentation.
 
 ## seL4 Terms
 
@@ -106,7 +106,7 @@ This glossary defines terms used throughout the TII seL4 virtio documentation.
 | **Device VM** | VM running QEMU, provides virtio backends |
 | **Driver VM** | VM using virtio devices via drivers |
 | **I/O Proxy** | VMM component handling I/O requests |
-| **vso_rpc** | TII's RPC library for VM communication |
+| **vso_rpc** | Virtioso's RPC library for VM communication |
 | **iobuf** | Shared buffer for RPC messages |
 | **memdev** | Shared buffer for device data (SWIOTLB) |
 
@@ -126,9 +126,9 @@ This glossary defines terms used throughout the TII seL4 virtio documentation.
 
 | Acronym | Expansion |
 |---------|-----------|
-| TII | Technology Innovation Institute |
+| Virtioso | Technology Innovation Institute |
 | SSRC | Secure Systems Research Center |
-| HYPR | TII project code prefix |
+| HYPR | Virtioso project code prefix |
 | API | Application Programming Interface |
 | RPC | Remote Procedure Call |
 | IRQ | Interrupt Request |

@@ -5,7 +5,7 @@
 
 ## Summary
 
-Successfully integrated upstream seL4 benchmark tracing (CONFIG_BENCHMARK_TRACK_KERNEL_ENTRIES) into TII's ftrace implementation. Kernel entry/exit events are now logged to the compressed ftrace stream.
+Successfully integrated upstream seL4 benchmark tracing (CONFIG_BENCHMARK_TRACK_KERNEL_ENTRIES) into Virtioso's ftrace implementation. Kernel entry/exit events are now logged to the compressed ftrace stream.
 
 ## Verified Working
 

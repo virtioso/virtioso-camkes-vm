@@ -511,8 +511,8 @@ fprintf(stderr, "%s failed, addr=0x%lx, dir=%lu\n", __func__, addr, dir);
 ### Debug Ring Buffer
 
 ```c
-// tii_printf() writes to QEMU ring buffer
-void tii_printf(const char *fmt, ...);
+// virtioso_printf() writes to QEMU ring buffer
+void virtioso_printf(const char *fmt, ...);
 ```
 
 ## Source Files

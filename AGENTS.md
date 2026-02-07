@@ -23,7 +23,7 @@ This file provides guidance to Codex (and other coding agents) for working in th
 - Determine profile name:
   - `target` with `_` → `-` (e.g., `vm_qemu_virtio` → `vm-qemu-virtio`)
   - `sel4test` uses profile `sel4test`
-- Verify `autopilot/profiles/<profile>.json` exists.
+- Verify `/home/hlyytine/autopilot/profiles/<profile>.json` exists.
 - If the profile does **not** exist, stop and design a test chain with the human.
 - `/boot/efi` cleanup must be done in the profile chain (via `ssh_cmd`).
 - Logs are only those defined by the profile and live under `results/<id>/console/`.
@@ -51,8 +51,10 @@ If the task involves Autopilot or interactive console sessions, also read:
 
 6. `/home/hlyytine/autopilot/docs/ai-interactive-console.md`
 
-Note: `AUTOPILOT_DIR` is the working directory (queues/results/profiles),
-not the code path. Code lives in `/home/hlyytine/autopilot`.
+Note: `AUTOPILOT_DIR` is the working directory (queues/results/runtime),
+not the code path. Profiles are static data and live in
+`/home/hlyytine/autopilot/profiles` (single source of truth). Code lives in
+`/home/hlyytine/autopilot`.
 
 ## MCP Server (Autopilot) Availability
 

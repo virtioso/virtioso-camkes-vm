@@ -35,16 +35,17 @@ def _safe_id(text: str) -> str:
 def _resolve_profiles_dir(arg: Optional[str]) -> Path:
     if arg:
         return Path(arg)
-    autopilot_dir = os.environ.get("AUTOPILOT_DIR")
-    if autopilot_dir:
-        return Path(autopilot_dir) / "profiles"
-    # Best-effort: resolve relative to this script (repo) location.
-    here = Path(__file__).resolve()
-    candidate = here.parent.parent.parent / "autopilot" / "profiles"
+    autopilot_code = os.environ.get("AUTOPILOT_CODE", "/home/hlyytine/autopilot")
+    candidate = Path(autopilot_code) / "profiles"
     if candidate.exists():
         return candidate
-    # Fallback to cwd.
-    return Path("autopilot") / "profiles"
+    # Best-effort: resolve relative to this script (repo) location.
+    here = Path(__file__).resolve()
+    fallback = here.parent.parent.parent / "autopilot" / "profiles"
+    if fallback.exists():
+        return fallback
+    # Last resort: use the code default even if missing.
+    return candidate
 
 
 def _resolve_out_dir(arg: Optional[str], profiles_dir: Path) -> Path:

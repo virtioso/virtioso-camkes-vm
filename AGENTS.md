@@ -78,6 +78,8 @@ You can start/stop/restart Autopilot via MCP tools:
 These run Autopilot headless in a tmux session and return an attach hint
 (`tmux attach -t autopilot`) for TUI access.
 
+Submitting a test via MCP auto-starts Autopilot if it is not running.
+
 ### Codex CLI MCP Setup (Manual)
 
 If you are using the Codex CLI and MCP servers are not auto-loaded, add the

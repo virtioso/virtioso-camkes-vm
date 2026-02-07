@@ -67,6 +67,17 @@ This repo provides an MCP server definition at `~/tii-sel4/.mcp.json`:
 Some clients auto-load MCP servers from `.mcp.json`; some do not.
 If MCP is unavailable, fall back to the request/result queues in `AUTOPILOT_DIR`.
 
+## Autopilot Daemon Control (MCP)
+
+You can start/stop/restart Autopilot via MCP tools:
+- `autopilot_start`
+- `autopilot_stop`
+- `autopilot_restart`
+- `autopilot_status`
+
+These run Autopilot headless in a tmux session and return an attach hint
+(`tmux attach -t autopilot`) for TUI access.
+
 ### Codex CLI MCP Setup (Manual)
 
 If you are using the Codex CLI and MCP servers are not auto-loaded, add the

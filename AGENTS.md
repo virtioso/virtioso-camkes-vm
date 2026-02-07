@@ -80,6 +80,10 @@ These run Autopilot headless in a tmux session and return an attach hint
 
 Submitting a test via MCP auto-starts Autopilot if it is not running.
 
+Orin AGX note: MCP auto-start uses default UARTs `/dev/ttyACM0` and
+`/dev/ttyACM1`. Replace these for other platforms (e.g. Raspberry Pi 4 uses
+`/dev/ttyUSB*`).
+
 ### Codex CLI MCP Setup (Manual)
 
 If you are using the Codex CLI and MCP servers are not auto-loaded, add the

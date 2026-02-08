@@ -2,6 +2,10 @@
 
 This file provides guidance to Codex (and other coding agents) for working in this repository.
 
+Canonical file: `projects/virtioso-camkes-vm/AGENTS.md`.
+Workspace root `AGENTS.md` is only a symlink/linkfile to the canonical file.
+Edits made via either path affect the same file; treat `projects/virtioso-camkes-vm/AGENTS.md` as the source of truth.
+
 ## Defaults (Per User Request)
 
 - Default target for build/test requests is **Orin AGX**.
@@ -31,6 +35,28 @@ This file provides guidance to Codex (and other coding agents) for working in th
   as both `.dtb` and `.dts` (when DTB markers are present in logs).
 - If guest behavior is unexpected, always inspect generated DTS files before further debugging.
 - Requests do **not** use a `type` field.
+
+### Yocto Local Source Policy
+
+- Active Yocto layer is `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/`. Treat `vm-images/meta-sel4/` as deprecated for current builds.
+- For these components, always edit source in repo-managed trees under `sources/`:
+  - `sources/qemu`
+  - `sources/kmod-sel4-virt`
+  - `sources/sel4-linux-kernel-support`
+- Before running any `bitbake` command, required source repos must be clean:
+  - no staged changes
+  - no unstaged changes
+  - no untracked files
+- If a repo is dirty, stop and get human feedback. Then either commit or discard changes before continuing.
+- QEMU submodules in `sources/qemu` must be initialized before bitbake.
+
+### Yocto Build Output (Mandatory)
+
+- Keep using `make linux-image` as the canonical entrypoint for Yocto image builds.
+- In non-interactive agent/CI terminals, BitBake UI output may be sparse or delayed.
+- Track progress by polling logs while `make linux-image` runs:
+  - `vm-images/build/bitbake-cookerdaemon.log`
+  - latest `vm-images/build/tmp/log/cooker/<machine>/*.log`
 
 ## Mandatory Preflight (Before Any Planning or Implementation)
 

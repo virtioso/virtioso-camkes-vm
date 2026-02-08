@@ -94,6 +94,12 @@ For seL4 QEMU guest-image integration, code changes must be made in repo-managed
 
 Before any `bitbake` command, these repos must be fully clean (no staged, unstaged, or untracked files). If any repo is dirty, stop and use human feedback to decide whether to commit or discard those changes.
 
+If your workspace still has the legacy path `sources/qemu-sel4-virtio`, migrate before syncing:
+- review local changes with a human
+- commit or discard per decision
+- move the old tree to a backup directory
+- run `repo sync sources/qemu`
+
 ```bash
 # Build all guest images
 make linux-image

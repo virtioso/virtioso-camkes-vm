@@ -23,6 +23,14 @@ Before running any `bitbake` command:
 - QEMU submodules must be initialized (`git -C sources/qemu submodule update --init --recursive`)
 - if dirty state exists, use human feedback to decide commit vs discard first
 
+### Workspace Migration for QEMU Path Rename
+
+The active QEMU source path is `sources/qemu`. If an existing workspace still has `sources/qemu-sel4-virtio`:
+1. inspect and review local changes with a human
+2. commit preserved work or discard as decided
+3. move old tree to backup
+4. sync the repo-managed `sources/qemu`
+
 ```mermaid
 graph TB
     subgraph "Yocto Build"

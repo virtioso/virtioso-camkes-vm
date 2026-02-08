@@ -105,6 +105,8 @@ If your workspace still has the legacy path `sources/qemu-sel4-virtio`, migrate 
 make linux-image
 ```
 
+`make linux-image` is the canonical path and is container-aware.
+
 This builds:
 - `vm-image-driver` - Device VM image with QEMU
 - `vm-image-user` - Driver VM image
@@ -260,6 +262,15 @@ bitbake -e vm-image-driver | grep ^DISTRO
 # Clean and retry
 bitbake -c cleanall vm-image-driver
 bitbake vm-image-driver
+```
+
+### Yocto Output Looks Silent
+
+In non-interactive terminals, BitBake UI output may be sparse. While `make linux-image` runs, poll logs for progress:
+
+```bash
+tail -f vm-images/build/bitbake-cookerdaemon.log
+find vm-images/build/tmp/log/cooker -maxdepth 2 -type f | sort | tail -n 1
 ```
 
 ### Out of Memory

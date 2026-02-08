@@ -467,6 +467,17 @@ bitbake vm-image-driver
 bitbake -v vm-image-driver
 ```
 
+### No Live BitBake Output
+
+Use `make linux-image` from workspace root. In non-interactive agent/CI terminals, BitBake UI output may be sparse or delayed.
+
+While the build runs, inspect:
+
+```bash
+tail -f vm-images/build/bitbake-cookerdaemon.log
+find vm-images/build/tmp/log/cooker -maxdepth 2 -type f | sort | tail -n 1
+```
+
 ### Missing Dependencies
 
 ```bash

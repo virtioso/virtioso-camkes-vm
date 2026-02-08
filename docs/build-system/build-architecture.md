@@ -53,7 +53,7 @@ $WORKSPACE/
 │   └── yocto/
 │       └── conf/              # Yocto layer config
 └── vm-images/
-    ├── meta-sel4/             # Virtioso Yocto layer
+    ├── meta-virtioso-sel4/             # Virtioso Yocto layer
     ├── poky/                  # Poky reference
     └── setup.sh               # Yocto setup script
 ```
@@ -79,6 +79,13 @@ flowchart TD
     L --> N[Guest images]
     M --> O[CAmkES app]
 ```
+
+## Yocto Source Policy
+
+- Active Yocto layer is `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/`.
+- seL4 QEMU integration sources must be edited in repo-managed `sources/` repos (`qemu`, `kmod-sel4-virt`, `sel4-linux-kernel-support`).
+- Before `bitbake`, these repos must be clean (including no untracked files).
+- QEMU submodules must be initialized before build.
 
 ## Docker Container
 
@@ -235,7 +242,7 @@ source poky/oe-init-build-env build
 MACHINE=$(grep MACHINE ../.config | cut -d= -f2)
 
 # Configure layers
-bitbake-layers add-layer ../meta-sel4
+bitbake-layers add-layer ../meta-virtioso-sel4
 bitbake-layers add-layer ../meta-openembedded/meta-oe
 ...
 ```
@@ -255,12 +262,12 @@ bitbake vm-image-driver vm-image-user vm-image-boot
 ### Layer Configuration
 
 ```
-# meta-sel4/conf/layer.conf
+# meta-virtioso-sel4/conf/layer.conf
 BBPATH .= ":${LAYERDIR}"
 BBFILES += "${LAYERDIR}/recipes-*/*/*.bb"
-BBFILE_COLLECTIONS += "meta-sel4"
-BBFILE_PATTERN_meta-sel4 = "^${LAYERDIR}/"
-LAYERSERIES_COMPAT_meta-sel4 = "scarthgap"
+BBFILE_COLLECTIONS += "meta-virtioso-sel4"
+BBFILE_PATTERN_meta-virtioso-sel4 = "^${LAYERDIR}/"
+LAYERSERIES_COMPAT_meta-virtioso-sel4 = "walnascar"
 ```
 
 ## Configuration System

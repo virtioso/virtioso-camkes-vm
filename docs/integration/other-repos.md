@@ -13,7 +13,7 @@ This document summarizes Virtioso modifications across all seL4 ecosystem reposi
 | `projects/vm-examples/` | rpi4 | Example applications |
 | `tools/seL4/` | rpi4 | seL4 tools and elfloader |
 | `virtioso-build/` | virtioso/development | Build system |
-| `vm-images/meta-sel4/` | virtioso/development | Yocto layer |
+| `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/` | virtioso/development | Yocto layer |
 
 ## seL4 Projects Libraries (sel4_projects_libs)
 
@@ -209,12 +209,12 @@ make vm_qemu_virtio            # Build CAmkES app
 | `run_tests.yml` | Hardware testing |
 | `pr.yml` | PR verification |
 
-## Yocto Layer (vm-images/meta-sel4)
+## Yocto Layer (vm-images/virtioso-yocto-layers/meta-virtioso-sel4)
 
 ### Layer Structure
 
 ```
-meta-sel4/
+meta-virtioso-sel4/
 ├── conf/
 │   └── layer.conf
 ├── images/

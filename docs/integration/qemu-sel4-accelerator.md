@@ -51,7 +51,7 @@ graph TB
 ## Source Location
 
 ```
-~/tii-sel4/sources/qemu-sel4-virtio/accel/sel4/
+~/tii-sel4/sources/qemu/accel/sel4/
 ├── sel4-all.c      # Main accelerator implementation
 ├── sel4-vpci.c     # seL4 PCI host bridge
 └── meson.build     # Build configuration

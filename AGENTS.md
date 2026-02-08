@@ -27,6 +27,9 @@ This file provides guidance to Codex (and other coding agents) for working in th
 - If the profile does **not** exist, stop and design a test chain with the human.
 - `/boot/efi` cleanup must be done in the profile chain (via `ssh_cmd`).
 - Logs are only those defined by the profile and live under `results/<id>/console/`.
+- After every test run, Autopilot exports guest DTB dumps to `results/<id>/device-trees/`
+  as both `.dtb` and `.dts` (when DTB markers are present in logs).
+- If guest behavior is unexpected, always inspect generated DTS files before further debugging.
 - Requests do **not** use a `type` field.
 
 ## Mandatory Preflight (Before Any Planning or Implementation)

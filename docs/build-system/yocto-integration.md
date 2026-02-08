@@ -6,10 +6,27 @@ This document describes the Yocto/OpenEmbedded integration for building guest VM
 
 Virtioso uses Yocto to build Linux guest images for both device and driver VMs:
 
+### Active Layer and Source of Truth
+
+- Active layer for current builds: `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/`
+- Legacy `vm-images/meta-sel4/` references are deprecated for active build instructions.
+
+### Local Source Repository Policy
+
+The following repositories are consumed from local workspace sources and must be modified there:
+- `sources/qemu`
+- `sources/kmod-sel4-virt`
+- `sources/sel4-linux-kernel-support`
+
+Before running any `bitbake` command:
+- all required repos must be clean (no staged, unstaged, or untracked files)
+- QEMU submodules must be initialized (`git -C sources/qemu submodule update --init --recursive`)
+- if dirty state exists, use human feedback to decide commit vs discard first
+
 ```mermaid
 graph TB
     subgraph "Yocto Build"
-        META[meta-sel4 Layer]
+        META[meta-virtioso-sel4 Layer]
         RECIPES[Image Recipes]
         CLASSES[BBClasses]
     end
@@ -41,7 +58,7 @@ graph TB
 
 ```
 vm-images/
-├── meta-sel4/                    # Virtioso Yocto layer
+├── meta-virtioso-sel4/                    # Virtioso Yocto layer
 │   ├── classes/
 │   │   ├── vm-guest-image.bbclass
 │   │   ├── vm-guest-images-install.bbclass
@@ -71,7 +88,7 @@ vm-images/
 The device VM image that runs QEMU backends:
 
 ```bitbake
-# vm-images/meta-sel4/images/vm-image-driver.bb
+# vm-images/virtioso-yocto-layers/meta-virtioso-sel4/images/vm-image-driver.bb
 require recipes-core/images/core-image-minimal.bb
 inherit image-hostname vm-image-features vm-guest-images-install
 
@@ -103,7 +120,7 @@ VM_GUEST_IMAGE_vm-image-user = "user-vm.qcow2"
 The driver VM image that uses virtio devices:
 
 ```bitbake
-# vm-images/meta-sel4/images/vm-image-user.bb
+# vm-images/virtioso-yocto-layers/meta-virtioso-sel4/images/vm-image-user.bb
 require recipes-core/images/core-image-minimal.bb
 inherit image-hostname vm-image-features vm-guest-image
 
@@ -135,7 +152,7 @@ EOF
 Standalone boot image for testing:
 
 ```bitbake
-# vm-images/meta-sel4/images/vm-image-boot.bb
+# vm-images/virtioso-yocto-layers/meta-virtioso-sel4/images/vm-image-boot.bb
 require recipes-core/images/core-image-minimal.bb
 inherit image-hostname
 
@@ -150,7 +167,7 @@ export VM_IMAGE_HOSTNAME = "boot-vm"
 Adds QCOW2 image format support:
 
 ```bitbake
-# vm-images/meta-sel4/classes/vm-guest-image.bbclass
+# vm-images/virtioso-yocto-layers/meta-virtioso-sel4/classes/vm-guest-image.bbclass
 IMAGE_FSTYPES += " \
     ext4.qcow2 \
 "
@@ -163,7 +180,7 @@ This enables building QCOW2 disk images for use with QEMU.
 Installs nested guest images into the device VM:
 
 ```bitbake
-# vm-images/meta-sel4/classes/vm-guest-images-install.bbclass
+# vm-images/virtioso-yocto-layers/meta-virtioso-sel4/classes/vm-guest-images-install.bbclass
 # Copies guest images (e.g., user-vm.qcow2) into /var/lib/virt/images/
 ```
 
@@ -178,7 +195,7 @@ Installs nested guest images into the device VM:
 Defines feature packages for VM images:
 
 ```bitbake
-# vm-images/meta-sel4/classes/vm-image-features.bbclass
+# vm-images/virtioso-yocto-layers/meta-virtioso-sel4/classes/vm-image-features.bbclass
 
 FEATURE_PACKAGES_qemu-virtualization = "\
     qemu \
@@ -214,7 +231,7 @@ FEATURE_PACKAGES_gui-benchmark = " \
 Sets the hostname for each VM:
 
 ```bitbake
-# vm-images/meta-sel4/classes/image-hostname.bbclass
+# vm-images/virtioso-yocto-layers/meta-virtioso-sel4/classes/image-hostname.bbclass
 # Uses VM_IMAGE_HOSTNAME variable to set /etc/hostname
 ```
 
@@ -223,7 +240,7 @@ Sets the hostname for each VM:
 ### seL4-Specific Kernel Modules
 
 ```
-meta-sel4/recipes-kernel/
+meta-virtioso-sel4/recipes-kernel/
 ├── kernel-module-sel4-virt/      # Virtio kernel module
 ├── kernel-module-sel4-tracebuffer/  # Tracing support
 └── cross-connector/              # Cross-VM connection driver
@@ -232,7 +249,7 @@ meta-sel4/recipes-kernel/
 ### QEMU with seL4 Accelerator
 
 ```
-meta-sel4/recipes-devtools/
+meta-virtioso-sel4/recipes-devtools/
 └── qemu/
     └── qemu_%.bbappend           # Adds seL4 accelerator patches
 ```
@@ -240,7 +257,7 @@ meta-sel4/recipes-devtools/
 ### Benchmark Tools
 
 ```
-meta-sel4/recipes-benchmark/
+meta-virtioso-sel4/recipes-benchmark/
 └── virtioso-benchmark/
     └── virtioso-benchmark_%.bb        # Virtioso benchmark suite
 ```
@@ -283,7 +300,7 @@ BBLAYERS ?= " \
     ${TOPDIR}/../meta-openembedded/meta-networking \
     ${TOPDIR}/../meta-virtualization \
     ${TOPDIR}/../meta-raspberrypi \
-    ${TOPDIR}/../meta-sel4 \
+    ${TOPDIR}/../meta-virtioso-sel4 \
 "
 ```
 
@@ -476,10 +493,10 @@ vm_qemu_virtio: linux-image
 
 | File | Description |
 |------|-------------|
-| `vm-images/meta-sel4/` | Virtioso Yocto layer |
-| `vm-images/meta-sel4/images/` | Image recipes |
-| `vm-images/meta-sel4/classes/` | BBClasses |
-| `vm-images/meta-sel4/recipes-*/` | Package recipes |
+| `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/` | Virtioso Yocto layer |
+| `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/images/` | Image recipes |
+| `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/classes/` | BBClasses |
+| `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/recipes-*/` | Package recipes |
 
 ## Related Documentation
 

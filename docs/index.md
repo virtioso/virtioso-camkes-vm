@@ -151,9 +151,9 @@ See [Getting Started](start-here/prerequisites.md) for detailed instructions.
 | `projects/sel4_projects_libs/` | VMM libraries with large page, PCIe, IRQ enhancements |
 | `projects/vm-linux/` | Guest Linux integration |
 | `sources/kmod-sel4-virt/` | Kernel module bridging QEMU and seL4 RPC |
-| `sources/qemu-sel4-virtio/` | QEMU with seL4 accelerator for virtio backends |
+| `sources/qemu/` | QEMU with seL4 accelerator for virtio backends |
 | `virtioso-build/` | Build system and Docker |
-| `vm-images/meta-sel4/` | Yocto layer for guest images |
+| `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/` | Yocto layer for guest images |
 
 ## Supported Platforms
 

@@ -25,6 +25,13 @@ Yocto's `devtool` provides an efficient workflow for kernel development:
 
 - Docker container built (`make docker`)
 - Initial Yocto build completed (`make linux-image`)
+- Before any `bitbake` command, required local source repos are clean:
+  - `~/tii-sel4/sources/qemu`
+  - `~/tii-sel4/sources/kmod-sel4-virt`
+  - `~/tii-sel4/sources/sel4-linux-kernel-support`
+- For `sources/qemu`, initialize submodules:
+  - `git -C ~/tii-sel4/sources/qemu submodule update --init --recursive`
+- If any required repo is dirty, stop and decide with a human whether to commit or discard changes before continuing.
 
 ## Starting a Development Session
 

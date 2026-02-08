@@ -113,7 +113,7 @@ grep meta-tegra conf/bblayers.conf 2>/dev/null 1>&2 || \
 
 #### 3. Update layer.conf for dynamic-layers
 
-**File**: `vm-images/meta-sel4/conf/layer.conf`
+**File**: `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/conf/layer.conf`
 
 Added tegra to BBFILES_DYNAMIC:
 
@@ -126,11 +126,11 @@ BBFILES_DYNAMIC += " \
 "
 ```
 
-**Rationale**: Dynamic layers allow meta-sel4 to provide tegra-specific customizations only when meta-tegra is present, without hard dependencies.
+**Rationale**: Dynamic layers allow meta-virtioso-sel4 to provide tegra-specific customizations only when meta-tegra is present, without hard dependencies.
 
 #### 4. Create tegra kernel bbappend
 
-**File**: `vm-images/meta-sel4/dynamic-layers/tegra/recipes-kernel/linux/linux-jammy-nvidia-tegra_%.bbappend`
+**File**: `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/dynamic-layers/tegra/recipes-kernel/linux/linux-jammy-nvidia-tegra_%.bbappend`
 
 ```bitbake
 FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
@@ -150,7 +150,7 @@ include recipes-kernel/linux/linux-virtio.inc
 
 ## Machine Configuration
 
-**File**: `vm-images/meta-sel4/meta-sel4/conf/machine/vm-jetson-agx-orin.conf`
+**File**: `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/conf/machine/vm-jetson-agx-orin.conf`
 
 ```bitbake
 # VM machine configuration for Jetson AGX Orin

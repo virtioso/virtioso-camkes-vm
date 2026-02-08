@@ -342,7 +342,7 @@ This mode should only be used when device VM is fully trusted.
 | `src/fdt.c:286-295` | `fdt_node_generate_swiotlb()` |
 | `src/ram_dataport.c` | Maps dataport frames to guest |
 | `sources/kmod-sel4-virt/pci/sel4_pci.c:219` | Device VM RAM mapping |
-| `sources/qemu-sel4-virtio/accel/sel4/sel4-all.c:522` | QEMU RAM setup |
+| `sources/qemu/accel/sel4/sel4-all.c:522` | QEMU RAM setup |
 
 ---
 

@@ -37,7 +37,7 @@ $WORKSPACE/
 │   └── seL4/              # seL4 tools
 ├── virtioso-build/        # Build system
 ├── vm-images/
-│   └── meta-sel4/         # Yocto layer
+│   └── meta-virtioso-sel4/         # Yocto layer
 ├── Makefile               # Symlink to build system
 └── ...
 ```
@@ -84,6 +84,15 @@ vim .config
 ## Build Guest Images
 
 Build Yocto-based guest Linux images:
+
+### Pre-BitBake Source Hygiene (Mandatory)
+
+For seL4 QEMU guest-image integration, code changes must be made in repo-managed source trees:
+- `sources/qemu`
+- `sources/kmod-sel4-virt`
+- `sources/sel4-linux-kernel-support`
+
+Before any `bitbake` command, these repos must be fully clean (no staged, unstaged, or untracked files). If any repo is dirty, stop and use human feedback to decide whether to commit or discard those changes.
 
 ```bash
 # Build all guest images

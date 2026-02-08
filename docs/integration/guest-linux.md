@@ -416,7 +416,7 @@ echo never > /sys/kernel/mm/transparent_hugepage/enabled
 | File | Description |
 |------|-------------|
 | `projects/vm-linux/` | Guest Linux integration |
-| `vm-images/meta-sel4/` | Yocto recipes |
+| `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/` | Yocto recipes |
 | `configs/*.defconfig` | Kernel configurations |
 
 ## Related Documentation

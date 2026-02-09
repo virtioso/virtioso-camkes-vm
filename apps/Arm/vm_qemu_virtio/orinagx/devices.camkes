@@ -222,6 +222,7 @@ assembly {
                 "rw "
                 "debug "
                 "loglevel=8 "
+                "initcall_debug "
                 "arm64.nopauth "
                 "swiotlb=512 ",
             "kernel_stdout" : "hvc0",

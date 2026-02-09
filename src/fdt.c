@@ -50,6 +50,70 @@ static int fdt_assign_phandle(void *fdt, int offset)
     return 0;
 }
 
+/**
+ * Find or create a node at the given path.
+ *
+ * @param fdt       Device tree blob
+ * @param path      Full path to the node (e.g., "/reserved-memory")
+ * @param created   If non-NULL, set to true if node was created, false if found
+ * @return          Node offset on success, negative FDT error on failure
+ */
+static int fdt_find_or_create_node(void *fdt, const char *path, bool *created)
+{
+    if (created) {
+        *created = false;
+    }
+
+    int offset = fdt_path_offset(fdt, path);
+    if (offset >= 0) {
+        return offset;
+    }
+
+    if (offset != -FDT_ERR_NOTFOUND) {
+        ZF_LOGE("fdt_path_offset(%s) failed (%d)", path, offset);
+        return offset;
+    }
+
+    /* Node not found - need to create it. Find parent path and node name. */
+    const char *name = strrchr(path, '/');
+    if (!name || name == path) {
+        /* Root node or invalid path - create under root */
+        name = path + 1;  /* Skip leading '/' */
+        offset = fdt_add_subnode(fdt, 0, name);
+    } else {
+        /* Extract parent path */
+        size_t parent_len = name - path;
+        char parent[256];
+        if (parent_len >= sizeof(parent)) {
+            ZF_LOGE("Parent path too long: %s", path);
+            return -FDT_ERR_BADPATH;
+        }
+        memcpy(parent, path, parent_len);
+        parent[parent_len] = '\0';
+        name++;  /* Skip the '/' */
+
+        int parent_offset = fdt_path_offset(fdt, parent);
+        if (parent_offset < 0) {
+            ZF_LOGE("Parent node %s not found (%d)", parent, parent_offset);
+            return parent_offset;
+        }
+
+        offset = fdt_add_subnode(fdt, parent_offset, name);
+    }
+
+    if (offset < 0) {
+        ZF_LOGE("fdt_add_subnode(%s) failed (%d)", path, offset);
+        return offset;
+    }
+
+    if (created) {
+        *created = true;
+    }
+
+    ZF_LOGI("Created FDT node: %s", path);
+    return offset;
+}
+
 int fdt_generate_reserved_node(void *fdt, const char *prefix,
                                const char *compatible, uintptr_t base,
                                size_t size)
@@ -63,11 +127,32 @@ int fdt_generate_reserved_node(void *fdt, const char *prefix,
         return -FDT_ERR_INTERNAL;
     }
 
-    int root_offset = fdt_path_offset(fdt, "/reserved-memory");
+    bool created = false;
+    int root_offset = fdt_find_or_create_node(fdt, "/reserved-memory", &created);
     if (root_offset < 0) {
-        ZF_LOGE("/reserved-memory node not found");
+        ZF_LOGE("Cannot find or create /reserved-memory node");
         err = root_offset;
         goto error;
+    }
+
+    /* If we just created the node, set required properties */
+    if (created) {
+        err = fdt_setprop_u32(fdt, root_offset, "#address-cells", 2);
+        if (err) {
+            ZF_LOGE("Cannot set #address-cells (%d)", err);
+            goto error;
+        }
+        err = fdt_setprop_u32(fdt, root_offset, "#size-cells", 2);
+        if (err) {
+            ZF_LOGE("Cannot set #size-cells (%d)", err);
+            goto error;
+        }
+        /* Empty ranges property means 1:1 address translation */
+        err = fdt_setprop(fdt, root_offset, "ranges", NULL, 0);
+        if (err) {
+            ZF_LOGE("Cannot set ranges (%d)", err);
+            goto error;
+        }
     }
 
     int address_cells = fdt_address_cells(fdt, root_offset);

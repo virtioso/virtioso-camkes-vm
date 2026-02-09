@@ -33,6 +33,7 @@ For “build and test `vm_qemu_virtio` on Orin AGX”:
 
 ## Build/Test Policy
 
+- Build instructions must be followed precisely, without adding or removing a single character.
 - Build commands come from runbooks and are executed with `make <target>` from workspace root.
 - For Yocto module-only rebuild of `kmod-sel4-virt`, use `make kmod-sel4-virt`.
   - Default is clean (`bitbake -c cleansstate kernel-module-sel4-virt` then build).

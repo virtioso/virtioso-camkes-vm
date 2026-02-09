@@ -44,6 +44,13 @@ graph TB
 
 ## Documentation Sections
 
+### Agent Operations
+- [Task Router](agents/task-router.md) - Canonical task-to-runbook mapping
+- [Build/Test Runbook](agents/build-test-runbook.md) - Canonical build and test command sequences
+- [Autopilot Testing Policy](agents/autopilot-testing-policy.md) - Canonical `test_sel4_efi` policy and profile mapping
+- [Preflight Policy](agents/preflight-policy.md) - Task-based preflight rules
+- [Repo Topology Policy](agents/repo-topology-policy.md) - Real git-root and commit-root rules
+
 ### Start Here
 - [Prerequisites](start-here/prerequisites.md) - Development environment setup
 - [Building](start-here/building.md) - Build instructions

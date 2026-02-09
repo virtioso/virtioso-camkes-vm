@@ -11,74 +11,39 @@ Edits made via either path affect the same file; treat `projects/virtioso-camkes
 - Default target for build/test requests is **Orin AGX**.
 - Always perform a **clean rebuild** unless the user explicitly asks for incremental.
 
-## Build/Test Workflow (Canonical)
+## Canonical Sources (SSOT)
 
-### Build Target Resolution
+Operational policy and command sequences are authoritative only in:
 
-- Read the top-level `Makefile` and include `projects/*/Makefile.virtioso_build`.
-- Valid VM targets are `vm_*` plus `vm_minimal`/`vm_multi` from `TARGETS`.
-- If the request matches a Makefile target:
-  - Build with `make <target>` from the workspace root.
-  - For `sel4test`, use `make sel4test` (not MCP build).
+1. `projects/virtioso-camkes-vm/AGENTS.md`
+2. `docs/agents/task-router.md`
+3. `docs/agents/build-test-runbook.md`
+4. `docs/agents/autopilot-testing-policy.md`
+5. `docs/agents/preflight-policy.md`
+6. `docs/agents/repo-topology-policy.md`
 
-### Test Submission (EFI)
+## Fast Path
 
-- Use the MCP tool `test_sel4_efi` for all EFI tests.
-- Determine profile name:
-  - `target` with `_` → `-` (e.g., `vm_qemu_virtio` → `vm-qemu-virtio`)
-  - `sel4test` uses profile `sel4test`
-- Verify `/home/hlyytine/autopilot/profiles/<profile>.json` exists.
-- If the profile does **not** exist, stop and design a test chain with the human.
-- `/boot/efi` cleanup must be done in the profile chain (via `ssh_cmd`).
-- Logs are only those defined by the profile and live under `results/<id>/console/`.
-- After every test run, Autopilot exports guest DTB dumps to `results/<id>/device-trees/`
-  as both `.dtb` and `.dts` (when DTB markers are present in logs).
-- If guest behavior is unexpected, always inspect generated DTS files before further debugging.
-- Requests do **not** use a `type` field.
+For “build and test `vm_qemu_virtio` on Orin AGX”:
 
-### Yocto Local Source Policy
+1. `make mrproper`
+2. `make orinagx_defconfig`
+3. `make vm_qemu_virtio`
+4. `mcp__sel4-autopilot__test_sel4_efi(..., profile="vm-qemu-virtio")`
 
-- Active Yocto layer is `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/`. Treat `vm-images/meta-sel4/` as deprecated for current builds.
-- For these components, always edit source in repo-managed trees under `sources/`:
-  - `sources/qemu`
-  - `sources/kmod-sel4-virt`
-  - `sources/sel4-linux-kernel-support`
-- Before running any `bitbake` command, required source repos must be clean:
-  - no staged changes
-  - no unstaged changes
-  - no untracked files
-- If a repo is dirty, stop and get human feedback. Then either commit or discard changes before continuing.
-- QEMU submodules in `sources/qemu` must be initialized before bitbake.
+## Build/Test Policy
 
-### Yocto Build Output (Mandatory)
+- Build commands come from runbooks and are executed with `make <target>` from workspace root.
+- Use MCP for test submission/status/log retrieval, not for build commands in this workflow.
+- Canonical EFI test tool is `test_sel4_efi`.
+- Profile mapping is `profile = target.replace("_", "-")`.
+- Verify `/home/hlyytine/autopilot/profiles/<profile>.json` before submitting tests.
+- Always pass `autopilot_dir="/home/hlyytine/tii-sel4/autopilot"` to MCP tools.
 
-- Keep using `make linux-image` as the canonical entrypoint for Yocto image builds.
-- In non-interactive agent/CI terminals, BitBake UI output may be sparse or delayed.
-- Track progress by polling logs while `make linux-image` runs:
-  - `vm-images/build/bitbake-cookerdaemon.log`
-  - latest `vm-images/build/tmp/log/cooker/<machine>/*.log`
+## Preflight
 
-## Mandatory Preflight (Before Any Planning or Implementation)
-
-Always read the following documents before you start planning or making changes:
-
-1. `CLAUDE.md`
-2. `docs/README.md`
-3. `docs/index.md`
-
-If the task involves Orin AGX or platform-specific debugging, also read:
-
-4. `docs/platforms/orin-agx/orin-agx-debugging-guide.md`
-
-Always use MCP tools for Orin AGX testing.
-
-If the task involves kernel tracing, ftrace, or scheduler/IRQ behavior, also read:
-
-5. `../../kernel/docs/ftrace.md`
-
-If the task involves Autopilot or interactive console sessions, also read:
-
-6. `/home/hlyytine/autopilot/docs/ai-interactive-console.md`
+- Use task-based preflight only: `docs/agents/preflight-policy.md`.
+- Do not read broad investigation material for routine build/test tasks.
 
 Note: `AUTOPILOT_DIR` is the working directory (queues/results/runtime),
 not the code path. Profiles are static data and live in
@@ -123,11 +88,16 @@ codex mcp add sel4-autopilot -- python3 /home/hlyytine/autopilot/sel4_mcp_server
 codex mcp list
 ```
 
-If the task involves build, Yocto, or CI/CD, also read:
+## Yocto Local Source Policy
 
-7. `docs/build-system/build-architecture.md`
-8. `docs/build-system/yocto-integration.md`
-9. `docs/build-system/ci-cd.md`
+- Active Yocto layer is `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/`.
+- Edit Yocto-managed sources only in:
+  - `sources/qemu`
+  - `sources/kmod-sel4-virt`
+  - `sources/sel4-linux-kernel-support`
+- Before `bitbake`, these source repos must be clean (no staged/unstaged/untracked files).
+- `sources/qemu` submodules must be initialized before bitbake.
+- Use `make linux-image` as the canonical Yocto build entrypoint.
 
 ## Repo Roots & Symlinked Paths
 
@@ -145,5 +115,5 @@ If you are editing `docs/` (linked to this repo), commit from:
 
 ## Additional Notes
 
-- Treat these preflight docs as required context. If they are missing or outdated, note that explicitly before proceeding.
-- When unsure, prefer the docs under `docs/` as the source of truth for this repository.
+- When unsure, prefer `docs/agents/*` for operational guidance.
+- Treat investigation and plan docs as technical context, not command authority.

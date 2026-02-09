@@ -13,6 +13,13 @@
 #include <virtioso/camkes/io_proxy.h>
 #include <virtioso/fdt.h>
 
+#define SEL4_VIRT_RPC_DEBUG
+#ifdef SEL4_VIRT_RPC_DEBUG
+#define RPCDBG(fmt, ...) ZF_LOGE("rpcdbg: " fmt, ##__VA_ARGS__)
+#else
+#define RPCDBG(fmt, ...) do { } while (0)
+#endif
+
 /*- set vm_virtio_driver_channels = configuration[me.name].get('vm_virtio_driver_channels') -*/
 
 /*- for dev in vm_virtio_driver_channels -*/
@@ -27,13 +34,14 @@ static uintptr_t vm/*? dev.id ?*/_iobuf_get(io_proxy_t *io_proxy)
 
 static void vm/*? dev.id ?*/_notify(void *cookie)
 {
-    ZF_LOGE("notify: sending to device VM");
+    RPCDBG("notify: sending to device VM (cookie=%p)", cookie);
     vm/*? dev.id ?*/_ntfn_send_emit();
 }
 
 static void vm/*? dev.id ?*/_ntfn_callback(void *opaque)
 {
     io_proxy_t *io_proxy = opaque;
+    RPCDBG("notify callback enter (io_proxy=%p)", io_proxy);
 
     int err = vm/*? dev.id ?*/_ntfn_recv_reg_callback(vm/*? dev.id ?*/_ntfn_callback, opaque);
     assert(!err);

@@ -31,6 +31,13 @@
 
 #include <virtioarm/virtio_plat.h>
 
+#define SEL4_VIRT_RPC_DEBUG
+#ifdef SEL4_VIRT_RPC_DEBUG
+#define RPCDBG(fmt, ...) ZF_LOGE("rpcdbg: " fmt, ##__VA_ARGS__)
+#else
+#define RPCDBG(fmt, ...) do { } while (0)
+#endif
+
 #define INTERRUPT_PCI_INTX_BASE (VIRTIO_CON_PLAT_INTERRUPT_LINE)
 
 typedef int (*rpc_callback_fn_t)(io_proxy_t *io_proxy, unsigned int op,
@@ -262,6 +269,9 @@ static int handle_pci(io_proxy_t *io_proxy, unsigned int op, rpcmsg_t *msg)
 {
     int err;
 
+    RPCDBG("handle_pci op=%u mr0=0x%lx mr1=0x%lx mr2=0x%lx mr3=0x%lx",
+           op, msg->mr0, msg->mr1, msg->mr2, msg->mr3);
+
     switch (op) {
     case QEMU_OP_SET_IRQ:
         if (!irq_is_pci(msg->mr1))
@@ -289,6 +299,7 @@ static int handle_control(io_proxy_t *io_proxy, unsigned int op, rpcmsg_t *msg)
 {
     switch (op) {
     case QEMU_OP_START_VM:
+        RPCDBG("QEMU_OP_START_VM received, backend marked ready");
         io_proxy->ok_to_run = 1;
         sync_sem_post(&io_proxy->backend_started);
         break;
@@ -337,9 +348,14 @@ int rpc_run(io_proxy_t *io_proxy)
     rpcmsg_t event;
     uint16_t id;
     int rc = 0;
+    unsigned int resp_count = 0;
+    unsigned int event_count = 0;
 
     /* process ioreqs first */
     for_each_driver_rpc_resp(resp, id, &io_proxy->rpc) {
+        RPCDBG("resp[%u] id=%u op=%u mr1=0x%lx mr2=0x%lx mr3=0x%lx",
+               resp_count, id, QEMU_OP(resp->mr0), resp->mr1, resp->mr2, resp->mr3);
+        resp_count++;
         rc = rpc_process(resp, io_proxy);
         if (rc) {
             fprintf(stderr, "processing rpc failed (%d)\n", rc);
@@ -349,11 +365,19 @@ int rpc_run(io_proxy_t *io_proxy)
 
     /* process events */
     for_each_device_event(event, &io_proxy->rpc) {
+        RPCDBG("event[%u] op=%u mr1=0x%lx mr2=0x%lx mr3=0x%lx",
+               event_count, QEMU_OP(event.mr0), event.mr1, event.mr2, event.mr3);
+        event_count++;
         rc = rpc_process(&event, io_proxy);
         if (rc) {
             fprintf(stderr, "processing rpc failed (%d)\n", rc);
             break;
         }
+    }
+
+    if (resp_count || event_count) {
+        RPCDBG("rpc_run summary: responses=%u events=%u rc=%d",
+               resp_count, event_count, rc);
     }
 
     return rc;

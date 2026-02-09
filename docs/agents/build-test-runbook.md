@@ -12,13 +12,15 @@ This file is the canonical source for build and test command sequences.
    `make vm_qemu_virtio`
 4. Verify binary exists:
    `/home/hlyytine/tii-sel4/orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx`
-5. Submit EFI test:
+5. Ensure Autopilot daemon is running in tmux:
+   `mcp__sel4-autopilot__autopilot_restart(autopilot_dir="/home/hlyytine/tii-sel4/autopilot", use_tmux=true)`
+6. Submit EFI test:
    `mcp__sel4-autopilot__test_sel4_efi(autopilot_dir="/home/hlyytine/tii-sel4/autopilot", binary_path="/home/hlyytine/tii-sel4/orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx", profile="vm-qemu-virtio")`
-6. Poll status:
+7. Poll status:
    `mcp__sel4-autopilot__get_test_status(...)` or `mcp__sel4-autopilot__wait_for_test(...)`
-7. Get logs:
+8. Get logs:
    `mcp__sel4-autopilot__get_logs(...)`
-8. If behavior is unexpected, inspect:
+9. If behavior is unexpected, inspect:
    `results/<id>/device-trees/`
 
 ## Orin AGX `vm_minimal`
@@ -62,3 +64,4 @@ This file is the canonical source for build and test command sequences.
 - Build commands are always `make` targets from workspace root.
 - Testing is always `test_sel4_efi`.
 - Profile mapping is `target.replace("_", "-")`.
+- For daemon start/restart operations, always set `use_tmux=true`.

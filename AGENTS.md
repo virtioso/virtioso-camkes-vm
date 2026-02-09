@@ -73,10 +73,16 @@ You can start/stop/restart Autopilot via MCP tools:
 - `autopilot_restart`
 - `autopilot_status`
 
-These run Autopilot headless in a tmux session and return an attach hint
+When starting or restarting Autopilot, always pass `use_tmux=true`:
+- `mcp__sel4-autopilot__autopilot_start(..., use_tmux=true)`
+- `mcp__sel4-autopilot__autopilot_restart(..., use_tmux=true)`
+
+This guarantees an attachable tmux session and an attach hint
 (`tmux attach -t autopilot`) for TUI access.
 
 Submitting a test via MCP auto-starts Autopilot if it is not running.
+Auto-start may not provide an attachable tmux session, so explicitly start or
+restart with `use_tmux=true` when TUI attachability is required.
 
 Orin AGX note: MCP auto-start uses default UARTs `/dev/ttyACM0` and
 `/dev/ttyACM1`. Replace these for other platforms (e.g. Raspberry Pi 4 uses

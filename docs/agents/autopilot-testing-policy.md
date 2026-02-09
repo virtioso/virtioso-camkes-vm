@@ -7,10 +7,13 @@ This file is the canonical policy for Autopilot test submission and results.
 - Use `mcp__sel4-autopilot__test_sel4_efi` for EFI test submission.
 - Use `mcp__sel4-autopilot__get_test_status` or `mcp__sel4-autopilot__wait_for_test` for status.
 - Use `mcp__sel4-autopilot__get_logs` for logs.
+- For daemon lifecycle operations, use `mcp__sel4-autopilot__autopilot_start` or
+  `mcp__sel4-autopilot__autopilot_restart` with `use_tmux=true`.
 
 ## Required Parameters
 
 - Always pass `autopilot_dir="/home/hlyytine/tii-sel4/autopilot"`.
+- For daemon start/restart calls, always pass `use_tmux=true`.
 - `profile` is derived from target name with:
   `profile = target.replace("_", "-")`
 - Confirm profile exists before submit:

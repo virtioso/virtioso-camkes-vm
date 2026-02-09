@@ -13,7 +13,7 @@
 #include <virtioso/camkes/io_proxy.h>
 #include <virtioso/fdt.h>
 
-#define SEL4_VIRT_RPC_DEBUG
+/* #define SEL4_VIRT_RPC_DEBUG */
 #ifdef SEL4_VIRT_RPC_DEBUG
 #define RPCDBG(fmt, ...) ZF_LOGE("rpcdbg: " fmt, ##__VA_ARGS__)
 #else

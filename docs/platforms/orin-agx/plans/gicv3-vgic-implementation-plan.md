@@ -2571,14 +2571,18 @@ This causes IRQ 208 (BPMP) to preempt everything, potentially causing priority i
 
 1. **Build sel4test** (sanity check):
    ```
-   mcp__sel4-autopilot__build_sel4test mode=el2
-   mcp__sel4-autopilot__test_sel4_binary
+   make mrproper
+   make orinagx_defconfig
+   make sel4test
+   mcp__sel4-autopilot__test_sel4_efi(..., profile="sel4test")
    ```
 
 2. **Build and test vm_minimal** (BPMP test):
    ```
-   mcp__sel4-autopilot__build_vm_minimal
-   mcp__sel4-autopilot__test_vm_minimal
+   make mrproper
+   make orinagx_defconfig
+   make vm_minimal
+   mcp__sel4-autopilot__test_sel4_efi(..., profile="vm-minimal")
    ```
 
 3. **Verify BPMP initialization** in profile-defined console logs under `results/<id>/console/`:

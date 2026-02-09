@@ -229,10 +229,12 @@ On RAS error, the SDEI handler:
 
 ```bash
 # Build with el2-ras mode
-mcp__sel4-autopilot__build_sel4test(mode="el2-ras")
+make mrproper
+make orinagx_ras_defconfig
+make sel4test
 
 # Run test - will halt on first RAS error with ftrace dump
-mcp__sel4-autopilot__test_sel4_binary(binary_path="...", timeout=600)
+mcp__sel4-autopilot__test_sel4_efi(autopilot_dir="/home/hlyytine/tii-sel4/autopilot", binary_path="...", profile="sel4test")
 
 # Query ftrace for RAS error context
 mcp__sel4-autopilot__query_ftrace(request_id="...", summary=True)

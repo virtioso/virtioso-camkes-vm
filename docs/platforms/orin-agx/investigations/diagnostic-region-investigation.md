@@ -199,7 +199,7 @@ Since DTS memory starts at 0x80032000, the range 0x80000000-0x80032000 falls int
 
 ## Test Results
 
-**Build:** `mcp__sel4-autopilot__build_sel4test mode=el2-ftrace`
+**Build:** `make mrproper && make orinagx_ftrace_defconfig && make sel4test`
 **Test ID:** 20251220-094313
 
 ### Boot Output

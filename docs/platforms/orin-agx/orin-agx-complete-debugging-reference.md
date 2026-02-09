@@ -55,7 +55,7 @@ For the canonical RAS problem statement and current status, see [ras-errors.md](
 | **Use dc civac, never dc cisw** | dc cisw broken on ALL Tegra platforms |
 | **RAM start at 0x80032000** | Avoids RAS errors from speculative PTW |
 | **Use safe PTEs** | pte_pte_invalid_new() must have bits[47:12] pointing to valid DRAM |
-| **Always use MCP tools** | mcp__sel4-autopilot__build_sel4test for clean builds |
+| **Build with make targets** | Use `make <target>` from workspace root |
 
 ## What NOT to Investigate (Proven Working/Ruled Out)
 
@@ -829,10 +829,16 @@ On most platforms, `KERNEL_ELF_BASE_OFFSET == PPTR_BASE_OFFSET`, so both functio
 
 ```python
 # Build
-mcp__sel4-autopilot__build_sel4test(mode="el2")  # or "el1", "el2-ftrace"
+make mrproper
+make orinagx_defconfig  # or orinagx_nohyp_defconfig / orinagx_ftrace_defconfig
+make sel4test
 
 # Test
-mcp__sel4-autopilot__test_sel4_efi(binary_path="...", profile="sel4test")
+mcp__sel4-autopilot__test_sel4_efi(
+    autopilot_dir="/home/hlyytine/tii-sel4/autopilot",
+    binary_path="...",
+    profile="sel4test"
+)
 
 # Get logs
 mcp__sel4-autopilot__get_logs(request_id="...", include_contents=false)

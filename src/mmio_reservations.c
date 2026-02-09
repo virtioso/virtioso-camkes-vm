@@ -39,10 +39,24 @@ static inline mmio_reservation_t *mmio_res_find(io_proxy_t *io_proxy,
     return list_item(&mmio_reservations, &res, &mmio_res_cmp);
 }
 
+/* Maximum MMIO region size (256MB) - reject larger regions from backend */
+#define MAX_MMIO_REGION_SIZE (256ULL * 1024 * 1024)
+
 int mmio_res_assign(vm_t *vm, memory_fault_callback_fn fault_handler,
                     io_proxy_t *io_proxy, uint64_t addr, uint64_t size)
 {
     vm_memory_reservation_t *res;
+
+    /* Skip regions that are too large - QEMU may try to register huge PCI
+     * memory windows (e.g., 64-bit BAR space at 0x8000000000). We can't
+     * create vspace reservations that large, so just ignore them. The actual
+     * device BARs will be registered as smaller regions. */
+    if (size > MAX_MMIO_REGION_SIZE) {
+        ZF_LOGW("Skipping oversized MMIO region 0x%" PRIx64 " size 0x%"
+                PRIx64 " (max 0x%llx) for backend %p",
+                addr, size, (unsigned long long)MAX_MMIO_REGION_SIZE, io_proxy);
+        return 0;  /* Return success - this is expected for large PCI windows */
+    }
 
     res = vm_reserve_memory_at(vm, addr, size, fault_handler, io_proxy);
     if (!res) {

@@ -43,6 +43,11 @@ For “build and test `vm_qemu_virtio` on Orin AGX”:
 - Profile mapping is `profile = target.replace("_", "-")`.
 - Verify `/home/hlyytine/autopilot/profiles/<profile>.json` before submitting tests.
 - Always pass `autopilot_dir="/home/hlyytine/tii-sel4/autopilot"` to MCP tools.
+- For Orin `vm_qemu_virtio`, cross-VM connector IRQ reserve must remain 8-bit safe (`<=255`)
+  unless full-width DT IRQ mapping support is explicitly implemented.
+- When VM passthrough IRQ inputs change (`vm*.dtb_irqs`, platform IRQ reserves, or PCI INTx usage),
+  recompute the free 8-bit IRQ range and request explicit human affirmation before changing
+  `free_plat_interrupts[]`.
 
 ## Preflight
 

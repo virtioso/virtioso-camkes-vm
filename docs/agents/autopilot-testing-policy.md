@@ -1,0 +1,30 @@
+# Autopilot Testing Policy
+
+This file is the canonical policy for Autopilot test submission and results.
+
+## Required API
+
+- Use `mcp__sel4-autopilot__test_sel4_efi` for EFI test submission.
+- Use `mcp__sel4-autopilot__get_test_status` or `mcp__sel4-autopilot__wait_for_test` for status.
+- Use `mcp__sel4-autopilot__get_logs` for logs.
+
+## Required Parameters
+
+- Always pass `autopilot_dir="/home/hlyytine/tii-sel4/autopilot"`.
+- `profile` is derived from target name with:
+  `profile = target.replace("_", "-")`
+- Confirm profile exists before submit:
+  `/home/hlyytine/autopilot/profiles/<profile>.json`
+
+## Queue and Results
+
+- A new test submit is blocked while another request is pending/processing.
+- Console logs are stored under:
+  `results/<id>/console/`
+- Guest DTB/DTS exports are stored under:
+  `results/<id>/device-trees/`
+
+## Scope Rule
+
+- MCP is for testing and result retrieval in this workflow.
+- Build operations are executed with runbook `make` commands.

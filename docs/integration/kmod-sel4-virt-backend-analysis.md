@@ -829,3 +829,61 @@ When phase-1 code lands, update these docs in the same change window to avoid st
 - VMM alloc/validation: `sources/kmod-sel4-virt/sel4_vmm.c`
 - RPC protocol: `sources/kmod-sel4-virt/include/uapi/sel4/rpc.h`
 - RPC queue internals: `sources/kmod-sel4-virt/include/uapi/sel4/rpc_queue.h`
+
+## Implementation Status (Current Workspace)
+
+Completed in code:
+
+1. Producer-side split support in `libsel4vmmplatsupport`:
+- `crossvm_handle_t` extended with optional `control_dataport`.
+- BAR emulation now supports:
+  - legacy mode: `BAR0 event`, `BAR1 data`
+  - split mode: `BAR0 event`, `BAR1 data`, `BAR2 control`
+- Mode is inferred structurally (`control_dataport != NULL`), no explicit mode flags.
+- Commit: `projects/sel4_projects_libs` `6ccd231`
+
+2. VM wrapper plumbing (`projects/vm`):
+- Added optional `control_handle` to both VM_Arm and Init crossvm connection structs.
+- Existing vm-examples-compatible callers remain valid (field appended, optional).
+- Wrapper code maps `handle -> dataport` and `control_handle -> control_dataport`.
+- Commit: `projects/vm` `3188afb`
+
+3. Virtioso template switch to single connector entry per channel:
+- `seL4VirtIODeviceVM.template.c` now emits one connection per channel using:
+  - `handle = memdev` (data plane)
+  - `control_handle = iobuf` (control plane)
+- Event BAR name now uses `guest-device-<id>`.
+- Commit: `projects/virtioso-camkes-vm` `7c6abd1`
+
+4. kmod consumer migration (`sources/kmod-sel4-virt`):
+- Removed legacy two-device pairing by `guest-iobuf`/`guest-ram`.
+- Switched to single PCI function with BAR parsing:
+  - `BAR0 event`, `BAR1 data`, `BAR2 control`
+- Memory map wiring:
+  - `SEL4_MEM_MAP_RAM <- BAR1`
+  - `SEL4_MEM_MAP_IOBUF <- BAR2`
+  - `SEL4_MEM_MAP_EVENT_BAR <- BAR0`
+- mappable IO-handler names aligned to:
+  - `guest-data`, `guest-control`, `guest-event-bar`
+- Commit: `sources/kmod-sel4-virt` `63ac868`
+
+5. Yocto module build path automation:
+- Added workspace target: `make kmod-sel4-virt`
+- Added script: `virtioso-build/scripts/build_yocto_kmod_sel4_virt.sh`
+  - default clean rebuild (`cleansstate`)
+  - optional incremental with `YOCTO_INCREMENTAL=1`
+- Docs/runbook/router updated accordingly.
+- Commits:
+  - `virtioso-build` `befdb4f`
+  - `projects/virtioso-camkes-vm` `281e4ec`
+
+Validation completed:
+
+- `make kmod-sel4-virt` from workspace root succeeded and produced:
+  - module: `vm-images/build/tmp/work/vm_jetson_agx_orin-poky-linux/kernel-module-sel4-virt/1.0/image/lib/modules/5.15.148-l4t-r36.4-1012.12+g8dc079d5c8c4/updates/sel4_virt.ko`
+  - RPMs under: `vm-images/build/tmp/deploy/rpm/vm_jetson_agx_orin/`
+
+Remaining validation:
+
+1. Full `vm_qemu_virtio` clean rebuild and runtime validation on Orin AGX profile to confirm producer-side BAR layout + guest-side consumption end-to-end.
+2. Hot-remove race hardening remains TODO (as intentionally deferred in phase 1).

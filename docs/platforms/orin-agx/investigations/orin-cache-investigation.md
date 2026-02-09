@@ -208,7 +208,7 @@ cd orinagx_sel4test
 container="skip" ninja
 
 # Test on hardware using autopilot
-# (Use MCP tool mcp__sel4-autopilot__test_sel4_binary)
+# (Use MCP tool mcp__sel4-autopilot__test_sel4_efi with profile="sel4test")
 ```
 
 ## Configuration

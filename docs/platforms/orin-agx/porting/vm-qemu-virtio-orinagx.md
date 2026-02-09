@@ -211,9 +211,12 @@ make vm_qemu_virtio
 
 ### Test
 ```bash
-# Using autopilot MCP tools
-mcp__sel4-autopilot__build_vm_minimal(mode="el2")
-mcp__sel4-autopilot__test_vm_minimal(binary_path="...")
+# Submit test with canonical EFI API
+mcp__sel4-autopilot__test_sel4_efi(
+  autopilot_dir="/home/hlyytine/tii-sel4/autopilot",
+  binary_path="/home/hlyytine/tii-sel4/orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx",
+  profile="vm-qemu-virtio"
+)
 ```
 
 ## Known Issues

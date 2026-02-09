@@ -108,10 +108,16 @@ immediately with a `request_id`. Poll for completion.
 
 ```python
 # Build
-mcp__sel4-autopilot__build_sel4test(mode="el2")  # or "el1", "el2-ftrace"
+make mrproper
+make orinagx_defconfig  # or orinagx_nohyp_defconfig / orinagx_ftrace_defconfig
+make sel4test
 
 # Test (async submit)
-mcp__sel4-autopilot__test_sel4_efi(binary_path="...", profile="sel4test")
+mcp__sel4-autopilot__test_sel4_efi(
+    autopilot_dir="/home/hlyytine/tii-sel4/autopilot",
+    binary_path="...",
+    profile="sel4test"
+)
 
 # Poll status (recommended: 1s interval, 300s overall)
 mcp__sel4-autopilot__get_test_status(request_id="...")

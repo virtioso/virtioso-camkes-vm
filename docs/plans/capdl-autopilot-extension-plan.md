@@ -357,7 +357,7 @@ def process_capdl_request(request, result_dir):
 
 ### Phase 6: MCP Server Tools
 
-#### 6.1 Add CAmkES-specific MCP tools
+#### 6.1 Use canonical APIs
 
 **File**: `/home/hlyytine/autopilot/sel4_mcp_server.py`
 
@@ -365,28 +365,17 @@ def process_capdl_request(request, result_dir):
 # VM boot detection settings
 VM_QUIESCENCE_TIMEOUT = 5  # seconds without output = test complete
 
-@tool
-async def build_vm_minimal(mode: str = "el2") -> dict:
-    """
-    Build vm_minimal CAmkES application for Orin AGX.
-
-    Args:
-        mode: Build mode (el2, el1)
-
-    Returns:
-        {success, binary_path, build_time}
-    """
-    # Similar to build_sel4test but calls:
-    # make orinagx_{mode}_defconfig && make vm_minimal
-    pass
+# Build path is runbook-driven, not MCP:
+# make mrproper && make orinagx_defconfig && make vm_minimal
 
 @tool
-async def test_vm_minimal(
+async def test_sel4_efi(
     binary_path: str,
+    profile: str,
     description: str = ""
 ) -> dict:
     """
-    Test vm_minimal on Orin AGX hardware.
+    Test a built EFI binary on Orin AGX hardware.
 
     Captures both seL4 UART (ttyACM0) and VM console (ttyACM1).
     Waits until 5 seconds of no output on ttyACM1 (VM console),
@@ -395,7 +384,8 @@ async def test_vm_minimal(
     No success criteria yet - just captures logs.
 
     Args:
-        binary_path: Path to capdl-loader-image-arm-orinagx
+        binary_path: Path to built EFI binary
+        profile: Autopilot profile name
         description: Optional test description
 
     Returns:
@@ -528,7 +518,7 @@ Call this in both `SeL4UploadHarness.run()` and `SeL4UploadOnlyHarness.run()`.
 
 | File | Change Type | Description |
 |------|-------------|-------------|
-| `sel4_mcp_server.py` | Modify | Add `build_vm_minimal`, `test_vm_minimal`, `get_vm_logs` |
+| `sel4_mcp_server.py` | Reuse | Use existing `test_sel4_efi` and log/status APIs |
 | `orin_kernel_autopilot.py` | Modify | Add `vm_minimal` request type with dual UART + 5s quiescence on ttyACM1 |
 | `sel4_client.py` | Modify | Add `submit_vm_minimal_test`, `get_vm_logs` |
 | `seL4BootHarness.py` | Modify | Add `cleanup_old_binaries()` call in upload harnesses |

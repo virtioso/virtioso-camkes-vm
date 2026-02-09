@@ -111,8 +111,10 @@ and return a `request_id` immediately. Poll for completion.
 
 ```
 # Submit (async)
-resp = mcp__sel4-autopilot__test_vm_minimal(
-    binary_path="/home/hlyytine/tii-sel4/orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx"
+resp = mcp__sel4-autopilot__test_sel4_efi(
+    autopilot_dir="/home/hlyytine/tii-sel4/autopilot",
+    binary_path="/home/hlyytine/tii-sel4/orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx",
+    profile="vm-qemu-virtio"
 )
 # resp contains request_id
 

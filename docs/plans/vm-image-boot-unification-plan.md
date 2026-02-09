@@ -310,8 +310,8 @@ ROOTFS_POSTPROCESS_COMMAND:append = " create_console_devices;"
    ```
 
 3. **Build and test vm_minimal on Orin AGX**:
-   - Use `mcp__sel4-autopilot__build_vm_minimal`
-   - Use `mcp__sel4-autopilot__test_vm_minimal`
+   - Build with `make mrproper && make orinagx_defconfig && make vm_minimal`
+   - Use `mcp__sel4-autopilot__test_sel4_efi`
    - Verify: driver loading messages, TAP bridge setup, NFS mount attempt (or shell if no NFS server)
 
 4. **Test on QEMU** (if NFS server available):

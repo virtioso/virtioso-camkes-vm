@@ -396,19 +396,21 @@ Decisions locked for current implementation cycle:
 - Keep existing event-bar behavior and register semantics unchanged in phase 1.
 - Use single-device phase-1 BAR mapping:
   - `BAR0` event
-  - `BAR1` control
-  - `BAR2` data
+  - `BAR1` data
+  - `BAR2` control
 - Keep BAR addresses below 4GiB in phase 1.
 - Preserve backward compatibility only for vm-examples users of crossvm APIs.
 - No compatibility requirement for existing virtioso split-device topology.
 - Use `control`/`data` terminology in design and docs (transport-generic, not virtio-only).
+- Do not add a new control metadata ABI in phase 1; use existing naming/ID plumbing.
+- Keep equal BAR sizing for `BAR0/1/2` in phase 1.
 - Move to 64-bit BAR support only when 32-bit address-space limits become a practical blocker.
 
 Phase 1 contract (single device, 32-bit BARs under 4GiB):
 
 1. `BAR0`: event BAR (keep existing event register behavior)
-2. `BAR1`: control BAR (RPC queue region)
-3. `BAR2`: data BAR (shared data window)
+2. `BAR1`: data BAR (shared data window)
+3. `BAR2`: control BAR (RPC queue region)
 
 Phase 2 contract (optional):
 
@@ -432,7 +434,7 @@ Keep kernel UAPI and QEMU `/dev/sel4` ioctl ABI unchanged in phase 1 (still expo
   - `projects/vm/components/Init/include/crossvm.h`
   - `projects/vm/components/Init/src/crossvm.c`
 
-2. Redesign vPCI BAR construction for one function with event/control/data windows.
+2. Redesign vPCI BAR construction for one function with event/data/control windows.
 
 - Replace BAR layout in `construct_connection_bar`:
   - today writes `.bar0` and `.bar1`: `projects/sel4_projects_libs/libsel4vmmplatsupport/src/drivers/cross_vm_connection.c:61`
@@ -441,30 +443,23 @@ Keep kernel UAPI and QEMU `/dev/sel4` ioctl ABI unchanged in phase 1 (still expo
 - Update `vmm_pci_bar_t bars[]` usage from `num_bars=2` to `num_bars=3` in phase 1.
 - Remove dependence on name-based type split in event memory string payload (`guest-iobuf-*` / `guest-ram-*`).
 
-3. Update reservation logic from (event + dataport) to (control + data).
+3. Update reservation logic from (event + dataport) to (data + control).
 
 - Replace split reserve flow:
   - `reserve_event_bar`: `projects/sel4_projects_libs/libsel4vmmplatsupport/src/drivers/cross_vm_connection.c:125`
   - `reserve_dataport_memory`: `projects/sel4_projects_libs/libsel4vmmplatsupport/src/drivers/cross_vm_connection.c:147`
 - New flow:
-  - reserve/map control dataport region
-  - place event registers + metadata at fixed offsets inside control region
   - reserve/map data dataport region
+  - reserve/map control dataport region
+  - keep existing event-bar naming field for ID plumbing in phase 1
 
-4. Add explicit control metadata ABI (recommended).
-
-- Current consumer discovers type+id from event-bar string:
-  - `EVENT_BAR_DEVICE_NAME_REGISTER`: `projects/sel4_projects_libs/libsel4vmmplatsupport/src/drivers/cross_vm_connection.c:32`
-- Replace with versioned metadata header (magic/version/id/offsets/sizes/features) at
-  control BAR offset 0 (or fixed header page).
-
-5. PCI BAR sizing behavior (phase 1 finding).
+4. PCI BAR sizing behavior (phase 1 finding).
 
 - Current producer code explicitly enforces same `size_bits` to avoid Linux BAR remap:
   - `projects/sel4_projects_libs/libsel4vmmplatsupport/src/drivers/cross_vm_connection.c:230`
 - Interpretation: with current vPCI integration, keeping equal BAR size remains necessary unless
   BAR relocation/rebasing support is strengthened end-to-end.
-- Therefore in phase 1, keep event/control/data BAR size policy conservative (equal-sized resources,
+- Therefore in phase 1, keep event/data/control BAR size policy conservative (equal-sized resources,
   even if some space is reserved/unused).
 
 Phase 2 requirement (only when moving to 64-bit BARs):
@@ -488,9 +483,9 @@ Phase 2 requirement (only when moving to 64-bit BARs):
 - Current probe only scans first two resources:
   - `sources/kmod-sel4-virt/pci/sel4_pci.c:271`
 - New probe must:
-  - in phase 1: parse at least BAR0/BAR1/BAR2 (event/control/data)
+  - in phase 1: parse at least BAR0/BAR1/BAR2 (event/data/control)
   - in phase 2: support 64-bit BAR pair parsing
-  - validate alignment and size from metadata header in control BAR (if metadata ABI enabled)
+  - validate BAR alignment and size constraints
 
 3. Build runtime context from one endpoint.
 
@@ -544,11 +539,14 @@ This requires template and macro updates in:
 
 `cross_vm_connection` is also used in `projects/vm-examples/*`.
 Decision: backward compatibility is required only toward vm-examples.
+Compatibility policy (explicit):
+- retain vm-examples single-dataport compatibility path
+- do not retain old virtioso split-device compatibility path
 
 Recommended approach:
 - extend `crossvm_handle_t` with optional new fields appended at end
 - keep existing initializers valid
-- dispatch legacy vs new behavior based on presence of optional fields
+- infer mode from populated fields (no explicit compatibility flags)
 
 Reference users:
 - `projects/vm-examples/apps/Arm/vm_introspect/src/cross_vm_connection.c`
@@ -557,20 +555,20 @@ Reference users:
 ### High-Risk Areas
 
 1. Linux PCI enumeration/reprogramming behavior if BAR sizes differ (phase 1).
-2. Metadata ABI mismatch between producer and kmod consumer.
+2. vm-examples legacy path vs split path mode detection regressions.
 3. Removal races during transition from pair-based to single-device lifecycle.
 4. 64-bit BAR emulation correctness in `pci_helper.c` (phase 2).
 
 ### Suggested Implementation Sequence
 
-1. Implement single-device phase-1 BAR layout (`BAR0` event, `BAR1` control, `BAR2` data), all <4GiB.
+1. Implement single-device phase-1 BAR layout (`BAR0` event, `BAR1` data, `BAR2` control), all <4GiB.
 2. Keep/validate equal BAR size policy in producer to avoid guest remap issues.
 3. Implement single-device producer path in `cross_vm_connection.c`.
 4. Switch kmod probe/create/remove to single-device model.
 5. Update virtioso templates/macros to generate one channel record with control+data handles.
-6. Keep vm-examples compatibility via appended optional fields in `crossvm_handle_t`.
+6. Keep vm-examples compatibility via appended optional fields in `crossvm_handle_t` and structural mode inference.
 7. Keep QEMU and UAPI stable; run integration tests.
-8. (Optional) add metadata ABI versioning.
+8. Add/remove stress tests and document hot-remove behavior as follow-up TODO.
 9. Phase 2: add 64-bit BAR support when required by address-space scaling.
 
 ### Concrete Code-Level Delta (Phase 1)
@@ -578,7 +576,7 @@ Reference users:
 This section turns the migration into file-level implementation tasks for the selected phase-1 contract:
 
 - one vPCI device per channel
-- `BAR0=event`, `BAR1=control`, `BAR2=data`
+- `BAR0=event`, `BAR1=data`, `BAR2=control`
 - 32-bit BAR addresses under 4GiB
 - keep event register semantics unchanged
 - keep vm-examples compatibility
@@ -596,18 +594,13 @@ Recommended struct/API shape:
 
 ```c
 /* libsel4vmmplatsupport/include/.../cross_vm_connection.h */
-#define CROSSVM_CONN_F_SINGLE_DEVICE_EDC   BIT(0) /* event/control/data */
-#define CROSSVM_CONN_F_LEGACY_SINGLE_DP    BIT(1) /* compatibility path */
-
 typedef struct crossvm_handle {
-    /* legacy field (vm-examples compatibility) */
+    /* canonical data plane dataport */
     crossvm_dataport_handle_t *dataport;
 
-    /* new fields (single-device event/control/data) */
+    /* control plane dataport (required in split mode) */
     crossvm_dataport_handle_t *control_dataport;
-    crossvm_dataport_handle_t *data_dataport;
     uint32_t connection_id;
-    uint32_t flags;
 
     emit_fn emit_fn;
     seL4_Word consume_id;
@@ -616,8 +609,8 @@ typedef struct crossvm_handle {
 ```
 
 Notes:
-- `dataport` remains for vm-examples compatibility.
-- New code path prefers `{control_dataport, data_dataport}` when present.
+- `dataport` is the SSOT/DRY data-plane handle for both legacy and split paths.
+- split mode requires `control_dataport` in addition to `dataport`.
 - `connection_id` replaces name-based vmid extraction in kmod.
 - keep field append-only layout for minimal breakage in aggregate initializers.
 
@@ -627,9 +620,14 @@ Notes:
 
 Compatibility rule for vm-examples:
 - If only legacy `handle`/`dataport` is provided:
-  - set `control_dataport = dataport`
-  - set `data_dataport = dataport`
-  - set `flags |= CROSSVM_CONN_F_LEGACY_SINGLE_DP`
+  - leave `control_dataport = NULL`
+  - keep `dataport` populated
+  - legacy mode is inferred structurally
+
+Mode selection rule (no explicit flags):
+- split mode: `control_dataport != NULL` (and `dataport != NULL`)
+- legacy mode: `control_dataport == NULL` and `dataport != NULL`
+- invalid: `dataport == NULL`
 
 #### Producer Runtime Delta (`cross_vm_connection.c`)
 
@@ -657,8 +655,8 @@ Function-level edits:
   - `reserve_data_memory(...)`
 - `initialise_connections(...)` sequence per connection:
   1. reserve event page at `base + 0 * pci_bar_size`
-  2. reserve control dataport at `base + 1 * pci_bar_size`
-  3. reserve data dataport at `base + 2 * pci_bar_size`
+  2. reserve data dataport at `base + 1 * pci_bar_size`
+  3. reserve control dataport at `base + 2 * pci_bar_size`
   4. register consume callback as today
 
 3. PCI config creation:
@@ -667,24 +665,10 @@ Function-level edits:
   - `vmm_pci_bar_t bars[3]`
   - `vmm_pci_create_bar_emulation(entry, 3, bars)`
 
-4. Control metadata ABI (strongly recommended in phase 1):
-- place metadata header at control BAR offset 0:
-
-```c
-struct sel4_ctrl_plane_header {
-    uint32_t magic;          /* 'S4CD' */
-    uint16_t version;        /* 1 */
-    uint16_t header_len;
-    uint32_t connection_id;  /* used by kmod create_vm matching */
-    uint32_t features;
-    uint32_t rpc_offset;     /* e.g. 0x1000 */
-    uint32_t rpc_size;
-    uint32_t data_bar_index; /* 2 in phase 1 */
-    uint32_t data_size;
-};
-```
-
-- keep legacy name string write in event BAR for debugging only; do not depend on it for type/id parsing.
+4. Phase-1 ID plumbing:
+- keep ID in event-bar naming field (no new metadata ABI in phase 1).
+- producer writes `connection_name` as `guest-control-data-<id>`.
+- kmod parses `<id>` from this string and no longer uses type pairing logic.
 
 #### CAmkES Template/Configuration Delta
 
@@ -701,8 +685,8 @@ Required changes:
   - one `guest-ram-*`
 - to:
   - one channel record with:
-    - `control_handle = ..._iobuf_handle`
-    - `data_handle = ..._memdev_handle`
+    - `dataport = ..._memdev_handle` (canonical data plane)
+    - `control_dataport = ..._iobuf_handle`
     - `connection_id = drv.id`
     - `connection_name = "guest-control-data-<id>"` (debug label)
 
@@ -725,7 +709,9 @@ Files:
 
 Required changes:
 - when building `crossvm_handle_t`, populate new fields.
-- if only legacy single handle exists in caller struct, enable compatibility mapping (`control=data=legacy`).
+- populate canonical `dataport` from existing handle.
+- set `control_dataport` only for split-device callers.
+- enforce split invariant only in split path (`control_dataport` must be non-NULL).
 - plumb `connection_id` from camkes struct when provided.
 
 This keeps vm-examples callers working without requiring immediate source updates.
@@ -737,8 +723,8 @@ Primary file:
 
 Key structural change:
 - replace `struct sel4_dataport` with one endpoint/context record per PCI function:
-  - `vmid` (from control header `connection_id`)
-  - `mem[3]` for event/control/data BARs
+  - `vmid` (from event-bar string suffix)
+  - `mem[3]` for event/data/control BARs
   - lifecycle state
   - `vmm_id` for core binding
 
@@ -753,15 +739,15 @@ Function-level edits:
 
 2. BAR probing:
 - map BAR0/1/2 explicitly.
-- validate BAR presence/sizes and control header magic/version.
+- validate BAR presence/sizes.
 
 3. Create vmm directly from one endpoint:
 - old: `sel4_pci_vmm_create(int id, struct sel4_dataport *dataports[])`
 - new: `sel4_pci_vmm_create(int id, struct sel4_endpoint *ep)`
 - mappings:
   - `SEL4_MEM_MAP_EVENT_BAR <- ep->mem[BAR0]`
-  - `SEL4_MEM_MAP_IOBUF <- control BAR region (header->rpc_offset / rpc_size)`
-  - `SEL4_MEM_MAP_RAM <- ep->mem[BAR2]`
+  - `SEL4_MEM_MAP_IOBUF <- ep->mem[BAR2]` (control)
+  - `SEL4_MEM_MAP_RAM <- ep->mem[BAR1]` (data)
 
 4. IRQ/doorbell wiring:
 - unchanged behavior:
@@ -770,6 +756,7 @@ Function-level edits:
 
 5. Teardown:
 - simplify remove path to one endpoint lifecycle (no pair-state transitions).
+- hot-remove race handling details are deferred; track as TODO before production hardening.
 
 Secondary file:
 - `sources/kmod-sel4-virt/pci/sel4_vmm_pool.c`
@@ -787,7 +774,26 @@ Files:
 Phase-1 target:
 - no ABI change required.
 - keep existing map indices and ioctls.
-- only internal semantics change: `SEL4_MEM_MAP_IOBUF` now points into control BAR’s RPC window.
+- only internal semantics change: `SEL4_MEM_MAP_IOBUF` maps from BAR2, `SEL4_MEM_MAP_RAM` maps from BAR1.
+
+### Test Matrix (Must Be Covered in Docs/Execution)
+
+1. vm-examples compatibility path:
+- single dataport connection still probes and works.
+- no `control_dataport` provided by vm-examples callers.
+
+2. New single-device split path:
+- one PCI function per channel with `BAR0/1/2 = event/data/control`.
+- both dataports present and mapped correctly in kmod.
+
+3. RPC/IRQ fast paths:
+- ioeventfd write match path and fallback path.
+- irqfd pulse path end-to-end.
+
+4. Lifecycle:
+- create/start/stop/release normal path.
+- remove/reprobe path.
+- hot-remove race behavior (document current behavior; hardening is TODO).
 
 ### Documentation Delta (What To Update Alongside Code)
 
@@ -797,7 +803,7 @@ When phase-1 code lands, update these docs in the same change window to avoid st
 - replace “iobuf/memdev as separate connector devices” wording with “single connector device with control/data BARs”.
 
 2. `docs/architecture/vm-topology.md`
-- update channel diagrams to show one PCI function per channel (`event/control/data`), not two functions.
+- update channel diagrams to show one PCI function per channel (`event/data/control`), not two functions.
 
 3. `docs/components/camkes-templates.md`
 - update template snippets for `seL4VirtIODeviceVM.template.c` connection array shape.

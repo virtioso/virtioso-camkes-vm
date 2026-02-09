@@ -39,6 +39,24 @@ This file is the canonical source for build and test command sequences.
    `/home/hlyytine/tii-sel4/orinagx_sel4test/images/sel4test-driver-image-arm-orinagx`
 5. Submit test with `test_sel4_efi` and profile `sel4test`.
 
+## Orin AGX `kmod-sel4-virt` (Yocto Module Recipe)
+
+1. Configure platform (required by `vm-images/setup.sh`):
+   `make orinagx_defconfig`
+2. Ensure container image exists:
+   `make docker`
+3. Build module recipe with clean rebuild (default):
+   `make kmod-sel4-virt`
+4. Incremental rebuild only when explicitly requested:
+   `YOCTO_INCREMENTAL=1 make kmod-sel4-virt`
+5. Under the hood, this path runs:
+   - `scripts/build_yocto_kmod_sel4_virt.sh`
+   - `vm-images/setup.sh`
+   - `bitbake -c cleansstate kernel-module-sel4-virt` (unless `YOCTO_INCREMENTAL=1`)
+   - `bitbake kernel-module-sel4-virt`
+6. Output location (Yocto work/deploy):
+   `/home/hlyytine/tii-sel4/vm-images/build/tmp/work/*/kernel-module-sel4-virt/*`
+
 ## Notes
 
 - Build commands are always `make` targets from workspace root.

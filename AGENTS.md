@@ -34,6 +34,9 @@ For “build and test `vm_qemu_virtio` on Orin AGX”:
 ## Build/Test Policy
 
 - Build commands come from runbooks and are executed with `make <target>` from workspace root.
+- For Yocto module-only rebuild of `kmod-sel4-virt`, use `make kmod-sel4-virt`.
+  - Default is clean (`bitbake -c cleansstate kernel-module-sel4-virt` then build).
+  - Use `YOCTO_INCREMENTAL=1 make kmod-sel4-virt` only when explicitly requested.
 - Use MCP for test submission/status/log retrieval, not for build commands in this workflow.
 - Canonical EFI test tool is `test_sel4_efi`.
 - Profile mapping is `profile = target.replace("_", "-")`.
@@ -97,7 +100,8 @@ codex mcp list
   - `sources/sel4-linux-kernel-support`
 - Before `bitbake`, these source repos must be clean (no staged/unstaged/untracked files).
 - `sources/qemu` submodules must be initialized before bitbake.
-- Use `make linux-image` as the canonical Yocto build entrypoint.
+- Use `make linux-image` as canonical full Yocto image build entrypoint.
+- Use `make kmod-sel4-virt` for the module-only Yocto recipe path.
 
 ## Repo Roots & Symlinked Paths
 

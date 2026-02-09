@@ -1,0 +1,27 @@
+name: Docs SSOT Lint
+
+on:
+  pull_request:
+    paths:
+      - "AGENTS.md"
+      - "docs/**"
+      - ".github/workflows/docs-ssot.yml"
+  push:
+    branches:
+      - docs
+    paths:
+      - "AGENTS.md"
+      - "docs/**"
+      - ".github/workflows/docs-ssot.yml"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run SSOT lint
+        run: |
+          chmod +x docs/agents/lint-ssot.sh
+          docs/agents/lint-ssot.sh

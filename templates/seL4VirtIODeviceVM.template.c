@@ -32,10 +32,13 @@ extern seL4_Word vm/*? drv.id ?*/_ntfn_recv_notification_badge(void);
 
 static struct camkes_crossvm_connection connections[] = {
 /*- for drv in vm_virtio_device_channels -*/
-    { &vm/*? drv.id ?*/_iobuf_handle, vm/*? drv.id ?*/_ntfn_send_emit, 16, "guest-iobuf-/*? drv.id ?*/" },
-/*- endfor -*/
-/*- for drv in vm_virtio_device_channels -*/
-    { &vm/*? drv.id ?*/_memdev_handle, NULL, -1, "guest-ram-/*? drv.id ?*/" },
+    {
+        &vm/*? drv.id ?*/_memdev_handle,
+        vm/*? drv.id ?*/_ntfn_send_emit,
+        -1,
+        "guest-device-/*? drv.id ?*/",
+        &vm/*? drv.id ?*/_iobuf_handle
+    },
 /*- endfor -*/
 };
 

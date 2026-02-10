@@ -6,6 +6,12 @@ Canonical file: `projects/virtioso-camkes-vm/AGENTS.md`.
 Workspace root `AGENTS.md` is only a symlink/linkfile to the canonical file.
 Edits made via either path affect the same file; treat `projects/virtioso-camkes-vm/AGENTS.md` as the source of truth.
 
+## Current Investigation Focus
+
+- Topic: Orin AGX `vm_qemu_virtio` VM1 boot stall around `virtio_console_init`.
+- Working notes (primary): `docs/integration/orinagx-vm-qemu-virtio-crossvm-irq-analysis-2026-02-09.md`.
+- Current status: cross-VM IRQ path is active (`irq=236` injects successfully); investigation focus is now virtio-console init/probe behavior.
+
 ## Defaults (Per User Request)
 
 - Default target for build/test requests is **Orin AGX**.

@@ -223,6 +223,7 @@ assembly {
                 "debug "
                 "loglevel=8 "
                 "initcall_debug "
+                "keep_bootcon "
                 "arm64.nopauth "
                 "swiotlb=512 ",
             "kernel_stdout" : "hvc0",

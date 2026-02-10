@@ -27,6 +27,7 @@ Operational policy and command sequences are authoritative only in:
 4. `docs/agents/autopilot-testing-policy.md`
 5. `docs/agents/preflight-policy.md`
 6. `docs/agents/repo-topology-policy.md`
+7. `docs/agents/example-workflows-fastpath.md`
 
 ## Fast Path
 
@@ -59,6 +60,16 @@ For “build and test `vm_qemu_virtio` on Orin AGX”:
 
 - Use task-based preflight only: `docs/agents/preflight-policy.md`.
 - Do not read broad investigation material for routine build/test tasks.
+
+## Session Warm-Start Defaults
+
+- For requests mentioning `projects/virtioso-camkes-vm/apps/Arm` or
+  `projects/vm-examples/apps/Arm`, route immediately via
+  `docs/agents/example-workflows-fastpath.md` instead of broad repo scanning.
+- For requests on Yocto-built VM images (`vm-images/*`), scope context to
+  touched recipe/source paths first; do not restudy whole
+  `vm-images/virtioso-yocto-layers/` unless the request explicitly asks for a
+  full-layer review.
 
 Note: `AUTOPILOT_DIR` is the working directory (queues/results/runtime),
 not the code path. Profiles are static data and live in
@@ -139,3 +150,28 @@ If you are editing `docs/` (linked to this repo), commit from:
 
 - When unsure, prefer `docs/agents/*` for operational guidance.
 - Treat investigation and plan docs as technical context, not command authority.
+
+## Tracing Implementation Change-Control Policy
+
+Applies to cross-repo tracing implementation work.
+
+1. Before any tracing implementation edits, all manifest repos to be touched
+   must be in clean state (no staged/unstaged/untracked files).
+2. If a repo is dirty, stop and request explicit human approval for exactly one
+   action per repo: commit, stash, or discard.
+3. Never implement tracing work on detached `HEAD` or upstream branches.
+4. Create and use a dedicated implementation branch per target repo, default
+   name: `virtioso-next-tracing`.
+5. Branch creation is allowed only after repo cleanliness is verified and human
+   approval is recorded.
+6. Commit in atomic logical units; each commit message should reference the
+   design source:
+   `docs/architecture/cross-el-tracing-feasibility.md`.
+7. Keep rollback simple:
+   - capture pre-implementation `HEAD` per repo
+   - optionally create baseline tag before first tracing commit
+8. Request human approval before:
+   - resolving dirty repos
+   - creating tracing branches
+   - discarding local changes
+   - finalizing milestone-level integration/pin updates

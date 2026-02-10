@@ -11,6 +11,14 @@ This file is the canonical task router for operational agent workflows.
 | Build and test `sel4test` on Orin AGX | [build-test-runbook.md](build-test-runbook.md#orin-agx-sel4test) |
 | Build `kmod-sel4-virt` via Yocto on Orin AGX | [build-test-runbook.md](build-test-runbook.md#orin-agx-kmod-sel4-virt-yocto-module-recipe) |
 
+## Fast Scope Routing
+
+| User intent | Use this source |
+|---|---|
+| Work on `projects/virtioso-camkes-vm/apps/Arm` examples | [example-workflows-fastpath.md](example-workflows-fastpath.md) |
+| Work on `projects/vm-examples/apps/Arm` examples | [example-workflows-fastpath.md](example-workflows-fastpath.md) |
+| Work on Yocto-built VM image content under `vm-images/*` | [example-workflows-fastpath.md](example-workflows-fastpath.md#yocto-vm-image-fast-path) |
+
 ## Policy
 
 | Topic | Canonical doc |

@@ -1519,6 +1519,127 @@ Normative rule:
 2. Any implementation must conform to those accepted contracts; deviations
    require explicit architecture update in this document before merge.
 
+## Execution Planning Baseline (v1)
+
+This section translates accepted architecture contracts into implementation
+execution order. It is intentionally dependency-focused and avoids restating
+contract internals already defined above.
+
+### Repository Workstreams (Contract-Mapped)
+
+1. `kernel` (framework authority and core mechanics)
+   - tracing control authority routing for ARM/DUMP with idempotent semantics
+   - 4 KiB trace-control page ABI production and lifecycle
+   - `CNTPCT` capability-state gate enforcement for merge-eligible records
+   - SMP-safe producer/disarm/marker and dump coordination behavior
+   - dump end-policy precedence (`Kconfig` + runtime/profile override model)
+   - VM0-primary export orchestration hooks and UART fallback trigger path
+2. `projects/virtioso-camkes-vm` (system composition + VMM adapters)
+   - CapDL/system wiring for control pages and trace-buffer ownership mappings
+   - VMM integration for guest EL1/EL0 mapping exposure and control fan-out
+   - VM0 export handshake integration (`ACK`/`DONE`/status signaling surfaces)
+   - native EL0 (VMM) producer integration to analysis-ingress envelope
+3. `vm-images/virtioso-yocto-layers` (guest integration layers)
+   - guest Linux kernel/userspace enablement for selected timing-access mode
+   - guest tracer adapters and VM0 export agent/module integration surfaces
+   - platform packaging and config layering for Orin AGX + Raspberry Pi 4
+4. Analysis/decoder side (Codex host tooling path)
+   - envelope ingestion validation and terminal-status interpretation
+   - deterministic merge + confidence diagnostics (`NO_DISARM`, overflow suspect)
+   - per-dump backpressure/loss reporting aligned with v1 diagnostics contract
+
+### Bring-Up Order (Critical Path)
+
+1. Kernel-native single-platform bring-up (Orin AGX first), proving:
+   control-page gating, local EL0 producer, disarm boundary, UART snapshot dump.
+2. Native SMP validation, proving:
+   shard ordering, overflow accounting, disarm marker correctness under contention.
+3. Virtualization minimal path (single VM/single vCPU), proving:
+   EL2+EL1 collection and merged chronology contract.
+4. Virtualization full SMP path (multi-VM/multi-vCPU), proving:
+   per-context isolation, concurrent producers, deterministic dump boundaries.
+5. Secondary transport path (VM0 export) with UART fallback, proving:
+   timeout behavior, fallback trigger correctness, terminal status consistency.
+6. Platform parity validation on Raspberry Pi 4 with no contract drift.
+
+### Test Matrix (Minimum Required)
+
+1. Mode coverage
+   - native mode (EL1 kernel + EL0 native threads)
+   - virtualization mode (EL2 + guest EL1 + guest/native EL0 producers)
+2. Concurrency coverage
+   - UP and SMP
+   - multi-VM and multi-vCPU contention cases
+3. Fault and resilience coverage
+   - stuck producer, missing `DISARM`, overflow pressure
+   - VM0 export `ACK`/`DONE` timeout and UART fallback activation
+4. Contract conformance coverage
+   - EFI/BootInfo parse/default behavior
+   - timestamp-domain gating and merge eligibility rules
+   - dump end-policy precedence and emitted policy-effective trace event
+   - mandatory diagnostics/counters presence for backpressure and SLO telemetry
+
+### Milestone Gates
+
+1. M1: Kernel contract-complete in native mode (UART export only).
+2. M2: Virtualization contract-complete for single-VM path.
+3. M3: SMP + stuck-producer resilience contract-complete.
+4. M4: VM0 secondary transport + UART fallback contract-complete.
+5. M5: Orin AGX + RPi4 parity with analysis pipeline contract-complete.
+
+### Milestone File-Target Checklist (Execution-Oriented)
+
+This checklist identifies likely primary edit targets per milestone so execution
+can proceed with minimal discovery churn. It is an execution aid, not a
+contract replacement; accepted contracts above remain normative.
+
+1. M1: Kernel native baseline (UART snapshot path)
+   - `kernel/src/benchmark/ftrace.c`
+   - `kernel/include/benchmark/ftrace.h`
+   - `kernel/src/arch/arm/benchmark/benchmark.c`
+   - `kernel/src/arch/arm/armv/armv8-a/64/user_access.c`
+   - `kernel/libsel4/include/sel4/bootinfo.h`
+   - `kernel/libsel4/include/sel4/bootinfo_types.h`
+   - `kernel/src/machine/capdl.c`
+   - `kernel/src/arch/arm/64/machine/capdl.c`
+   - goal: control-page ABI, ARM/DUMP authority path, native EL0
+     producer/disarm marker contract, UART dump baseline
+2. M2: Virtualization minimal path (EL2 + single guest EL1)
+   - `kernel/src/arch/arm/object/vcpu.c`
+   - `kernel/include/arch/arm/arch/object/vcpu.h`
+   - `projects/virtioso-camkes-vm/src/camkes/modules/hyp_ftrace.c`
+   - `projects/virtioso-camkes-vm/templates/hyp_ftrace.template.c`
+   - `projects/virtioso-camkes-vm/src/guest_linux.c`
+   - `projects/virtioso-camkes-vm/include/virtioso/camkes/hyp_ftrace.h`
+   - goal: vCPU mapping/control fan-out, per-context boundaries, merged
+     chronology viability
+3. M3: SMP + resilience (stuck producer, overflow diagnostics)
+   - `kernel/src/benchmark/ftrace.c`
+   - `kernel/src/arch/arm/kernel/thread.c`
+   - `kernel/src/arch/arm/64/kernel/thread.c`
+   - `kernel/src/arch/arm/smp/ipi.c`
+   - `kernel/tools/ftrace_to_indexed.py`
+   - `kernel/tools/ftrace_indexed.py`
+   - goal: shard-safe writes, disarm boundary under contention,
+     `NO_DISARM`/overflow diagnostics fidelity
+4. M4: VM0 secondary transport + UART fallback
+   - `projects/virtioso-camkes-vm/src/camkes/modules/hyp_ftrace.c`
+   - `projects/virtioso-camkes-vm/src/io_proxy.c`
+   - `projects/virtioso-camkes-vm/src/shared_irq_line.c`
+   - `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/recipes-benchmark/sel4-collect-traces/files/collect-traces.sh`
+   - `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/dynamic-layers/tegra/recipes-kernel/linux/linux-jammy-nvidia-tegra_%.bbappend`
+   - `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/dynamic-layers/raspberrypi/recipes-kernel/linux/linux-raspberrypi_%.bbappend`
+   - goal: `ACK`/`DONE` timeout handling, status signaling, fallback activation
+5. M5: Platform parity (Orin AGX + RPi4)
+   - `projects/virtioso-camkes-vm/src/plat/orinagx/fdt.c`
+   - `projects/virtioso-camkes-vm/src/plat/rpi4/fdt.c`
+   - `projects/virtioso-camkes-vm/hardware/rpi4/dts/rpi4.dts`
+   - `projects/virtioso-camkes-vm/hardware/rpi4/dts/overlay-rpi4.dts`
+   - `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/dynamic-layers/tegra/recipes-kernel/linux/linux-jammy-nvidia-tegra_%.bbappend`
+   - `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/dynamic-layers/raspberrypi/recipes-kernel/linux/linux-raspberrypi_%.bbappend`
+   - `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/dynamic-layers/raspberrypi/recipes-kernel/linux/linux-raspberrypi/0001-Preserve-PMU-EL0-access.patch`
+   - goal: platform-specific plumbing without contract drift
+
 ## Consolidation of Existing Tracing Work (Post-Upstream Baselines)
 
 This section captures tracing-related work already done in local branches after

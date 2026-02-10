@@ -193,10 +193,12 @@ void trace_dump(void)
 
     benchmark_track_kernel_entry_t *entries = kernel_trace;
     for (int i = 0; i < benchmark_entries; i++) {
-        if (entries[i].entry.path == Entry_Switch) {
-            printf("%"PRId64" %"PRIxPTR"\n",
+        /* Print syscall entries - Entry_Switch and .next are no longer in kernel API */
+        if (entries[i].entry.path == Entry_Syscall) {
+            printf("%"PRId64" syscall=%u cap=%u\n",
                    entries[i].start_time,
-                   (uintptr_t)entries[i].entry.next);
+                   (unsigned)entries[i].entry.syscall_no,
+                   (unsigned)entries[i].entry.cap_type);
         }
     }
 }

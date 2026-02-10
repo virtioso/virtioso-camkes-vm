@@ -10,6 +10,26 @@ Read only:
 2. [build-test-runbook.md](build-test-runbook.md)
 3. [autopilot-testing-policy.md](autopilot-testing-policy.md)
 
+## Example App Requests (`apps/Arm`)
+
+Read only:
+
+1. [task-router.md](task-router.md)
+2. [example-workflows-fastpath.md](example-workflows-fastpath.md)
+
+Do not read broad investigation docs for these requests unless explicitly asked.
+
+## Yocto VM Image Requests (`vm-images/*`)
+
+Read only:
+
+1. [task-router.md](task-router.md)
+2. [example-workflows-fastpath.md](example-workflows-fastpath.md#yocto-vm-image-fast-path)
+3. [build-test-runbook.md](build-test-runbook.md) only if a build/test run is requested
+
+Do path-scoped preflight only; do not restudy all of
+`vm-images/virtioso-yocto-layers/` unless explicitly requested.
+
 ## Orin AGX Debug/Investigation Requests
 
 Read:
@@ -38,6 +58,13 @@ do this preflight before edits:
 Also read:
 
 - `kernel/docs/ftrace.md`
+
+Preflight gate before implementation work:
+
+1. Apply tracing change-control policy from `AGENTS.md`.
+2. Apply repo-level clean/branch checks from `docs/agents/repo-topology-policy.md`.
+3. If any target repo is dirty, stop and request explicit human approval before
+   continuing.
 
 ## Interactive Console Session Requests
 

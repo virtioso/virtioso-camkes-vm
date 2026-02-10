@@ -1,5 +1,9 @@
 # TODO
 
+## Remove absolute and personal pathnames
+
+## Support and use config fragments
+
 ## Tegra234 Device Tree Extraction Tooling
 
 Requested plan: finalize tooling to extract required nodes for seL4 use from Tegra234 device tree sources, including relevant overlay blobs, and produce validated sel4/camkes-ready node selections.

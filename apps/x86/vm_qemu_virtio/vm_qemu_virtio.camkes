@@ -8,6 +8,10 @@ import <VM/vm.camkes>;
 
 #include <configurations/vm.h>
 
+#define Q35_LEGACY_INTX_GSI(slot, pin) (20 + (((slot) + (pin) - 1) % 4))
+#define KVASER_Q35_SLOT 0x04
+#define KVASER_Q35_PIN  1
+
 #define VM0_GUEST_CMDLINE "earlyprintk=ttyS0,115200 console=ttyS0,115200 i8042.nokbd=y i8042.nomux=y " \
 "i8042.noaux=y io_delay=udelay noisapnp pci=nomsi nolapic_timer debug " \
 "loglevel=8 ignore_loglevel initcall_debug initcall_blacklist=raid6_select_algo " \
@@ -18,10 +22,41 @@ component Init0 {
     attribute string physical_pci_host_bridge;
 }
 
+component KvaserNativeCan {
+    control;
+    uses PutChar putchar;
+    uses PCIConfig pci_config;
+    uses IOPort bar0;
+    uses IOPort bar1;
+    uses IOPort bar2;
+    consumes Irq20 irq;
+}
+
+component KvaserPCIHardware {
+    hardware;
+    provides IOPort bar0;
+    provides IOPort bar1;
+    provides IOPort bar2;
+    emits Irq20 irq;
+    attribute string bar0_attributes;
+    attribute string bar1_attributes;
+    attribute string bar2_attributes;
+}
+
 assembly {
     composition {
         VM_COMPOSITION_DEF()
         VM_PER_VM_COMP_DEF(0)
+
+        component KvaserNativeCan kvaser_probe;
+        component KvaserPCIHardware kvaser_hw;
+
+        connection seL4RPCCall kvaser_probe_putchar(from kvaser_probe.putchar, to serial.processed_putchar);
+        connection seL4RPCCall kvaser_probe_pci_config(from kvaser_probe.pci_config, to pci_config.pci_config);
+        connection seL4HardwareIOPort kvaser_bar0(from kvaser_probe.bar0, to kvaser_hw.bar0);
+        connection seL4HardwareIOPort kvaser_bar1(from kvaser_probe.bar1, to kvaser_hw.bar1);
+        connection seL4HardwareIOPort kvaser_bar2(from kvaser_probe.bar2, to kvaser_hw.bar2);
+        connection seL4HardwareInterrupt kvaser_irq(from kvaser_hw.irq, to kvaser_probe.irq);
     }
 
     configuration {
@@ -56,9 +91,31 @@ assembly {
                 "fun": 0x0,
                 "iospace": true,
                 "interrupt_pin": 1
+            },
+            {
+                "name": "q35-kvaser-pci",
+                "owner": "native",
+                "bus": 0x00,
+                "dev": KVASER_Q35_SLOT,
+                "fun": 0x0,
+                "interrupt_pin": KVASER_Q35_PIN,
+                "iospace": false,
+                "ioports": [
+                    {"start": 0xc000, "end": 0xc080},
+                    {"start": 0xc080, "end": 0xc100},
+                    {"start": 0xc140, "end": 0xc148}
+                ]
             }
         ];
         vm0.untyped_mmios = [];
         vm0.vm_irqs = [];
+
+        kvaser_hw.bar0_attributes = "0xc000:0xc07f";
+        kvaser_hw.bar1_attributes = "0xc080:0xc0ff";
+        kvaser_hw.bar2_attributes = "0xc140:0xc147";
+        kvaser_hw.irq_irq_type = "pci";
+        kvaser_hw.irq_irq_ioapic = 0;
+        kvaser_hw.irq_irq_ioapic_pin = Q35_LEGACY_INTX_GSI(KVASER_Q35_SLOT, KVASER_Q35_PIN);
+        kvaser_hw.irq_irq_vector = Q35_LEGACY_INTX_GSI(KVASER_Q35_SLOT, KVASER_Q35_PIN);
     }
 }

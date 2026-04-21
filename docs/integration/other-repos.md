@@ -195,7 +195,7 @@ make vm_qemu_virtio            # Build CAmkES app
 
 **Files**:
 - `raspberrypi4-64_defconfig`
-- `qemuarm64_defconfig`
+- `qemu_arm64_defconfig`
 - `raspberrypi4-64_trace_defconfig`
 
 ### CI/CD

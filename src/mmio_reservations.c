@@ -6,6 +6,9 @@
 
 #include <virtioso/reservations.h>
 #include <virtioso/list.h>
+#include <sel4vmmplatsupport/pci_host_bridge.h>
+
+#include <autoconf.h>
 
 typedef struct mmio_reservation {
     uint64_t addr;
@@ -42,10 +45,31 @@ static inline mmio_reservation_t *mmio_res_find(io_proxy_t *io_proxy,
 /* Maximum MMIO region size (256MB) - reject larger regions from backend */
 #define MAX_MMIO_REGION_SIZE (256ULL * 1024 * 1024)
 
+static bool is_structural_pci_host_window(uint64_t addr, uint64_t size)
+{
+#if defined(CONFIG_PLAT_QEMU_ARM_VIRT)
+    vmm_pci_host_bridge_t bridge;
+    vmm_pci_host_bridge_init_qemu_arm_virt(&bridge);
+    return vmm_pci_host_bridge_region_matches(bridge.config_region, addr, size) ||
+           vmm_pci_host_bridge_region_matches(bridge.io_region, addr, size) ||
+           vmm_pci_host_bridge_region_matches(bridge.mem32_region, addr, size) ||
+           vmm_pci_host_bridge_region_matches(bridge.mem64_region, addr, size);
+#else
+    return false;
+#endif
+}
+
 int mmio_res_assign(vm_t *vm, memory_fault_callback_fn fault_handler,
                     io_proxy_t *io_proxy, uint64_t addr, uint64_t size)
 {
     vm_memory_reservation_t *res;
+
+    if (is_structural_pci_host_window(addr, size)) {
+        ZF_LOGI("Skipping structural PCI host aperture 0x%" PRIx64 " size 0x%"
+                PRIx64 " for backend %p",
+                addr, size, io_proxy);
+        return 0;
+    }
 
     /* Skip regions that are too large - QEMU may try to register huge PCI
      * memory windows (e.g., 64-bit BAR space at 0x8000000000). We can't

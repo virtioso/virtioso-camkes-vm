@@ -19,7 +19,7 @@
 ---
 
 ## Goal
-Migrate from vm-image-minimal to vm-image-boot for VM kernel initramfs by merging essential functionality from minimal-init into bridge-initramfs-init, with platform awareness.
+Use vm-image-boot as the single VM kernel initramfs by merging essential functionality from minimal-init into bridge-initramfs-init, with platform awareness.
 
 ## Requirements (from user)
 - **Boot method**: NFS root primary, eMMC/loop mount fallback, then shell
@@ -262,7 +262,7 @@ RDEPENDS:${PN}:append:vm-jetson-agx-orin = " \
 "
 ```
 
-**vm-image-boot.bb** - add device node creation (from vm-image-minimal):
+**vm-image-boot.bb** - add device node creation from the legacy minimal initramfs:
 ```bitbake
 # Device nodes for console - kernel needs /dev/console before running init
 create_console_devices() {

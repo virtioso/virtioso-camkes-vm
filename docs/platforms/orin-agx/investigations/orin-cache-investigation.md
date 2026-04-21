@@ -436,7 +436,7 @@ But on Tegra, something may be corrupting cache entries, possibly:
 
 1. `projects/seL4_libs/libsel4utils/src/vspace/vspace.c` - Debug logging
 2. `projects/seL4_libs/libsel4utils/include/sel4utils/vspace_internal.h` - (reverted cache attempt)
-3. `virtioso-build/Makefile` - Added qemuarm64_defconfig
+3. `virtioso-build/Makefile` - Added qemu_arm64_defconfig
 
 ## Raw Test Output Examples
 

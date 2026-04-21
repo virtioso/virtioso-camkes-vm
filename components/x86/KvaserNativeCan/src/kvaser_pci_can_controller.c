@@ -9,14 +9,14 @@
 #include <utils/util.h>
 #include <utils/zf_log.h>
 
-#include "can_backend_types.h"
+#include "can_interface_types.h"
 #include "kvaser_native_can.h"
 
 static kvaser_native_can_service_t backend_service;
 static uint32_t consumed_rx_frames;
 
-static void backend_frame_from_native(can_backend_frame_t *dst,
-                                      const kvaser_native_can_frame_t *src)
+static void can_interface_frame_from_native(can_interface_frame_t *dst,
+                                            const kvaser_native_can_frame_t *src)
 {
     memset(dst, 0, sizeof(*dst));
     dst->can_id = src->can_id;
@@ -26,7 +26,7 @@ static void backend_frame_from_native(can_backend_frame_t *dst,
     dst->rtr = src->rtr ? 1U : 0U;
 }
 
-static void backend_state_from_service(can_backend_state_t *state)
+static void can_interface_state_from_service(can_interface_state_t *state)
 {
     memset(state, 0, sizeof(*state));
     state->initialized = backend_service.initialized;
@@ -39,8 +39,8 @@ static void backend_state_from_service(can_backend_state_t *state)
     state->data_overrun_count = backend_service.data_overrun_count;
     state->error_irq_count = backend_service.error_irq_count;
     state->last_irq_bits = backend_service.last_irq_bits;
-    backend_frame_from_native(&state->last_rx_frame,
-                              &backend_service.last_rx_frame);
+    can_interface_frame_from_native(&state->last_rx_frame,
+                                    &backend_service.last_rx_frame);
 }
 
 void pre_init(void)
@@ -49,7 +49,7 @@ void pre_init(void)
     consumed_rx_frames = 0;
 }
 
-int can_backend_start(void)
+int can_interface_start(void)
 {
     if (!kvaser_native_can_service_start(&backend_service)) {
         return 0;
@@ -59,7 +59,7 @@ int can_backend_start(void)
     return 1;
 }
 
-int can_backend_send(can_backend_frame_t frame)
+int can_interface_send(can_interface_frame_t frame)
 {
     kvaser_native_can_frame_t native_frame = {0};
 
@@ -72,7 +72,7 @@ int can_backend_send(can_backend_frame_t frame)
     return kvaser_native_can_service_send(&backend_service, &native_frame) ? 1 : 0;
 }
 
-int can_backend_poll(can_backend_frame_t *frame)
+int can_interface_poll(can_interface_frame_t *frame)
 {
     const kvaser_native_can_frame_t *last_rx;
 
@@ -89,21 +89,21 @@ int can_backend_poll(can_backend_frame_t *frame)
         return 0;
     }
 
-    backend_frame_from_native(frame, last_rx);
+    can_interface_frame_from_native(frame, last_rx);
     consumed_rx_frames = backend_service.rx_frame_count;
     return 1;
 }
 
-void can_backend_get_state(can_backend_state_t *state)
+void can_interface_get_state(can_interface_state_t *state)
 {
     if (state == NULL) {
         return;
     }
 
-    backend_state_from_service(state);
+    can_interface_state_from_service(state);
 }
 
-void can_backend_get_snapshot(kvaser_native_snapshot_t *snapshot)
+void can_interface_get_snapshot(kvaser_native_snapshot_t *snapshot)
 {
     if (snapshot == NULL) {
         return;

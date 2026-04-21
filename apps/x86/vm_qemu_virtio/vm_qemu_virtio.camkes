@@ -5,7 +5,7 @@
  */
 
 import <VM/vm.camkes>;
-import "../../../components/x86/KvaserNativeCan/interfaces/CanBackend.idl4";
+import "../../../components/x86/KvaserNativeCan/interfaces/CANInterface.idl4";
 
 #include <configurations/vm.h>
 
@@ -23,14 +23,14 @@ component Init0 {
     attribute string physical_pci_host_bridge;
 }
 
-component KvaserCanopenService {
+component CANopenService {
     control;
     uses PutChar putchar;
-    uses CanBackend can_backend;
+    uses CANInterface can_interface;
 }
 
-component KvaserPciCanBackend {
-    provides CanBackend can_backend;
+component KvaserPciCANController {
+    provides CANInterface can_interface;
     uses PCIConfig pci_config;
     uses IOPort bar0;
     uses IOPort bar1;
@@ -54,17 +54,17 @@ assembly {
         VM_COMPOSITION_DEF()
         VM_PER_VM_COMP_DEF(0)
 
-        component KvaserCanopenService kvaser_canopen_service;
-        component KvaserPciCanBackend kvaser_can_backend;
+        component CANopenService canopen_service;
+        component KvaserPciCANController kvaser_can_controller;
         component KvaserPCIHardware kvaser_hw;
 
-        connection seL4RPCCall kvaser_canopen_service_putchar(from kvaser_canopen_service.putchar, to serial.processed_putchar);
-        connection seL4RPCCall kvaser_canopen_backend_rpc(from kvaser_canopen_service.can_backend, to kvaser_can_backend.can_backend);
-        connection seL4RPCCall kvaser_backend_pci_config(from kvaser_can_backend.pci_config, to pci_config.pci_config);
-        connection seL4HardwareIOPort kvaser_bar0(from kvaser_can_backend.bar0, to kvaser_hw.bar0);
-        connection seL4HardwareIOPort kvaser_bar1(from kvaser_can_backend.bar1, to kvaser_hw.bar1);
-        connection seL4HardwareIOPort kvaser_bar2(from kvaser_can_backend.bar2, to kvaser_hw.bar2);
-        connection seL4HardwareInterrupt kvaser_irq(from kvaser_hw.irq, to kvaser_can_backend.irq);
+        connection seL4RPCCall canopen_service_putchar(from canopen_service.putchar, to serial.processed_putchar);
+        connection seL4RPCCall canopen_service_can_interface(from canopen_service.can_interface, to kvaser_can_controller.can_interface);
+        connection seL4RPCCall kvaser_controller_pci_config(from kvaser_can_controller.pci_config, to pci_config.pci_config);
+        connection seL4HardwareIOPort kvaser_bar0(from kvaser_can_controller.bar0, to kvaser_hw.bar0);
+        connection seL4HardwareIOPort kvaser_bar1(from kvaser_can_controller.bar1, to kvaser_hw.bar1);
+        connection seL4HardwareIOPort kvaser_bar2(from kvaser_can_controller.bar2, to kvaser_hw.bar2);
+        connection seL4HardwareInterrupt kvaser_irq(from kvaser_hw.irq, to kvaser_can_controller.irq);
     }
 
     configuration {

@@ -9,7 +9,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "can_backend_client.h"
+#include "can_interface_client.h"
 
 typedef struct {
     uint32_t can_id;
@@ -35,7 +35,7 @@ static inline const uint8_t *canopen_native_msg_read_data(const canopen_native_m
 }
 
 typedef struct {
-    can_backend_client_t backend_client;
+    can_interface_client_t can_interface_client;
     bool started;
     uint32_t tx_messages;
     uint32_t rx_messages;

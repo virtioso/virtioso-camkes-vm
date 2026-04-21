@@ -27,10 +27,10 @@ static void canopen_runtime_service_refresh_backend(
         return;
     }
 
-    can_backend_client_refresh_state(&service->native_driver.backend_client);
-    can_backend_client_refresh_snapshot(&service->native_driver.backend_client);
-    service->backend_state = service->native_driver.backend_client.last_state;
-    service->backend_snapshot = service->native_driver.backend_client.last_snapshot;
+    can_interface_client_refresh_state(&service->native_driver.can_interface_client);
+    can_interface_client_refresh_snapshot(&service->native_driver.can_interface_client);
+    service->can_interface_state = service->native_driver.can_interface_client.last_state;
+    service->backend_snapshot = service->native_driver.can_interface_client.last_snapshot;
 }
 
 static uint16_t canopen_runtime_service_status_word(
@@ -41,10 +41,10 @@ static uint16_t canopen_runtime_service_status_word(
     if (service->started) {
         status_word |= 1u << 0;
     }
-    if (service->backend_state.rx_frame_count != 0U) {
+    if (service->can_interface_state.rx_frame_count != 0U) {
         status_word |= 1u << 1;
     }
-    if (service->backend_state.error_irq_count != 0U) {
+    if (service->can_interface_state.error_irq_count != 0U) {
         status_word |= 1u << 2;
     }
 
@@ -75,14 +75,14 @@ static void canopen_runtime_service_refresh_state(
     state->can_diag_valid = true;
     state->started = service->started;
     state->can_normal = can_normal;
-    state->has_last_rx = service->backend_state.has_last_rx;
+    state->has_last_rx = service->can_interface_state.has_last_rx;
     state->node_id = service->node_id;
     state->nmt_state = (uint8_t)nmt_state;
     state->status_word = canopen_runtime_service_status_word(service);
-    state->can_tx_err_count = service->backend_state.tx_complete_count;
-    state->can_rx_err_count = service->backend_state.rx_frame_count;
+    state->can_tx_err_count = service->can_interface_state.tx_complete_count;
+    state->can_rx_err_count = service->can_interface_state.rx_frame_count;
     state->can_bus_off_count = 0;
-    state->can_overrun_count = service->backend_state.data_overrun_count;
+    state->can_overrun_count = service->can_interface_state.data_overrun_count;
     state->cycle_count = service->process_count;
     state->uptime_ms = service->process_count;
     state->last_timer_next_us = service->last_timer_next_us;

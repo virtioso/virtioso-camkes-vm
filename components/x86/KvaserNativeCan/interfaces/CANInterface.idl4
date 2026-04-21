@@ -1,0 +1,15 @@
+/*
+ * Copyright 2026, Unikie
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+procedure CANInterface {
+    include "can_interface_types.h";
+
+    int start(void);
+    int send(in can_interface_frame_t frame);
+    int poll(out can_interface_frame_t frame);
+    void get_state(out can_interface_state_t state);
+    void get_snapshot(out kvaser_native_snapshot_t snapshot);
+};

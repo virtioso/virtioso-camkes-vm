@@ -11,7 +11,7 @@
 
 #include "CANopen.h"
 #include "canopen_native_driver.h"
-#include "can_backend_types.h"
+#include "can_interface_types.h"
 #include "kvaser_native.h"
 
 typedef struct canopen_runtime_state {
@@ -45,7 +45,7 @@ typedef struct {
     int last_start_stage;
     int last_start_error;
     CO_NMT_reset_cmd_t last_reset;
-    can_backend_state_t backend_state;
+    can_interface_state_t can_interface_state;
     kvaser_native_snapshot_t backend_snapshot;
     canopen_runtime_state_t state;
 } canopen_runtime_service_t;

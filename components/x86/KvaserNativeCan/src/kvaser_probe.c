@@ -34,22 +34,22 @@ static void dump_service_state(const char *tag)
 {
     printf("KVASER_SERVICE[%s]: irq_count=%lu tx_req=%lu tx_done=%lu rx_irq=%lu rx_frames=%lu overruns=%lu errors=%lu last_irq=%02x\n",
            tag,
-           (unsigned long)canopen_runtime_service.backend_state.irq_count,
-           (unsigned long)canopen_runtime_service.backend_state.tx_request_count,
-           (unsigned long)canopen_runtime_service.backend_state.tx_complete_count,
-           (unsigned long)canopen_runtime_service.backend_state.rx_irq_count,
-           (unsigned long)canopen_runtime_service.backend_state.rx_frame_count,
-           (unsigned long)canopen_runtime_service.backend_state.data_overrun_count,
-           (unsigned long)canopen_runtime_service.backend_state.error_irq_count,
-           canopen_runtime_service.backend_state.last_irq_bits);
-    if (canopen_runtime_service.backend_state.has_last_rx) {
+           (unsigned long)canopen_runtime_service.can_interface_state.irq_count,
+           (unsigned long)canopen_runtime_service.can_interface_state.tx_request_count,
+           (unsigned long)canopen_runtime_service.can_interface_state.tx_complete_count,
+           (unsigned long)canopen_runtime_service.can_interface_state.rx_irq_count,
+           (unsigned long)canopen_runtime_service.can_interface_state.rx_frame_count,
+           (unsigned long)canopen_runtime_service.can_interface_state.data_overrun_count,
+           (unsigned long)canopen_runtime_service.can_interface_state.error_irq_count,
+           canopen_runtime_service.can_interface_state.last_irq_bits);
+    if (canopen_runtime_service.can_interface_state.has_last_rx) {
         printf("KVASER_SERVICE[%s]: last_rx id=%03lx dlc=%u data0=%02x extended=%u rtr=%u\n",
                tag,
-               (unsigned long)canopen_runtime_service.backend_state.last_rx_frame.can_id,
-               canopen_runtime_service.backend_state.last_rx_frame.dlc,
-               canopen_runtime_service.backend_state.last_rx_frame.data[0],
-               canopen_runtime_service.backend_state.last_rx_frame.extended ? 1U : 0U,
-               canopen_runtime_service.backend_state.last_rx_frame.rtr ? 1U : 0U);
+               (unsigned long)canopen_runtime_service.can_interface_state.last_rx_frame.can_id,
+               canopen_runtime_service.can_interface_state.last_rx_frame.dlc,
+               canopen_runtime_service.can_interface_state.last_rx_frame.data[0],
+               canopen_runtime_service.can_interface_state.last_rx_frame.extended ? 1U : 0U,
+               canopen_runtime_service.can_interface_state.last_rx_frame.rtr ? 1U : 0U);
     }
 }
 

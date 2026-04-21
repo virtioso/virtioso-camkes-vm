@@ -37,15 +37,15 @@ typedef struct kvaser_native_snapshot {
 } kvaser_native_snapshot_t;
 #endif
 
-typedef struct can_backend_frame {
+typedef struct can_interface_frame {
     uint32_t can_id;
     uint8_t dlc;
     uint8_t data[8];
     uint8_t extended;
     uint8_t rtr;
-} can_backend_frame_t;
+} can_interface_frame_t;
 
-typedef struct can_backend_state {
+typedef struct can_interface_state {
     bool initialized;
     bool has_last_rx;
     uint32_t irq_count;
@@ -56,5 +56,5 @@ typedef struct can_backend_state {
     uint32_t data_overrun_count;
     uint32_t error_irq_count;
     uint8_t last_irq_bits;
-    can_backend_frame_t last_rx_frame;
-} can_backend_state_t;
+    can_interface_frame_t last_rx_frame;
+} can_interface_state_t;

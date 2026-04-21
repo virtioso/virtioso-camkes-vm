@@ -101,7 +101,6 @@ graph TB
 - [Orin AGX Cache Investigation](platforms/orin-agx/investigations/orin-cache-investigation.md)
 - [Orin AGX Porting Guide](platforms/orin-agx/porting/orinagx-camkes-porting.md)
 - [Orin AGX: vm_qemu_virtio Port](platforms/orin-agx/porting/vm-qemu-virtio-orinagx.md)
-- [Orin AGX: vm-image-minimal Port](platforms/orin-agx/porting/vm-image-minimal-orinagx.md)
 
 ### Reference
 - [API Reference](reference/api-reference.md) - Data structures and functions

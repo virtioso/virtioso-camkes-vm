@@ -49,7 +49,7 @@ $WORKSPACE/
 │   │   └── functions.sh       # Common functions
 │   ├── configs/
 │   │   ├── raspberrypi4-64_defconfig
-│   │   └── qemuarm64_defconfig
+│   │   └── qemu_arm64_defconfig
 │   └── yocto/
 │       └── conf/              # Yocto layer config
 └── vm-images/

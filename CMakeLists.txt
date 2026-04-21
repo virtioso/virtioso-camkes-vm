@@ -18,13 +18,27 @@ file(
         src/*.c
 )
 
-if(KernelPlatformRpi4)
-    file(GLOB plat_deps src/plat/rpi4/*.c)
+if(AppArch STREQUAL "Arm")
+    if(KernelPlatformRpi4)
+        file(GLOB plat_deps src/plat/rpi4/*.c)
+    else()
+        file(GLOB plat_deps src/plat/${KernelPlatform}/*.c)
+    endif()
+    list(APPEND virtioso_camkes_vm_sources ${plat_deps})
 else()
-    file(GLOB plat_deps src/plat/${KernelPlatform}/*.c)
+    set(
+        virtioso_camkes_vm_sources
+        src/emulated_device.c
+        src/io_proxy.c
+        src/irq_line.c
+        src/irq_reservations.c
+        src/list.c
+        src/mmio_reservations.c
+        src/msi.c
+        src/ram_dataport.c
+        src/shared_irq_line.c
+    )
 endif()
-list(APPEND virtioso_camkes_vm_sources ${plat_deps})
-
 
 add_library(virtioso_camkes_vm OBJECT ${virtioso_camkes_vm_sources})
 
@@ -34,13 +48,19 @@ target_include_directories(
 )
 target_link_libraries(
     virtioso_camkes_vm
-    fdt
     sel4_autoconf
     sel4sync
     sel4vm
     sel4vmmplatsupport
-    virtioarm
 )
+
+if(AppArch STREQUAL "Arm")
+    target_link_libraries(
+        virtioso_camkes_vm
+        fdt
+        virtioarm
+    )
+endif()
 
 # Add VM application
 add_subdirectory("apps/${AppArch}/${CAMKES_VM_APP}")

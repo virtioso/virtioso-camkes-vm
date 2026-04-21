@@ -23,6 +23,26 @@ This file is the canonical source for build and test command sequences.
 9. If behavior is unexpected, inspect:
    `results/<id>/device-trees/`
 
+## `qemu_x86_64_defconfig` `vm_qemu_virtio`
+
+1. Clean build state:
+   `make mrproper`
+2. Configure platform:
+   `make qemu_x86_64_defconfig`
+3. Build target:
+   `make vm_qemu_virtio`
+4. Verify binary exists:
+   `/home/hlyytine/tii-sel4/qemu_x86_64_vm_qemu_virtio/images/capdl-loader-image-x86_64-pc99`
+5. Ensure Autopilot daemon is running in tmux:
+   `mcp__sel4-autopilot__autopilot_restart(autopilot_dir="/home/hlyytine/tii-sel4/autopilot", use_tmux=true)`
+6. Submit QEMU-backed test:
+   `mcp__sel4-autopilot__test_sel4_efi(autopilot_dir="/home/hlyytine/tii-sel4/autopilot", binary_path="/home/hlyytine/tii-sel4/qemu_x86_64_vm_qemu_virtio/images/capdl-loader-image-x86_64-pc99", profile="qemu_x86_64_defconfig")`
+7. Poll status:
+   `mcp__sel4-autopilot__get_test_status(...)` or `mcp__sel4-autopilot__wait_for_test(...)`
+8. Get logs:
+   `mcp__sel4-autopilot__get_logs(...)`
+9. Use direct `tools/qemu_runner.py` only for backend debugging when the autopilot integration itself is suspect.
+
 ## Orin AGX `vm_minimal`
 
 1. `make mrproper`
@@ -63,5 +83,8 @@ This file is the canonical source for build and test command sequences.
 
 - Build commands are always `make` targets from workspace root.
 - Testing is always `test_sel4_efi`.
-- Profile mapping is `target.replace("_", "-")`.
+- For QEMU defconfig targets, the autopilot profile name matches the build
+  target name exactly.
 - For daemon start/restart operations, always set `use_tmux=true`.
+- `qemu_x86_64_defconfig` uses the autopilot remote-QEMU backend with profile
+  `qemu_x86_64_defconfig`.

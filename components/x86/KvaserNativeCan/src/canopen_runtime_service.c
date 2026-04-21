@@ -6,6 +6,7 @@
 
 #include <string.h>
 
+#include "301/CO_driver.h"
 #include "301/CO_NMT_Heartbeat.h"
 #include "301/CO_SYNC.h"
 #include "OD.h"
@@ -19,6 +20,19 @@
 #define CANOPEN_RUNTIME_SERVICE_SDO_CLI_BLOCK_TRANSFER  false
 #define CANOPEN_RUNTIME_SERVICE_OD_STATUS_BITS          NULL
 
+static void canopen_runtime_service_refresh_backend(
+    canopen_runtime_service_t *service)
+{
+    if (service == NULL) {
+        return;
+    }
+
+    can_backend_client_refresh_state(&service->native_driver.backend_client);
+    can_backend_client_refresh_snapshot(&service->native_driver.backend_client);
+    service->backend_state = service->native_driver.backend_client.last_state;
+    service->backend_snapshot = service->native_driver.backend_client.last_snapshot;
+}
+
 static uint16_t canopen_runtime_service_status_word(
     const canopen_runtime_service_t *service)
 {
@@ -27,10 +41,10 @@ static uint16_t canopen_runtime_service_status_word(
     if (service->started) {
         status_word |= 1u << 0;
     }
-    if (service->native_service.rx_frame_count != 0U) {
+    if (service->backend_state.rx_frame_count != 0U) {
         status_word |= 1u << 1;
     }
-    if (service->native_service.error_irq_count != 0U) {
+    if (service->backend_state.error_irq_count != 0U) {
         status_word |= 1u << 2;
     }
 
@@ -48,6 +62,8 @@ static void canopen_runtime_service_refresh_state(
         return;
     }
 
+    canopen_runtime_service_refresh_backend(service);
+
     if (service->co != NULL && service->co->NMT != NULL) {
         nmt_state = CO_NMT_getInternalState(service->co->NMT);
     }
@@ -59,14 +75,14 @@ static void canopen_runtime_service_refresh_state(
     state->can_diag_valid = true;
     state->started = service->started;
     state->can_normal = can_normal;
-    state->has_last_rx = service->native_service.has_last_rx;
+    state->has_last_rx = service->backend_state.has_last_rx;
     state->node_id = service->node_id;
     state->nmt_state = (uint8_t)nmt_state;
     state->status_word = canopen_runtime_service_status_word(service);
-    state->can_tx_err_count = service->native_service.tx_complete_count;
-    state->can_rx_err_count = service->native_service.rx_frame_count;
+    state->can_tx_err_count = service->backend_state.tx_complete_count;
+    state->can_rx_err_count = service->backend_state.rx_frame_count;
     state->can_bus_off_count = 0;
-    state->can_overrun_count = service->native_service.data_overrun_count;
+    state->can_overrun_count = service->backend_state.data_overrun_count;
     state->cycle_count = service->process_count;
     state->uptime_ms = service->process_count;
     state->last_timer_next_us = service->last_timer_next_us;
@@ -76,9 +92,7 @@ static void canopen_runtime_service_refresh_state(
 void canopen_runtime_service_init(canopen_runtime_service_t *service)
 {
     memset(service, 0, sizeof(*service));
-    kvaser_native_can_service_init(&service->native_service);
-    kvaser_canopen_port_init(&service->port, &service->native_service);
-    canopen_native_driver_init(&service->native_driver, &service->port);
+    canopen_native_driver_init(&service->native_driver);
 }
 
 bool canopen_runtime_service_start(canopen_runtime_service_t *service,
@@ -154,10 +168,16 @@ void canopen_runtime_service_process(canopen_runtime_service_t *service,
 {
     uint32_t timer_next_us = UINT32_MAX;
     bool_t sync_was;
+    uint32_t rx_messages;
 
     if (service == NULL || !service->started || service->co == NULL) {
         return;
     }
+
+    do {
+        rx_messages = service->native_driver.rx_messages;
+        CO_CANinterrupt(service->co->CANmodule);
+    } while (service->native_driver.rx_messages != rx_messages);
 
     service->last_reset = CO_process(service->co, false, time_difference_us,
                                      &timer_next_us);
@@ -166,17 +186,6 @@ void canopen_runtime_service_process(canopen_runtime_service_t *service,
     CO_process_TPDO(service->co, sync_was, time_difference_us, &timer_next_us);
     service->last_timer_next_us = timer_next_us;
     service->process_count++;
-    canopen_runtime_service_refresh_state(service);
-}
-
-void canopen_runtime_service_handle_irq(canopen_runtime_service_t *service)
-{
-    if (service == NULL || !service->started || service->co == NULL) {
-        return;
-    }
-
-    kvaser_native_can_service_handle_irq(&service->native_service);
-    CO_CANinterrupt(service->co->CANmodule);
     canopen_runtime_service_refresh_state(service);
 }
 

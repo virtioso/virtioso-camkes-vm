@@ -11,8 +11,8 @@
 
 #include "CANopen.h"
 #include "canopen_native_driver.h"
-#include "kvaser_canopen_port.h"
-#include "kvaser_native_can.h"
+#include "can_backend_types.h"
+#include "kvaser_native.h"
 
 typedef struct canopen_runtime_state {
     bool can_diag_valid;
@@ -33,8 +33,6 @@ typedef struct canopen_runtime_state {
 } canopen_runtime_state_t;
 
 typedef struct {
-    kvaser_native_can_service_t native_service;
-    kvaser_canopen_port_t port;
     canopen_native_driver_t native_driver;
     CO_t *co;
     bool started;
@@ -47,6 +45,8 @@ typedef struct {
     int last_start_stage;
     int last_start_error;
     CO_NMT_reset_cmd_t last_reset;
+    can_backend_state_t backend_state;
+    kvaser_native_snapshot_t backend_snapshot;
     canopen_runtime_state_t state;
 } canopen_runtime_service_t;
 
@@ -56,7 +56,6 @@ bool canopen_runtime_service_start(canopen_runtime_service_t *service,
                                    uint16_t bitrate_kbit);
 void canopen_runtime_service_process(canopen_runtime_service_t *service,
                                      uint32_t time_difference_us);
-void canopen_runtime_service_handle_irq(canopen_runtime_service_t *service);
 bool canopen_runtime_service_send_sync(canopen_runtime_service_t *service);
 const canopen_runtime_state_t *canopen_runtime_service_state(
     const canopen_runtime_service_t *service);

@@ -15,6 +15,7 @@ include(${CAMKES_VM_LINUX_HELPERS_PATH})
 set(CANOPENNODE_SOURCE_DIR "/home/hlyytine/tii-sel4/sources/CANopenNode")
 set(CANOPENNODE_EXAMPLE_DIR "${CANOPENNODE_SOURCE_DIR}/example")
 set(KVASER_COMPONENT_DIR "${VIRTIOSO_CAMKES_VM_DIR}/components/x86/KvaserNativeCan")
+set(KVASER_INTERFACE_DIR "${KVASER_COMPONENT_DIR}/interfaces")
 set(QEMU_KVASER_SOCKETCAN_IF_DEFAULT "$ENV{QEMU_KVASER_SOCKETCAN_IF}")
 set(
     QEMU_KVASER_SOCKETCAN_IF
@@ -90,7 +91,18 @@ add_custom_command(
 add_custom_target(vm_qemu_virtio_driver_disk ALL DEPENDS "${VM_IMAGE_DRIVER_BUNDLE}")
 
 DeclareCAmkESComponent(
-    KvaserNativeCan
+    KvaserPciCanBackend
+    SOURCES
+    ${KVASER_COMPONENT_DIR}/src/kvaser_native.c
+    ${KVASER_COMPONENT_DIR}/src/kvaser_native_can.c
+    ${KVASER_COMPONENT_DIR}/src/kvaser_pci_can_backend.c
+    INCLUDES
+    ${KVASER_COMPONENT_DIR}/include
+    ${KVASER_INTERFACE_DIR}
+)
+
+DeclareCAmkESComponent(
+    KvaserCanopenService
     SOURCES
     ${CANOPENNODE_SOURCE_DIR}/301/CO_Emergency.c
     ${CANOPENNODE_SOURCE_DIR}/301/CO_HBconsumer.c
@@ -108,14 +120,13 @@ DeclareCAmkESComponent(
     ${CANOPENNODE_SOURCE_DIR}/CANopen.c
     ${CANOPENNODE_EXAMPLE_DIR}/OD.c
     ${KVASER_COMPONENT_DIR}/src/CO_driver.c
+    ${KVASER_COMPONENT_DIR}/src/can_backend_client.c
     ${KVASER_COMPONENT_DIR}/src/canopen_runtime_service.c
     ${KVASER_COMPONENT_DIR}/src/canopen_native_driver.c
-    ${KVASER_COMPONENT_DIR}/src/kvaser_canopen_port.c
-    ${KVASER_COMPONENT_DIR}/src/kvaser_native_can.c
-    ${KVASER_COMPONENT_DIR}/src/kvaser_native.c
     ${KVASER_COMPONENT_DIR}/src/kvaser_probe.c
     INCLUDES
     ${KVASER_COMPONENT_DIR}/include
+    ${KVASER_INTERFACE_DIR}
     ${CANOPENNODE_SOURCE_DIR}
     ${CANOPENNODE_EXAMPLE_DIR}
 )

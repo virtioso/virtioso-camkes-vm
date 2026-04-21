@@ -8,20 +8,19 @@
 
 #include "canopen_native_driver.h"
 
-void canopen_native_driver_init(canopen_native_driver_t *driver,
-                                kvaser_canopen_port_t *port)
+void canopen_native_driver_init(canopen_native_driver_t *driver)
 {
     memset(driver, 0, sizeof(*driver));
-    driver->port = port;
+    can_backend_client_init(&driver->backend_client);
 }
 
 bool canopen_native_driver_start(canopen_native_driver_t *driver)
 {
-    if (driver == NULL || driver->port == NULL) {
+    if (driver == NULL) {
         return false;
     }
 
-    if (!kvaser_canopen_port_start(driver->port)) {
+    if (!can_backend_client_start(&driver->backend_client)) {
         return false;
     }
 
@@ -32,17 +31,19 @@ bool canopen_native_driver_start(canopen_native_driver_t *driver)
 bool canopen_native_driver_send(canopen_native_driver_t *driver,
                                 const canopen_native_msg_t *msg)
 {
-    kvaser_canopen_msg_t port_msg = {0};
+    can_backend_frame_t backend_frame = {0};
 
     if (driver == NULL || msg == NULL || !driver->started) {
         return false;
     }
 
-    port_msg.ident = msg->ident;
-    port_msg.dlc = msg->DLC;
-    memcpy(port_msg.data, msg->data, sizeof(port_msg.data));
+    backend_frame.can_id = msg->can_id;
+    backend_frame.dlc = msg->DLC;
+    memcpy(backend_frame.data, msg->data, sizeof(backend_frame.data));
+    backend_frame.extended = msg->extended ? 1U : 0U;
+    backend_frame.rtr = msg->rtr ? 1U : 0U;
 
-    if (!kvaser_canopen_port_send(driver->port, &port_msg)) {
+    if (!can_backend_client_send(&driver->backend_client, &backend_frame)) {
         return false;
     }
 
@@ -53,20 +54,22 @@ bool canopen_native_driver_send(canopen_native_driver_t *driver,
 bool canopen_native_driver_poll(canopen_native_driver_t *driver,
                                 canopen_native_msg_t *msg)
 {
-    kvaser_canopen_msg_t port_msg = {0};
+    can_backend_frame_t backend_frame = {0};
 
     if (driver == NULL || msg == NULL || !driver->started) {
         return false;
     }
 
-    if (!kvaser_canopen_port_poll_rx(driver->port, &port_msg)) {
+    if (!can_backend_client_poll(&driver->backend_client, &backend_frame)) {
         return false;
     }
 
     memset(msg, 0, sizeof(*msg));
-    msg->ident = port_msg.ident;
-    msg->DLC = port_msg.dlc;
-    memcpy(msg->data, port_msg.data, sizeof(msg->data));
+    msg->can_id = backend_frame.can_id;
+    msg->DLC = backend_frame.dlc;
+    memcpy(msg->data, backend_frame.data, sizeof(msg->data));
+    msg->extended = backend_frame.extended != 0U;
+    msg->rtr = backend_frame.rtr != 0U;
 
     driver->last_rx_msg = *msg;
     driver->has_last_rx = true;

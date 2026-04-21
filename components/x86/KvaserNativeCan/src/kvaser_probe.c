@@ -11,46 +11,45 @@
 
 #include "301/CO_NMT_Heartbeat.h"
 #include "canopen_runtime_service.h"
-#include "kvaser_native.h"
 
 static canopen_runtime_service_t canopen_runtime_service;
 
 static void dump_kvaser_state(const char *tag)
 {
-    kvaser_native_snapshot_t snapshot;
-    kvaser_native_snapshot(&snapshot);
+    const kvaser_native_snapshot_t *snapshot =
+        &canopen_runtime_service.backend_snapshot;
     printf("KVASER_PROBE[%s]: bdf=%02x:%02x.%u vid=%04x did=%04x class=%04x rev=%02x cmd=%04x status=%04x line=%u pin=%u\n",
-           tag, 0, 4, 0, snapshot.vendor, snapshot.device, snapshot.class_code, snapshot.revision,
-           snapshot.command, snapshot.status, snapshot.int_line, snapshot.int_pin);
+           tag, 0, 4, 0, snapshot->vendor, snapshot->device, snapshot->class_code, snapshot->revision,
+           snapshot->command, snapshot->status, snapshot->int_line, snapshot->int_pin);
     printf("KVASER_PROBE[%s]: cfg bar0=%08x bar1=%08x bar2=%08x\n",
-           tag, snapshot.bar0_cfg, snapshot.bar1_cfg, snapshot.bar2_cfg);
-    printf("KVASER_PROBE[%s]: s5920 intcsr=%08x rcr=%08x\n", tag, snapshot.intcsr, snapshot.rcr);
+           tag, snapshot->bar0_cfg, snapshot->bar1_cfg, snapshot->bar2_cfg);
+    printf("KVASER_PROBE[%s]: s5920 intcsr=%08x rcr=%08x\n", tag, snapshot->intcsr, snapshot->rcr);
     printf("KVASER_PROBE[%s]: sja mod=%02x sr=%02x ir=%02x ier=%02x btr0=%02x btr1=%02x ocr=%02x cdr=%02x xilinx=%02x\n",
-           tag, snapshot.sja_mod, snapshot.sja_sr, snapshot.sja_ir, snapshot.sja_ier,
-           snapshot.sja_btr0, snapshot.sja_btr1, snapshot.sja_ocr, snapshot.sja_cdr,
-           snapshot.xilinx_ver);
+           tag, snapshot->sja_mod, snapshot->sja_sr, snapshot->sja_ir, snapshot->sja_ier,
+           snapshot->sja_btr0, snapshot->sja_btr1, snapshot->sja_ocr, snapshot->sja_cdr,
+           snapshot->xilinx_ver);
 }
 
 static void dump_service_state(const char *tag)
 {
     printf("KVASER_SERVICE[%s]: irq_count=%lu tx_req=%lu tx_done=%lu rx_irq=%lu rx_frames=%lu overruns=%lu errors=%lu last_irq=%02x\n",
            tag,
-           (unsigned long)canopen_runtime_service.native_service.irq_count,
-           (unsigned long)canopen_runtime_service.native_service.tx_request_count,
-           (unsigned long)canopen_runtime_service.native_service.tx_complete_count,
-           (unsigned long)canopen_runtime_service.native_service.rx_irq_count,
-           (unsigned long)canopen_runtime_service.native_service.rx_frame_count,
-           (unsigned long)canopen_runtime_service.native_service.data_overrun_count,
-           (unsigned long)canopen_runtime_service.native_service.error_irq_count,
-           canopen_runtime_service.native_service.last_irq_bits);
-    if (canopen_runtime_service.native_service.has_last_rx) {
+           (unsigned long)canopen_runtime_service.backend_state.irq_count,
+           (unsigned long)canopen_runtime_service.backend_state.tx_request_count,
+           (unsigned long)canopen_runtime_service.backend_state.tx_complete_count,
+           (unsigned long)canopen_runtime_service.backend_state.rx_irq_count,
+           (unsigned long)canopen_runtime_service.backend_state.rx_frame_count,
+           (unsigned long)canopen_runtime_service.backend_state.data_overrun_count,
+           (unsigned long)canopen_runtime_service.backend_state.error_irq_count,
+           canopen_runtime_service.backend_state.last_irq_bits);
+    if (canopen_runtime_service.backend_state.has_last_rx) {
         printf("KVASER_SERVICE[%s]: last_rx id=%03lx dlc=%u data0=%02x extended=%u rtr=%u\n",
                tag,
-               (unsigned long)canopen_runtime_service.native_service.last_rx_frame.can_id,
-               canopen_runtime_service.native_service.last_rx_frame.dlc,
-               canopen_runtime_service.native_service.last_rx_frame.data[0],
-               canopen_runtime_service.native_service.last_rx_frame.extended ? 1U : 0U,
-               canopen_runtime_service.native_service.last_rx_frame.rtr ? 1U : 0U);
+               (unsigned long)canopen_runtime_service.backend_state.last_rx_frame.can_id,
+               canopen_runtime_service.backend_state.last_rx_frame.dlc,
+               canopen_runtime_service.backend_state.last_rx_frame.data[0],
+               canopen_runtime_service.backend_state.last_rx_frame.extended ? 1U : 0U,
+               canopen_runtime_service.backend_state.last_rx_frame.rtr ? 1U : 0U);
     }
 }
 
@@ -73,10 +72,8 @@ static void dump_canopen_service_state(const char *tag)
            (unsigned long)canopen_runtime_service.last_timer_next_us,
            (int)nmt_state);
 
-    printf("KVASER_CANOPEN_SERVICE[%s]: port_tx=%lu port_rx=%lu native_tx=%lu native_rx=%lu heap=%lu\n",
+    printf("KVASER_CANOPEN_SERVICE[%s]: native_tx=%lu native_rx=%lu heap=%lu\n",
                tag,
-               (unsigned long)canopen_runtime_service.port.tx_messages,
-               (unsigned long)canopen_runtime_service.port.rx_messages,
                (unsigned long)canopen_runtime_service.native_driver.tx_messages,
                (unsigned long)canopen_runtime_service.native_driver.rx_messages,
                (unsigned long)canopen_runtime_service.heap_memory_used);
@@ -176,15 +173,4 @@ int run(void)
         seL4_Yield();
     }
     UNREACHABLE();
-}
-
-void irq_handle(void)
-{
-    canopen_runtime_service_handle_irq(&canopen_runtime_service);
-    dump_kvaser_state("irq");
-    dump_service_state("irq");
-    dump_canopen_service_state("irq");
-    dump_runtime_state("irq");
-    int err = irq_acknowledge();
-    ZF_LOGF_IF(err, "Failed to acknowledge Kvaser IRQ");
 }

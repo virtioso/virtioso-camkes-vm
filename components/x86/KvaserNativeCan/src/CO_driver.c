@@ -136,7 +136,7 @@ CO_CANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer)
         return CO_ERROR_TX_OVERFLOW;
     }
 
-    msg.ident = buffer->ident & 0x07FFU;
+    msg.can_id = buffer->ident & 0x07FFU;
     msg.DLC = buffer->DLC;
     memcpy(msg.data, buffer->data, sizeof(msg.data));
 

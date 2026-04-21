@@ -37,6 +37,24 @@ typedef struct kvaser_native_snapshot {
 } kvaser_native_snapshot_t;
 #endif
 
-void kvaser_native_snapshot(kvaser_native_snapshot_t *snapshot);
-bool kvaser_native_init_board(void);
-void kvaser_native_send_test_frame(uint16_t can_id, uint8_t data0);
+typedef struct can_backend_frame {
+    uint32_t can_id;
+    uint8_t dlc;
+    uint8_t data[8];
+    uint8_t extended;
+    uint8_t rtr;
+} can_backend_frame_t;
+
+typedef struct can_backend_state {
+    bool initialized;
+    bool has_last_rx;
+    uint32_t irq_count;
+    uint32_t tx_request_count;
+    uint32_t tx_complete_count;
+    uint32_t rx_irq_count;
+    uint32_t rx_frame_count;
+    uint32_t data_overrun_count;
+    uint32_t error_irq_count;
+    uint8_t last_irq_bits;
+    can_backend_frame_t last_rx_frame;
+} can_backend_state_t;

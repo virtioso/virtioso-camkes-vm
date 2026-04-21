@@ -5,6 +5,7 @@
  */
 
 import <VM/vm.camkes>;
+import "../../../components/x86/KvaserNativeCan/interfaces/CanBackend.idl4";
 
 #include <configurations/vm.h>
 
@@ -22,9 +23,14 @@ component Init0 {
     attribute string physical_pci_host_bridge;
 }
 
-component KvaserNativeCan {
+component KvaserCanopenService {
     control;
     uses PutChar putchar;
+    uses CanBackend can_backend;
+}
+
+component KvaserPciCanBackend {
+    provides CanBackend can_backend;
     uses PCIConfig pci_config;
     uses IOPort bar0;
     uses IOPort bar1;
@@ -48,23 +54,26 @@ assembly {
         VM_COMPOSITION_DEF()
         VM_PER_VM_COMP_DEF(0)
 
-        component KvaserNativeCan kvaser_probe;
+        component KvaserCanopenService kvaser_canopen_service;
+        component KvaserPciCanBackend kvaser_can_backend;
         component KvaserPCIHardware kvaser_hw;
 
-        connection seL4RPCCall kvaser_probe_putchar(from kvaser_probe.putchar, to serial.processed_putchar);
-        connection seL4RPCCall kvaser_probe_pci_config(from kvaser_probe.pci_config, to pci_config.pci_config);
-        connection seL4HardwareIOPort kvaser_bar0(from kvaser_probe.bar0, to kvaser_hw.bar0);
-        connection seL4HardwareIOPort kvaser_bar1(from kvaser_probe.bar1, to kvaser_hw.bar1);
-        connection seL4HardwareIOPort kvaser_bar2(from kvaser_probe.bar2, to kvaser_hw.bar2);
-        connection seL4HardwareInterrupt kvaser_irq(from kvaser_hw.irq, to kvaser_probe.irq);
+        connection seL4RPCCall kvaser_canopen_service_putchar(from kvaser_canopen_service.putchar, to serial.processed_putchar);
+        connection seL4RPCCall kvaser_canopen_backend_rpc(from kvaser_canopen_service.can_backend, to kvaser_can_backend.can_backend);
+        connection seL4RPCCall kvaser_backend_pci_config(from kvaser_can_backend.pci_config, to pci_config.pci_config);
+        connection seL4HardwareIOPort kvaser_bar0(from kvaser_can_backend.bar0, to kvaser_hw.bar0);
+        connection seL4HardwareIOPort kvaser_bar1(from kvaser_can_backend.bar1, to kvaser_hw.bar1);
+        connection seL4HardwareIOPort kvaser_bar2(from kvaser_can_backend.bar2, to kvaser_hw.bar2);
+        connection seL4HardwareInterrupt kvaser_irq(from kvaser_hw.irq, to kvaser_can_backend.irq);
     }
 
     configuration {
         VM_CONFIGURATION_DEF()
         VM_PER_VM_CONFIG_DEF(0)
 
-        vm0.simple_untyped23_pool = 21;
+        vm0.simple_untyped23_pool = 22;
         vm0.simple_untyped22_pool = 1;
+        vm0.simple_untyped21_pool = 1;
         vm0.heap_size = 0x10000;
         vm0.guest_ram_mb = 128;
         vm0.kernel_cmdline = VM0_GUEST_CMDLINE;

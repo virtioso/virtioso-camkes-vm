@@ -12,6 +12,26 @@ include(${CAMKES_VM_HELPERS_PATH})
 find_package(camkes-vm-linux REQUIRED)
 include(${CAMKES_VM_LINUX_HELPERS_PATH})
 
+set(CANOPENNODE_SOURCE_DIR "/home/hlyytine/tii-sel4/sources/CANopenNode")
+set(CANOPENNODE_EXAMPLE_DIR "${CANOPENNODE_SOURCE_DIR}/example")
+set(KVASER_COMPONENT_DIR "${VIRTIOSO_CAMKES_VM_DIR}/components/x86/KvaserNativeCan")
+set(QEMU_KVASER_SOCKETCAN_IF_DEFAULT "$ENV{QEMU_KVASER_SOCKETCAN_IF}")
+set(
+    QEMU_KVASER_SOCKETCAN_IF
+    "${QEMU_KVASER_SOCKETCAN_IF_DEFAULT}"
+    CACHE STRING
+    "Optional host SocketCAN interface to bridge into q35 canbus0"
+)
+if(NOT "${QEMU_KVASER_SOCKETCAN_IF_DEFAULT}" STREQUAL "")
+    set(
+        QEMU_KVASER_SOCKETCAN_IF
+        "${QEMU_KVASER_SOCKETCAN_IF_DEFAULT}"
+        CACHE STRING
+        "Optional host SocketCAN interface to bridge into q35 canbus0"
+        FORCE
+    )
+endif()
+
 set(VM_IMAGES_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../vm-images/build/tmp/deploy/images")
 set(VM_IMAGE_MACHINE "qemux86-64")
 set(VM_IMAGE_BZIMAGE "${VM_IMAGES_DIR}/${VM_IMAGE_MACHINE}/bzImage")
@@ -38,11 +58,20 @@ string(
     "-nographic "
     "-vga none "
     "-device intel-iommu,intremap=off,caching-mode=on "
+    "-object can-bus,id=canbus0 "
     "-netdev user,id=net0 "
     "-device virtio-net-pci,bus=pcie.0,addr=0x1,netdev=net0,mac=52:55:00:d1:55:01,disable-legacy=on,disable-modern=off,iommu_platform=on "
     "-drive id=disk0,file=images/${VM_IMAGE_DRIVER_NAME},if=none,format=${VM_IMAGE_DRIVER_FORMAT} "
     "-device virtio-blk-pci,bus=pcie.0,addr=0x2,drive=disk0,disable-legacy=on,disable-modern=off,iommu_platform=on "
+    "-device kvaser_pci,bus=pcie.0,addr=0x4,canbus=canbus0"
 )
+
+if(QEMU_KVASER_SOCKETCAN_IF)
+    string(
+        APPEND VM_QEMU_EXTRA_ARGS
+        " -object can-host-socketcan,id=canhost0,if=${QEMU_KVASER_SOCKETCAN_IF},canbus=canbus0"
+    )
+endif()
 
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/images")
 file(WRITE "${CMAKE_BINARY_DIR}/images/qemu-extra-args" "${VM_QEMU_EXTRA_ARGS}\n")
@@ -60,7 +89,39 @@ add_custom_command(
 )
 add_custom_target(vm_qemu_virtio_driver_disk ALL DEPENDS "${VM_IMAGE_DRIVER_BUNDLE}")
 
+DeclareCAmkESComponent(
+    KvaserNativeCan
+    SOURCES
+    ${CANOPENNODE_SOURCE_DIR}/301/CO_Emergency.c
+    ${CANOPENNODE_SOURCE_DIR}/301/CO_HBconsumer.c
+    ${CANOPENNODE_SOURCE_DIR}/301/CO_NMT_Heartbeat.c
+    ${CANOPENNODE_SOURCE_DIR}/301/CO_Node_Guarding.c
+    ${CANOPENNODE_SOURCE_DIR}/301/CO_ODinterface.c
+    ${CANOPENNODE_SOURCE_DIR}/301/CO_PDO.c
+    ${CANOPENNODE_SOURCE_DIR}/301/CO_SDOclient.c
+    ${CANOPENNODE_SOURCE_DIR}/301/CO_SDOserver.c
+    ${CANOPENNODE_SOURCE_DIR}/301/CO_SYNC.c
+    ${CANOPENNODE_SOURCE_DIR}/301/CO_TIME.c
+    ${CANOPENNODE_SOURCE_DIR}/301/CO_fifo.c
+    ${CANOPENNODE_SOURCE_DIR}/303/CO_LEDs.c
+    ${CANOPENNODE_SOURCE_DIR}/305/CO_LSSslave.c
+    ${CANOPENNODE_SOURCE_DIR}/CANopen.c
+    ${CANOPENNODE_EXAMPLE_DIR}/OD.c
+    ${KVASER_COMPONENT_DIR}/src/CO_driver.c
+    ${KVASER_COMPONENT_DIR}/src/canopen_runtime_service.c
+    ${KVASER_COMPONENT_DIR}/src/canopen_native_driver.c
+    ${KVASER_COMPONENT_DIR}/src/kvaser_canopen_port.c
+    ${KVASER_COMPONENT_DIR}/src/kvaser_native_can.c
+    ${KVASER_COMPONENT_DIR}/src/kvaser_native.c
+    ${KVASER_COMPONENT_DIR}/src/kvaser_probe.c
+    INCLUDES
+    ${KVASER_COMPONENT_DIR}/include
+    ${CANOPENNODE_SOURCE_DIR}
+    ${CANOPENNODE_EXAMPLE_DIR}
+)
+
 DeclareCAmkESVM(Init0)
+
 DeclareCAmkESVMRootServer(vm_qemu_virtio.camkes)
 
 if(SIMULATION)

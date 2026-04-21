@@ -66,7 +66,7 @@ make raspberrypi4-64_defconfig
 ### QEMU ARM Virt
 
 ```bash
-make qemuarm64_defconfig
+make qemu_arm64_defconfig
 ```
 
 ### Configuration Options

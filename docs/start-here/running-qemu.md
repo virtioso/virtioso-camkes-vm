@@ -1,6 +1,12 @@
 # Running on QEMU
 
-This document describes how to run the Virtioso seL4 virtio platform on QEMU ARM Virt.
+This document describes the manual QEMU workflows for Virtioso seL4 builds.
+The canonical runner is:
+
+- [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py)
+
+It prefers the generated seL4 `simulate` script and overrides the QEMU binary
+to use the Yocto-built custom QEMU.
 
 ## Prerequisites
 
@@ -9,34 +15,87 @@ This document describes how to run the Virtioso seL4 virtio platform on QEMU ARM
 
 ## Quick Start
 
-### Using Make Target
+### Build A QEMU ARM64 Target
 
 ```bash
 cd $WORKSPACE
 
-# Configure for QEMU
-make qemuarm64_defconfig
-
-# Build
+make qemu_arm64_defconfig
 make vm_qemu_virtio
-
-# Run simulation
-make simulate_vm_qemu_virtio
 ```
 
-### Manual QEMU Invocation
+### Run QEMU ARM64 Locally
+
+Use the repo-owned runner:
 
 ```bash
-cd $WORKSPACE/qemu_vm_qemu_virtio
-
-qemu-system-aarch64 \
-    -machine virt,virtualization=on,highmem=off,secure=off \
-    -cpu cortex-a57 \
-    -m 2048 \
-    -nographic \
-    -serial mon:stdio \
-    -kernel images/capdl-loader-image-arm-qemu-arm-virt
+cd $WORKSPACE
+python3 projects/virtioso-camkes-vm/tools/qemu_runner.py \
+    run-local \
+    --target qemu_arm64_defconfig \
+    --binary "$WORKSPACE/qemuarm64_vm_qemu_virtio/images/capdl-loader-image-arm-qemu-arm-virt"
 ```
+
+The runner will:
+
+- locate the sibling generated `simulate` script
+- locate the Yocto-built custom `qemu-system-aarch64`
+- accept either the installed native sysroot layout or the Yocto recipe build tree
+- set the required library path from the Yocto sysroot
+- execute the generated `simulate` script with the custom QEMU
+
+### Prepare And Run QEMU PC99 Remotely
+
+Build the target first:
+
+```bash
+cd $WORKSPACE
+make qemu_x86_64_defconfig
+make sel4test
+```
+
+Print a config template and create `~/.virtioso-qemu-runners.json`:
+
+```bash
+python3 projects/virtioso-camkes-vm/tools/qemu_runner.py print-config-template
+```
+
+Run the remote workflow:
+
+```bash
+cd $WORKSPACE
+python3 projects/virtioso-camkes-vm/tools/qemu_runner.py \
+    run-remote \
+    --target qemu_x86_64_defconfig \
+    --binary "$WORKSPACE/qemu_x86_64_sel4test/images/sel4test-driver-image-x86_64-pc99"
+```
+
+The remote workflow will:
+
+- package the generated `simulate` runtime tree
+- bundle the Yocto-built custom `qemu-system-x86_64` plus only its required Yocto-side runtime libraries and QEMU data files
+- transfer the bundle to the configured Intel host over SSH
+- execute the bundle remotely in the foreground
+- terminate when the test or SSH session ends
+
+## Generated `simulate` Script
+
+The preferred manual path is the generated sibling `simulate` script in the
+build directory. The runner uses the supported `-b` argument to override the
+QEMU binary:
+
+```bash
+cd "$WORKSPACE/qemuarm64_vm_qemu_virtio"
+./simulate -b \
+  "$WORKSPACE/vm-images/build/tmp/work/x86_64-linux/qemu-system-native/9.2.0/recipe-sysroot-native/usr/bin/qemu-system-aarch64"
+```
+
+This keeps the invocation aligned with seL4’s generated launch script instead
+of replacing it with a separate wrapper-specific QEMU command line.
+
+If the native recipe did not install the QEMU binary under `recipe-sysroot-native/usr/bin`,
+the runner falls back to the sibling `build/qemu-system-*` binary and still reuses the
+matching `recipe-sysroot-native/usr/lib*` runtime libraries.
 
 ## Boot Sequence
 
@@ -62,7 +121,7 @@ seL4 microkernel (version: ...)
 4. **Device VM (VM0)**: Boots Linux, starts QEMU
 5. **Driver VM (VM1)**: Boots Linux with virtio devices
 
-## Interacting with VMs
+## Interacting With VMs
 
 ### Serial Console
 
@@ -186,6 +245,21 @@ Check image path:
 ```bash
 ls -la images/capdl-loader-image-arm-qemu-arm-virt
 ```
+
+### "simulate script not found"
+
+The runner expects a generated sibling `simulate` script in the build
+directory. Rebuild the target if it is missing.
+
+### Custom QEMU not found
+
+The runner resolves the custom QEMU from the Yocto work tree under:
+
+```bash
+vm-images/build/tmp/work/x86_64-linux/qemu-system-native/*/recipe-sysroot-native/usr/bin
+```
+
+If this tree is missing, rebuild the Yocto-side QEMU outputs first.
 
 ### VM Doesn't Boot
 

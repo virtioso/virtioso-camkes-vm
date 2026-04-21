@@ -5,8 +5,15 @@
 #
 cmake_minimum_required(VERSION 3.7.2)
 
-if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/apps/Arm/${CAMKES_VM_APP}")
+if(
+    EXISTS "${CMAKE_CURRENT_LIST_DIR}/apps/x86/${CAMKES_VM_APP}"
+    AND ("${PLATFORM}" STREQUAL "pc99" OR "${PLATFORM}" STREQUAL "x86_64")
+)
+    set(AppArch "x86" CACHE STRING "" FORCE)
+elseif(EXISTS "${CMAKE_CURRENT_LIST_DIR}/apps/Arm/${CAMKES_VM_APP}")
     set(AppArch "Arm" CACHE STRING "" FORCE)
+elseif(EXISTS "${CMAKE_CURRENT_LIST_DIR}/apps/x86/${CAMKES_VM_APP}")
+    set(AppArch "x86" CACHE STRING "" FORCE)
 else()
     message(FATAL_ERROR "App does not exist for supported architecture")
 endif()
@@ -72,6 +79,44 @@ if(AppArch STREQUAL "Arm")
         set(KernelMaxNumNodes ${NUM_NODES} CACHE STRING "" FORCE)
     else()
         set(KernelMaxNumNodes 1 CACHE STRING "" FORCE)
+    endif()
+elseif(AppArch STREQUAL "x86")
+    get_filename_component(resolved_path ${CMAKE_CURRENT_LIST_FILE} REALPATH)
+    get_filename_component(repo_dir ${resolved_path} DIRECTORY)
+
+    set(project_dir "${CMAKE_CURRENT_LIST_DIR}/../../")
+    file(GLOB project_modules ${project_dir}/projects/*)
+    list(
+        APPEND
+            CMAKE_MODULE_PATH
+            ${project_dir}/kernel
+            ${project_dir}/projects/seL4_tools/cmake-tool/helpers/
+            ${project_dir}/projects/seL4_tools/elfloader-tool/
+            ${project_dir}/tools/seL4/cmake-tool/helpers/
+            ${project_dir}/tools/seL4/elfloader-tool/
+            ${project_modules}
+    )
+
+    include(application_settings)
+
+    find_package(camkes-vm REQUIRED)
+    include(${CAMKES_VM_SETTINGS_PATH})
+
+    if(NOT CAMKES_VM_APP)
+        message(
+            FATAL_ERROR
+                "CAMKES_VM_APP is not defined. Pass CAMKES_VM_APP to specify the VM application to build e.g. vm_qemu_virtio"
+        )
+    endif()
+
+    include("${repo_dir}/apps/x86/${CAMKES_VM_APP}/app_settings.cmake")
+
+    find_package(seL4 REQUIRED)
+    sel4_configure_platform_settings()
+
+    if(SIMULATION)
+        ApplyCommonSimulationSettings(${KernelSel4Arch})
+        set(KernelIOMMU ON CACHE BOOL "" FORCE)
     endif()
 else()
     message(FATAL_ERROR "Unsupported Setting")

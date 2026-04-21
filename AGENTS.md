@@ -38,6 +38,13 @@ For “build and test `vm_qemu_virtio` on Orin AGX”:
 3. `make vm_qemu_virtio`
 4. `mcp__sel4-autopilot__test_sel4_efi(..., profile="vm-qemu-virtio")`
 
+For `qemu_x86_64_defconfig` QEMU-backed x86 validation:
+
+1. `make mrproper`
+2. `make qemu_x86_64_defconfig`
+3. `make vm_qemu_virtio`
+4. `mcp__sel4-autopilot__test_sel4_efi(..., profile="qemu_x86_64_defconfig")`
+
 ## Build/Test Policy
 
 - Build instructions must be followed precisely, without adding or removing a single character.
@@ -47,9 +54,14 @@ For “build and test `vm_qemu_virtio` on Orin AGX”:
   - Use `YOCTO_INCREMENTAL=1 make kmod-sel4-virt` only when explicitly requested.
 - Use MCP for test submission/status/log retrieval, not for build commands in this workflow.
 - Canonical EFI test tool is `test_sel4_efi`.
-- Profile mapping is `profile = target.replace("_", "-")`.
+- For QEMU defconfig targets, use the same underscore form for the autopilot
+  profile as for the build target.
 - Verify `/home/hlyytine/autopilot/profiles/<profile>.json` before submitting tests.
 - Always pass `autopilot_dir="/home/hlyytine/tii-sel4/autopilot"` to MCP tools.
+- `qemu_x86_64_defconfig` is an autopilot-backed remote QEMU target; prefer the
+  autopilot path for test execution and only fall back to direct
+  `tools/qemu_runner.py` debugging when the autopilot backend itself is the
+  thing under investigation.
 - For Orin `vm_qemu_virtio`, cross-VM connector IRQ reserve must remain 8-bit safe (`<=255`)
   unless full-width DT IRQ mapping support is explicitly implemented.
 - When VM passthrough IRQ inputs change (`vm*.dtb_irqs`, platform IRQ reserves, or PCI INTx usage),

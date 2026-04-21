@@ -1,1 +1,3 @@
-TARGETS += $$(basename -a $(shell dirname $(lastword $(MAKEFILE_LIST)))/apps/Arm/vm_*)
+APPS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))/apps
+TARGETS += $(notdir $(wildcard $(APPS_DIR)/Arm/*))
+TARGETS += $(notdir $(wildcard $(APPS_DIR)/x86/*))

@@ -13,6 +13,10 @@ runtime artifact under:
 
 - `vm-images/build/tmp/deploy/virtioso-qemu-runtime/`
 
+Build it from the workspace root with:
+
+- `make qemu-runtime-x86_64`
+
 The runner can also consume:
 
 - an explicitly unpacked runtime tree via `--runtime-dir`

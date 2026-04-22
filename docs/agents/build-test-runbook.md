@@ -81,6 +81,21 @@ This file is the canonical source for build and test command sequences.
 6. Output location (Yocto work/deploy):
    `/home/hlyytine/tii-sel4/vm-images/build/tmp/work/*/kernel-module-sel4-virt/*`
 
+## x86_64 QEMU Runtime Artifact
+
+1. Configure platform (required by `vm-images/setup.sh`):
+   `make qemu_x86_64_defconfig`
+2. Ensure container image exists:
+   `make docker`
+3. Build the relocatable host runtime artifact:
+   `make qemu-runtime-x86_64`
+4. Under the hood, this path runs:
+   - `scripts/build_yocto_qemu_runtime_x86_64.sh`
+   - `vm-images/setup.sh`
+   - `bitbake virtioso-qemu-runtime-x86_64`
+5. Output location:
+   `/home/hlyytine/tii-sel4/vm-images/build/tmp/deploy/virtioso-qemu-runtime/virtioso-qemu-runtime-x86_64.tar.zst`
+
 ## Notes
 
 - Build commands are always `make` targets from workspace root.

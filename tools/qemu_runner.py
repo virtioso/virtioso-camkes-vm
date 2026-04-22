@@ -182,9 +182,12 @@ def _runtime_from_dir(spec: TargetSpec, runtime_dir: Path) -> QemuRuntime:
 
 
 def _extract_runtime_tar(runtime_tar: Path, extract_root: Path) -> Path:
-    with tarfile.open(runtime_tar, "r:*") as tf:
-        tf.extractall(path=extract_root)
-        roots = sorted({extract_root / member.name.split("/", 1)[0] for member in tf.getmembers() if member.name})
+    extract_root.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        ["tar", "--zstd", "-xf", str(runtime_tar), "-C", str(extract_root)],
+        check=True,
+    )
+    roots = sorted(extract_root.iterdir())
     for root in roots:
         if root.is_dir():
             return root

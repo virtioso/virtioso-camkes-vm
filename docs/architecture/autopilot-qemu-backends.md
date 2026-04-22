@@ -58,7 +58,8 @@ with seL4 while still forcing the Yocto-built custom QEMU.
 
 - Build artifact path identifies the build directory.
 - The runner uses `<build-dir>/simulate` when present.
-- The runner resolves the Yocto-built QEMU toolchain under
+- The runner prefers a deployed runtime artifact for x86_64 and otherwise
+  resolves the Yocto-built QEMU toolchain under
   `vm-images/build/tmp/work/x86_64-linux/qemu-system-native/*`.
 - It prefers the installed native path
   `recipe-sysroot-native/usr/bin/qemu-system-*`, but falls back to the Yocto
@@ -73,16 +74,25 @@ with seL4 while still forcing the Yocto-built custom QEMU.
 - The runner creates a bundle with:
   - `runtime/build/simulate`
   - `runtime/build/images/*`
+  - a selected QEMU runtime, preferably from the deployed artifact under
+    `vm-images/build/tmp/deploy/virtioso-qemu-runtime/`
   - `toolchain/usr/bin/<selected-qemu-system-* binary>`
-  - only the Yocto-side shared libraries required by that binary, resolved from `ldd`
+  - only the required shared libraries for that binary
   - `toolchain/usr/share/qemu*` when present
-  - `toolchain/pc-bios/*` when the selected QEMU came from the Yocto build tree
+  - `toolchain/pc-bios/*` when present in the selected runtime
   - `runtime/run-bundle.sh`
 - `runtime/run-bundle.sh` sets the bundled library path and runs:
   - `./simulate -b ../toolchain/usr/bin/qemu-system-x86_64`
 - For `qemu_x86_64_defconfig`, the runner preserves the generated script's
   `-enable-kvm` requirement when merging custom extra QEMU arguments.
 - The bundle is copied and executed over SSH on the configured Intel host.
+
+Runtime source resolution order for the runner is:
+
+1. `--runtime-dir`
+2. `--runtime-tar`
+3. deployed runtime artifact under `tmp/deploy/virtioso-qemu-runtime`
+4. legacy Yocto `tmp/work/.../qemu-system-native` lookup
 
 ## Configuration Boundary
 
@@ -132,5 +142,7 @@ Responsibilities that stay backend-specific:
 - Prefer the generated `simulate` script whenever it exists.
 - Use direct `qemu-system-aarch64` fallback only as a narrow backup for
   `qemu_arm64_defconfig`.
+- Treat the deployed `meta-virtioso` runtime artifact as the preferred
+  producer boundary for x86 host-QEMU runtime.
 - Do not add stock-Linux recovery to QEMU flows.
 - The manual runner must stay usable without autopilot.

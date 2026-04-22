@@ -8,6 +8,19 @@ The canonical runner is:
 It prefers the generated seL4 `simulate` script and overrides the QEMU binary
 to use the Yocto-built custom QEMU.
 
+For x86_64, the preferred runtime source is now the deployed relocatable
+runtime artifact under:
+
+- `vm-images/build/tmp/deploy/virtioso-qemu-runtime/`
+
+The runner can also consume:
+
+- an explicitly unpacked runtime tree via `--runtime-dir`
+- an explicit runtime tarball via `--runtime-tar`
+
+The old direct `tmp/work/.../qemu-system-native` lookup remains only as a
+compatibility fallback.
+
 ## Prerequisites
 
 - Completed [build](building.md) for QEMU platform
@@ -73,7 +86,9 @@ python3 projects/virtioso-camkes-vm/tools/qemu_runner.py \
 The remote workflow will:
 
 - package the generated `simulate` runtime tree
-- bundle the Yocto-built custom `qemu-system-x86_64` plus only its required Yocto-side runtime libraries and QEMU data files
+- prefer the deployed x86_64 runtime artifact from `tmp/deploy/virtioso-qemu-runtime`
+- fall back to the Yocto `qemu-system-native` workdir only if no runtime artifact is available
+- bundle the custom `qemu-system-x86_64` runtime plus only its required Yocto-side libraries and QEMU data files
 - transfer the bundle to the configured Intel host over SSH
 - execute the bundle remotely in the foreground
 - terminate when the test or SSH session ends
@@ -93,9 +108,14 @@ cd "$WORKSPACE/qemuarm64_vm_qemu_virtio"
 This keeps the invocation aligned with seL4’s generated launch script instead
 of replacing it with a separate wrapper-specific QEMU command line.
 
-If the native recipe did not install the QEMU binary under `recipe-sysroot-native/usr/bin`,
-the runner falls back to the sibling `build/qemu-system-*` binary and still reuses the
-matching `recipe-sysroot-native/usr/lib*` runtime libraries.
+When an explicit runtime artifact is provided or a deployed runtime artifact is
+available under `tmp/deploy/virtioso-qemu-runtime`, the runner uses that
+runtime instead of resolving QEMU from `tmp/work/...`.
+
+If no runtime artifact is available and the native recipe did not install the
+QEMU binary under `recipe-sysroot-native/usr/bin`, the runner falls back to the
+sibling `build/qemu-system-*` binary and still reuses the matching
+`recipe-sysroot-native/usr/lib*` runtime libraries.
 
 ## Boot Sequence
 

@@ -42,6 +42,8 @@ This file is the canonical source for build and test command sequences.
 8. Get logs:
    `mcp__sel4-autopilot__get_logs(...)`
 9. Use direct `tools/qemu_runner.py` only for backend debugging when the autopilot integration itself is suspect.
+10. For direct runner debugging, prefer a deployed or unpacked runtime artifact
+    over the legacy `tmp/work/.../qemu-system-native` path.
 
 ## Orin AGX `vm_minimal`
 
@@ -88,3 +90,6 @@ This file is the canonical source for build and test command sequences.
 - For daemon start/restart operations, always set `use_tmux=true`.
 - `qemu_x86_64_defconfig` uses the autopilot remote-QEMU backend with profile
   `qemu_x86_64_defconfig`.
+- For manual x86 QEMU runs, prefer the deployed runtime artifact under
+  `vm-images/build/tmp/deploy/virtioso-qemu-runtime/` or pass an explicit
+  `--runtime-dir` / `--runtime-tar` to `tools/qemu_runner.py`.

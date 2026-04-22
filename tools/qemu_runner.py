@@ -27,6 +27,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 WORKSPACE_ROOT = SCRIPT_DIR.parent.parent.parent
 VM_IMAGES_DIR = WORKSPACE_ROOT / "vm-images"
 DEFAULT_REMOTE_CONFIG = Path.home() / ".virtioso-qemu-runners.json"
+DEFAULT_RUNTIME_DEPLOY_DIR = VM_IMAGES_DIR / "build" / "tmp" / "deploy" / "virtioso-qemu-runtime"
 
 
 @dataclass(frozen=True)
@@ -139,6 +140,72 @@ def _qemu_runtime(spec: TargetSpec) -> QemuRuntime:
     return candidates[-1]
 
 
+def _runtime_deploy_tar(spec: TargetSpec) -> Path | None:
+    if spec.defconfig != "qemu_x86_64_defconfig":
+        return None
+    candidates = [
+        DEFAULT_RUNTIME_DEPLOY_DIR / "latest-x86_64.tar.zst",
+        DEFAULT_RUNTIME_DEPLOY_DIR / "virtioso-qemu-runtime-x86_64.tar.zst",
+        DEFAULT_RUNTIME_DEPLOY_DIR / "latest-x86_64.tar.gz",
+        DEFAULT_RUNTIME_DEPLOY_DIR / "virtioso-qemu-runtime-x86_64.tar.gz",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def _runtime_interpreter_from_dir(runtime_root: Path) -> Path | None:
+    uninative_root = runtime_root / "uninative"
+    if not uninative_root.exists():
+        return None
+    for pattern in ("ld-linux*", "ld64.so.*", "ld-musl-*", "ld-linux-*.so.*"):
+        matches = sorted(uninative_root.rglob(pattern))
+        if matches:
+            return matches[0]
+    return None
+
+
+def _runtime_from_dir(spec: TargetSpec, runtime_dir: Path) -> QemuRuntime:
+    runtime_root = runtime_dir.expanduser().resolve()
+    binary = runtime_root / "usr" / "bin" / spec.qemu_binary
+    if not binary.exists():
+        raise RunnerError(f"runtime binary not found in runtime dir: {binary}")
+    support_usr = runtime_root / "usr"
+    bios_dir = runtime_root / "pc-bios"
+    return QemuRuntime(
+        binary=binary,
+        support_usr=support_usr,
+        bios_dir=bios_dir if bios_dir.exists() else None,
+        interpreter=_runtime_interpreter_from_dir(runtime_root),
+    )
+
+
+def _extract_runtime_tar(runtime_tar: Path, extract_root: Path) -> Path:
+    with tarfile.open(runtime_tar, "r:*") as tf:
+        tf.extractall(path=extract_root)
+        roots = sorted({extract_root / member.name.split("/", 1)[0] for member in tf.getmembers() if member.name})
+    for root in roots:
+        if root.is_dir():
+            return root
+    raise RunnerError(f"unable to determine runtime root after extracting {runtime_tar}")
+
+
+def _resolve_runtime(
+    spec: TargetSpec,
+    runtime_dir: str,
+    runtime_tar: str,
+) -> tuple[QemuRuntime, Path | None]:
+    if runtime_dir.strip():
+        return _runtime_from_dir(spec, Path(runtime_dir)), None
+    tar_candidate = Path(runtime_tar).expanduser().resolve() if runtime_tar.strip() else _runtime_deploy_tar(spec)
+    if tar_candidate is not None:
+        extract_root = Path(tempfile.mkdtemp(prefix="virtioso-qemu-runtime-"))
+        runtime_root = _extract_runtime_tar(tar_candidate, extract_root)
+        return _runtime_from_dir(spec, runtime_root), extract_root
+    return _qemu_runtime(spec), None
+
+
 def _ld_library_path(usr_dir: Path) -> str:
     parts: list[str] = []
     for rel in ("lib", "lib64", "libexec"):
@@ -215,13 +282,13 @@ def _fallback_local_command(binary: Path, spec: TargetSpec, qemu_binary: Path, e
     return argv
 
 
-def run_local(target: str, binary_path: str, extra_qemu_args: str, dry_run: bool) -> int:
+def run_local(target: str, binary_path: str, extra_qemu_args: str, dry_run: bool, runtime_dir: str, runtime_tar: str) -> int:
     spec = _resolve_target(target)
     if spec.requires_remote:
         raise RunnerError(f"{target} must be run via the remote workflow")
     binary = _resolve_binary(binary_path)
     build_dir = _build_dir_for_binary(binary)
-    runtime = _qemu_runtime(spec)
+    runtime, temp_runtime_root = _resolve_runtime(spec, runtime_dir, runtime_tar)
     env = _base_env(runtime.support_usr)
     build_extra_qemu_args = _build_extra_qemu_args(build_dir)
     merged_extra_qemu_args = _merge_extra_qemu_args(
@@ -236,7 +303,11 @@ def run_local(target: str, binary_path: str, extra_qemu_args: str, dry_run: bool
         argv = _simulate_command(build_dir, runtime.binary, merged_extra_qemu_args)
     else:
         argv = _fallback_local_command(binary, spec, runtime.binary, merged_extra_qemu_args)
-    return _run_subprocess(argv, cwd=build_dir, env=env, dry_run=dry_run)
+    try:
+        return _run_subprocess(argv, cwd=build_dir, env=env, dry_run=dry_run)
+    finally:
+        if temp_runtime_root is not None:
+            _remove_path(temp_runtime_root)
 
 
 def _copy_tree(src: Path, dst: Path) -> None:
@@ -333,21 +404,60 @@ def _copy_qemu_runtime(bundle_dir: Path, runtime: QemuRuntime) -> Path:
             for pattern in ("*.bin", "*.rom", "optionrom/*.bin", "optionrom/*.rom"):
                 for asset in qemu_pc_bios.glob(pattern):
                     _copy_tree(asset, pc_bios_dst / asset.name)
+        _sanitize_pc_bios_tree(pc_bios_dst)
     return toolchain_usr
 
 
 def _copy_uninative_interpreter(bundle_dir: Path, interpreter: Path | None) -> Path | None:
     if interpreter is None:
         return None
-    uninative_root = VM_IMAGES_DIR / "build" / "tmp" / "sysroots-uninative"
-    try:
-        rel = interpreter.relative_to(uninative_root)
-    except ValueError:
+    candidates = [
+        VM_IMAGES_DIR / "build" / "tmp" / "sysroots-uninative",
+    ]
+    if "uninative" in interpreter.parts:
+        idx = interpreter.parts.index("uninative")
+        candidates.append(Path(*interpreter.parts[: idx + 1]))
+    rel = None
+    for root in candidates:
+        try:
+            rel = interpreter.relative_to(root)
+            break
+        except ValueError:
+            continue
+    if rel is None:
         return None
     src_dir = interpreter.parent
     dst_dir = bundle_dir / "uninative" / rel.parent
     _copy_tree(src_dir, dst_dir)
     return Path("uninative") / rel
+
+
+def _sanitize_pc_bios_tree(pc_bios_dir: Path) -> None:
+    if not pc_bios_dir.exists():
+        return
+    _remove_path(pc_bios_dir / "descriptors")
+    for path in pc_bios_dir.rglob("*"):
+        if not path.is_file():
+            continue
+        if path.name == "Makefile":
+            path.unlink()
+            continue
+        if path.suffix in {".d", ".o"}:
+            path.unlink()
+            continue
+        if path.suffix == ".mak" and path.name.startswith("config"):
+            path.unlink()
+
+
+def _bundle_metadata(target: str, binary: Path, spec: TargetSpec) -> dict[str, str]:
+    return {
+        "target": target,
+        "bundle_entrypoint": "runtime/run-bundle.sh",
+        "bundle_qemu_wrapper": "runtime/qemu-wrapper.sh",
+        "bundle_images_dir": "runtime/build/images",
+        "binary_name": binary.name,
+        "qemu_binary": spec.qemu_binary,
+    }
 
 
 def _write_remote_wrapper(
@@ -439,13 +549,20 @@ def _remote_shell_dir(path: str) -> str:
     return f"$HOME/{shlex.quote(rel)}"
 
 
-def prepare_remote_bundle(target: str, binary_path: str, output: str | None, extra_qemu_args: str) -> Path:
+def prepare_remote_bundle(
+    target: str,
+    binary_path: str,
+    output: str | None,
+    extra_qemu_args: str,
+    runtime_dir: str,
+    runtime_tar: str,
+) -> Path:
     spec = _resolve_target(target)
     if not spec.requires_remote:
         raise RunnerError(f"{target} is a local target; use run-local")
     binary = _resolve_binary(binary_path)
     build_dir = _build_dir_for_binary(binary)
-    runtime = _qemu_runtime(spec)
+    runtime, temp_runtime_root = _resolve_runtime(spec, runtime_dir, runtime_tar)
     build_extra_qemu_args = _build_extra_qemu_args(build_dir)
     merged_extra_qemu_args = _merge_extra_qemu_args(
         spec,
@@ -455,20 +572,17 @@ def prepare_remote_bundle(target: str, binary_path: str, output: str | None, ext
         include_local_bios=False,
     )
     bundle_root = Path(output).expanduser().resolve() if output else Path(tempfile.mkdtemp(prefix="virtioso-qemu-bundle-"))
-    bundle_dir = bundle_root / _bundle_name(binary, target)
-    runtime_build = _collect_runtime_tree(build_dir, bundle_dir / "runtime")
-    toolchain_usr = _copy_qemu_runtime(bundle_dir, runtime)
-    bundled_interpreter = _copy_uninative_interpreter(bundle_dir, runtime.interpreter)
-    _write_remote_wrapper(runtime_build, toolchain_usr, spec, merged_extra_qemu_args, runtime.bios_dir, bundled_interpreter)
-    metadata = {
-        "target": target,
-        "binary": str(binary),
-        "build_dir": str(build_dir),
-        "qemu_binary": spec.qemu_binary,
-        "toolchain_usr": str(toolchain_usr),
-    }
-    (bundle_dir / "bundle.json").write_text(json.dumps(metadata, indent=2))
-    return bundle_dir
+    try:
+        bundle_dir = bundle_root / _bundle_name(binary, target)
+        runtime_build = _collect_runtime_tree(build_dir, bundle_dir / "runtime")
+        toolchain_usr = _copy_qemu_runtime(bundle_dir, runtime)
+        bundled_interpreter = _copy_uninative_interpreter(bundle_dir, runtime.interpreter)
+        _write_remote_wrapper(runtime_build, toolchain_usr, spec, merged_extra_qemu_args, runtime.bios_dir, bundled_interpreter)
+        (bundle_dir / "bundle.json").write_text(json.dumps(_bundle_metadata(target, binary, spec), indent=2))
+        return bundle_dir
+    finally:
+        if temp_runtime_root is not None:
+            _remove_path(temp_runtime_root)
 
 
 def _tar_bundle(bundle_dir: Path) -> Path:
@@ -533,12 +647,20 @@ def _remote_run_command(remote_dir: str, bundle_name: str, tar_name: str) -> str
     )
 
 
-def run_remote(target: str, binary_path: str, config_path: Path, extra_qemu_args: str, dry_run: bool) -> int:
+def run_remote(
+    target: str,
+    binary_path: str,
+    config_path: Path,
+    extra_qemu_args: str,
+    dry_run: bool,
+    runtime_dir: str,
+    runtime_tar: str,
+) -> int:
     spec = _resolve_target(target)
     if not spec.requires_remote:
         raise RunnerError(f"{target} is a local target; use run-local")
     runner = _load_remote_config(config_path, target)
-    bundle_dir = prepare_remote_bundle(target, binary_path, None, extra_qemu_args)
+    bundle_dir = prepare_remote_bundle(target, binary_path, None, extra_qemu_args, runtime_dir, runtime_tar)
     tar_path = _tar_bundle(bundle_dir)
     temp_root = bundle_dir.parent
     remote = f"{runner['ssh_user']}@{runner['ssh_host']}"
@@ -627,6 +749,8 @@ def parse_args() -> argparse.Namespace:
     common.add_argument("--target", required=True, choices=sorted(TARGETS))
     common.add_argument("--binary", required=True, help="Path to the built seL4 image used to locate the build dir")
     common.add_argument("--extra-qemu-args", default="", help="Arguments forwarded to the generated simulate script")
+    common.add_argument("--runtime-dir", default="", help="Path to an extracted QEMU runtime artifact root")
+    common.add_argument("--runtime-tar", default="", help="Path to a QEMU runtime artifact tarball")
     common.add_argument("--dry-run", action="store_true")
 
     run_local_parser = sub.add_parser("run-local", parents=[common], help="Run a local QEMU target")
@@ -650,13 +774,28 @@ def main() -> int:
     args = parse_args()
     try:
         if args.handler == "run_local":
-            return run_local(args.target, args.binary, args.extra_qemu_args, args.dry_run)
+            return run_local(args.target, args.binary, args.extra_qemu_args, args.dry_run, args.runtime_dir, args.runtime_tar)
         if args.handler == "prepare_remote_bundle":
-            bundle_dir = prepare_remote_bundle(args.target, args.binary, args.output_dir or None, args.extra_qemu_args)
+            bundle_dir = prepare_remote_bundle(
+                args.target,
+                args.binary,
+                args.output_dir or None,
+                args.extra_qemu_args,
+                args.runtime_dir,
+                args.runtime_tar,
+            )
             print(bundle_dir, flush=True)
             return 0
         if args.handler == "run_remote":
-            return run_remote(args.target, args.binary, Path(args.config).expanduser(), args.extra_qemu_args, args.dry_run)
+            return run_remote(
+                args.target,
+                args.binary,
+                Path(args.config).expanduser(),
+                args.extra_qemu_args,
+                args.dry_run,
+                args.runtime_dir,
+                args.runtime_tar,
+            )
         if args.handler == "print_config_template":
             print(_config_template(), flush=True)
             return 0

@@ -2,6 +2,25 @@
 
 Date: 2026-04-23
 
+## Progress
+
+- 2026-04-23: First implementation slice started in the Yocto layer
+  - added a first-class `uservmctl` wrapper alongside `qemu-rnd-helper`
+  - `screenrc-drivervm` no longer launches nested QEMU directly; it now uses
+    `uservmctl` as the lifecycle seam and treats screen as a viewer
+  - readiness contract is intentionally coexistence-first:
+    - strong path: `/mnt/shared/uservm-ready.json`
+    - console sentinel path: `USERVM_READY version=1`
+    - temporary fallback: console `login:` prompt
+  - this does not replace the mux/demux architecture; it establishes the VM1
+    lifecycle contract that the console architecture will later observe and
+    route as distinct sources
+  - verified locally with a stub helper:
+    - `start`
+    - `status`
+    - `wait-ready`
+    - `stop`
+
 ## Summary
 
 The current `vm_qemu_virtio` user-VM launch path is optimized for an interactive

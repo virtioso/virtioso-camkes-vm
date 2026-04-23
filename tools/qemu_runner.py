@@ -522,12 +522,96 @@ def _bundle_metadata(target: str, binary: Path, spec: TargetSpec) -> dict[str, s
     }
 
 
+def _logical_vm_qemu_virtio_channels() -> list[dict]:
+    return [
+        {
+            "id": 1,
+            "name": "driver_vm_console",
+            "kind": "guest_console",
+            "interactive": True,
+            "pty": True,
+            "legacy_aliases": ["tty0"],
+        },
+        {
+            "id": 2,
+            "name": "driver_vm_control",
+            "kind": "control",
+            "interactive": True,
+            "pty": True,
+        },
+        {
+            "id": 3,
+            "name": "nested_qemu_control",
+            "kind": "control",
+            "interactive": False,
+            "pty": False,
+        },
+        {
+            "id": 4,
+            "name": "user_vm_console",
+            "kind": "guest_console",
+            "interactive": True,
+            "pty": True,
+        },
+        {
+            "id": 5,
+            "name": "trace_control",
+            "kind": "trace",
+            "interactive": False,
+            "pty": False,
+        },
+    ]
+
+
+def _console_profile(binary: Path) -> str:
+    build_dir = _build_dir_for_binary(binary)
+    if build_dir.name.endswith("vm_qemu_virtio"):
+        return "vm_qemu_virtio"
+    return "default"
+
+
+def _env_flag(name: str) -> bool:
+    value = os.environ.get(name, "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
 def _console_manifest(target: str, binary: Path, spec: TargetSpec) -> dict:
     run_id = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    profile = _console_profile(binary)
+    framed_opt_in = _env_flag("VIRTIOSO_CONSOLE_ROUTER_USE_JSONL_FRAMES")
+    if profile == "vm_qemu_virtio" and framed_opt_in:
+        return {
+            "version": 1,
+            "run_id": run_id,
+            "target": target,
+            "binary_name": binary.name,
+            "transport": {
+                "type": "jsonl_frames",
+                "owner": "qemu_runner",
+                "qemu_binary": spec.qemu_binary,
+                "default_input_channel": "driver_vm_console",
+                "framing_mode": "producer_tagged",
+            },
+            "channels": _logical_vm_qemu_virtio_channels(),
+        }
     # The current runner still collapses QEMU-backed console output onto a single
     # runner-owned stream. Represent that topology honestly first; later slices
     # can split this into source-specific channels without changing manifest
     # ownership or format.
+    merged_channel = {
+        "id": 1,
+        "name": "merged_console",
+        "kind": "console",
+        "interactive": True,
+        "pty": True,
+        "legacy_aliases": ["tty0"],
+        "note": "Current QEMU runner topology merges runner and guest-visible console traffic.",
+    }
+    if profile == "vm_qemu_virtio":
+        merged_channel["future_channel_set"] = "vm_qemu_virtio"
+        merged_channel["declared_successor_channels"] = [
+            channel["name"] for channel in _logical_vm_qemu_virtio_channels()
+        ]
     return {
         "version": 1,
         "run_id": run_id,
@@ -538,17 +622,7 @@ def _console_manifest(target: str, binary: Path, spec: TargetSpec) -> dict:
             "owner": "qemu_runner",
             "qemu_binary": spec.qemu_binary,
         },
-        "channels": [
-            {
-                "id": 1,
-                "name": "merged_console",
-                "kind": "console",
-                "interactive": True,
-                "pty": True,
-                "legacy_aliases": ["tty0"],
-                "note": "Current QEMU runner topology merges runner and guest-visible console traffic.",
-            }
-        ],
+        "channels": [merged_channel],
     }
 
 

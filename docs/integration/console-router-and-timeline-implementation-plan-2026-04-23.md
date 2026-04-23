@@ -162,6 +162,23 @@ Autopilot abstractions.
     - `python3 -m py_compile projects/virtioso-camkes-vm/tools/console_router.py`
     - smoke run with a two-channel `jsonl_frames` manifest producing distinct
       `driver_vm_console` and `user_vm_console` artifacts
+- 2026-04-23: Tenth implementation slice completed
+  - `qemu_runner.py` now recognizes `vm_qemu_virtio` as a distinct logical
+    console profile instead of only a generic merged-console case
+  - current scope:
+    - default manifest remains backward-compatible `process_stdio` with
+      `merged_console`
+    - `vm_qemu_virtio` manifests now declare their intended successor channel
+      set even before producer-side framing is enabled
+    - explicit opt-in via `VIRTIOSO_CONSOLE_ROUTER_USE_JSONL_FRAMES=1` makes the
+      runner emit a framed multi-channel manifest for `vm_qemu_virtio`
+  - rationale: moves producer-side ownership forward without breaking the
+    current unframed x86/arm runner path
+  - verified with:
+    - default manifest generation for `vm_qemu_virtio`
+    - opt-in manifest generation yielding
+      `driver_vm_console` / `driver_vm_control` / `nested_qemu_control` /
+      `user_vm_console` / `trace_control`
 
 ## Problem Statement
 

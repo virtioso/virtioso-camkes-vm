@@ -27,6 +27,14 @@ Autopilot abstractions.
   - manifest-driven demux configuration
   - dedicated CAmkES-side mux component direction for single-uart targets
   - `ZF_LOG` routing via generic mux log channels
+- 2026-04-23: Primary motivating use case clarified
+  - `vm_qemu_virtio` validation must stop treating one evolving tty stream as
+    if it were one stable speaker
+  - the concrete problem is VM0 boot/login, helper control traffic,
+    nested-QEMU launch output, and user-VM console output sharing one observed
+    stream and forcing brittle regex matching
+  - the router/demux work is therefore justified by a real VM workflow, not
+    only by abstract timeline reconstruction
 - 2026-04-23: Implementation started with launcher-side work in
   `projects/virtioso-camkes-vm/tools/qemu_runner.py`
   - target slice: generate a run manifest owned by the launcher/backend
@@ -595,6 +603,52 @@ Rollback:
 - legacy source mapping can continue to coexist while manifest support is phased
   in
 
+## Concrete Use Case: `vm_qemu_virtio`
+
+The clearest immediate use case is the existing two-VM `vm_qemu_virtio`
+workflow.
+
+Current operational shape:
+
+- VM0 boots first and reaches initramfs/userspace
+- automation or an operator may need to log into `driver-vm`
+- `qemu-rnd-helper` is then launched inside VM0
+- that helper launches nested QEMU for the user VM
+- user-VM boot markers and later console traffic then appear in the same
+  observed path unless they are separated explicitly
+
+Why the current model is insufficient:
+
+- one physical/logical source is being used to represent multiple phases and
+  speakers
+- Autopilot chains are then forced to distinguish VM0 login, helper lifecycle,
+  nested QEMU output, and user-VM readiness by grepping one contaminated byte
+  stream
+- this makes pass/fail logic fragile and order-dependent
+- it also hides whether a matched marker belongs to the driver VM shell, a
+  helper control message, or the user VM itself
+
+The router/demux target for this workflow is:
+
+- `driver_vm_console`
+- `driver_vm_control`
+- `nested_qemu_control`
+- `user_vm_console`
+- optional `trace_control`
+
+Those exact names may still change, but the architectural requirement is now
+explicit: `vm_qemu_virtio` needs multiple named logical streams, not one mixed
+tty log.
+
+What that enables:
+
+- wait for VM0 boot/login on the driver-VM stream
+- send login or helper commands through the right interactive/control seam
+- wait for nested-QEMU launch markers on the helper/control stream
+- wait for user-VM readiness on the user-VM console stream
+- keep all of those as first-class timeline sources instead of text heuristics
+  over one merged log
+
 ## Phase 6: Switch Autopilot Pattern Matching To Logical Sources
 
 Goal:
@@ -612,6 +666,9 @@ Changes:
 - use logical sources such as `vm0_console` or `vm1_console` instead of
   overloading `tty0` or `tty1`
 - reserve physical `tty*` naming for true hardware/UART sources
+- for `vm_qemu_virtio`, stop expressing VM0 login, helper launch, and user-VM
+  readiness as regexes over one mixed stream; bind each wait to the correct
+  logical source instead
 
 Validation:
 

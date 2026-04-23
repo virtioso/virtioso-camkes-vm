@@ -96,6 +96,19 @@ Autopilot abstractions.
     - `python3 -m py_compile projects/virtioso-camkes-vm/tools/console_router.py`
     - `python3 projects/virtioso-camkes-vm/tools/console_router.py run-command ...`
     - inspection of generated `sessions.json`
+- 2026-04-23: Sixth implementation slice completed
+  - Autopilot consumer-side session metadata path updated in `/home/hlyytine/autopilot`
+  - current scope:
+    - `sel4_client.open_console_session()` now returns `pty_path`,
+      `events_path`, `interactive`, and `kind` when present
+    - `chain_runtime.py` now preserves `pty_path` plus basic session metadata in
+      generated `sessions.json`
+    - `console_sessions.py` now records `pty_path` into per-session metadata for
+      PTY-backed sessions
+  - rationale: lets consumers discover router-backed PTYs and richer session
+    metadata without special-case filesystem assumptions
+  - verified with:
+    - `python3 -m py_compile /home/hlyytine/autopilot/sel4_client.py /home/hlyytine/autopilot/console_sessions.py /home/hlyytine/autopilot/chain_runtime.py`
 
 ## Problem Statement
 

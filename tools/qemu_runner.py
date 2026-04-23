@@ -8,6 +8,7 @@ Autopilot should invoke this script instead of hardcoding QEMU launch logic.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import json
 import os
 import re
@@ -472,8 +473,39 @@ def _bundle_metadata(target: str, binary: Path, spec: TargetSpec) -> dict[str, s
         "bundle_entrypoint": "runtime/run-bundle.sh",
         "bundle_qemu_wrapper": "runtime/qemu-wrapper.sh",
         "bundle_images_dir": "runtime/build/images",
+        "bundle_console_manifest": "console-manifest.json",
         "binary_name": binary.name,
         "qemu_binary": spec.qemu_binary,
+    }
+
+
+def _console_manifest(target: str, binary: Path, spec: TargetSpec) -> dict:
+    run_id = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    # The current runner still collapses QEMU-backed console output onto a single
+    # runner-owned stream. Represent that topology honestly first; later slices
+    # can split this into source-specific channels without changing manifest
+    # ownership or format.
+    return {
+        "version": 1,
+        "run_id": run_id,
+        "target": target,
+        "binary_name": binary.name,
+        "transport": {
+            "type": "process_stdio",
+            "owner": "qemu_runner",
+            "qemu_binary": spec.qemu_binary,
+        },
+        "channels": [
+            {
+                "id": 1,
+                "name": "merged_console",
+                "kind": "console",
+                "interactive": True,
+                "pty": False,
+                "legacy_aliases": ["tty0"],
+                "note": "Current QEMU runner topology merges runner and guest-visible console traffic.",
+            }
+        ],
     }
 
 
@@ -605,6 +637,7 @@ def prepare_remote_bundle(
         bundled_interpreter = _copy_uninative_interpreter(bundle_dir, runtime.interpreter)
         _write_remote_wrapper(runtime_build, toolchain_usr, spec, merged_extra_qemu_args, runtime.bios_dir, bundled_interpreter)
         (bundle_dir / "bundle.json").write_text(json.dumps(_bundle_metadata(target, binary, spec), indent=2))
+        (bundle_dir / "console-manifest.json").write_text(json.dumps(_console_manifest(target, binary, spec), indent=2))
         return bundle_dir
     finally:
         if temp_runtime_root is not None:

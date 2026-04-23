@@ -345,11 +345,15 @@ This should be optional so manual bring-up images remain debuggable.
 
 ## Risks and Open Questions
 
-- `qemu-rnd-helper` is currently strongly tied to stdio and monitor multiplexing.
-  A wrapper may need either:
-  - a detached mode added to the helper, or
-  - a new low-level script that reuses the same argument construction without
-    inheriting interactive stdio assumptions.
+- `qemu-rnd-helper` still defaults to stdio+monitor multiplexing, but it now
+  has an explicit backend seam via `QEMU_CHARDEV_MODE`:
+  - `stdio_mux` keeps the legacy monitor+console-on-stdio behavior
+  - `stdio_console` routes only the guest virtconsole over stdio
+  - `none_ringbuf` removes stdio console attachment entirely and keeps the
+    console in a QEMU ring buffer
+- that reduces the need for a one-off wrapper just to get out of mandatory
+  monitor multiplexing, but it does not yet provide a full detached
+  management/ready-state contract
 - The current docs in the Autopilot chain diagram appear stale around VM1 login
   patterns and should be reviewed when the automation flow is updated.
 - The best "ready" definition depends on what testing actually needs:

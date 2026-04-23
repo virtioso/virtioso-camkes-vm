@@ -194,6 +194,33 @@ Autopilot abstractions.
     - `python3 -m py_compile projects/virtioso-camkes-vm/tools/qemu_runner.py`
     - dry-run command inspection showing `--serial '-serial stdio -monitor none'`
       on `vm_qemu_virtio` when the split-monitor opt-in is enabled
+- 2026-04-23: Twelfth implementation slice completed
+  - added an intermediate legacy-demux transport for VM-prefixed merged serial
+    streams
+  - current scope:
+    - `console_router.py` now supports `transport.type=line_prefixes`
+    - ANSI-stripped line prefixes can be mapped onto logical channels
+    - `qemu_runner.py` can emit a `vm_qemu_virtio` prefix-demux manifest with
+      `VIRTIOSO_CONSOLE_ROUTER_USE_VM_PREFIX_DEMUX=1`
+    - documented legacy prefixes `[vm0] ` and `[vm1] ` now map to
+      `driver_vm_console` and `user_vm_console` respectively, with unclassified
+      lines routed to `vmm_mux_control`
+  - rationale: provides a practical bridge between today's merged VM serial
+    stream and the later fully framed source-tagged transport
+  - verified with:
+    - `python3 -m py_compile projects/virtioso-camkes-vm/tools/console_router.py projects/virtioso-camkes-vm/tools/qemu_runner.py`
+    - smoke demux of a prefixed merged stream into distinct per-channel router
+      artifacts
+- 2026-04-23: Twelfth slice corrected
+  - the `[vm0]` / `[vm1]` prefix path is now explicitly treated as legacy
+    VMM-serial-mux output classification, not as a guest-native source
+    contract
+  - current scope:
+    - added dedicated `vmm_mux_control` logical channel for mux-side and
+      otherwise unclassified legacy stream traffic
+    - prefix-demux manifests now record `producer_kind=legacy_vmm_serial_mux`
+    - documentation and manifest notes now state that prefix classification is
+      only an intermediate compatibility transport
 
 ## Problem Statement
 

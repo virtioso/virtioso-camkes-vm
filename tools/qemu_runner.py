@@ -544,20 +544,27 @@ def _logical_vm_qemu_virtio_channels() -> list[dict]:
         },
         {
             "id": 3,
-            "name": "nested_qemu_control",
+            "name": "vmm_mux_control",
             "kind": "control",
             "interactive": False,
             "pty": False,
         },
         {
             "id": 4,
+            "name": "nested_qemu_control",
+            "kind": "control",
+            "interactive": False,
+            "pty": False,
+        },
+        {
+            "id": 5,
             "name": "user_vm_console",
             "kind": "guest_console",
             "interactive": True,
             "pty": True,
         },
         {
-            "id": 5,
+            "id": 6,
             "name": "trace_control",
             "kind": "trace",
             "interactive": False,
@@ -595,6 +602,7 @@ def _console_manifest(target: str, binary: Path, spec: TargetSpec) -> dict:
     run_id = datetime.now(timezone.utc).isoformat(timespec="seconds")
     profile = _console_profile(binary)
     framed_opt_in = _env_flag("VIRTIOSO_CONSOLE_ROUTER_USE_JSONL_FRAMES")
+    prefix_demux_opt_in = _env_flag("VIRTIOSO_CONSOLE_ROUTER_USE_VM_PREFIX_DEMUX")
     if profile == "vm_qemu_virtio" and framed_opt_in:
         return {
             "version": 1,
@@ -607,6 +615,28 @@ def _console_manifest(target: str, binary: Path, spec: TargetSpec) -> dict:
                 "qemu_binary": spec.qemu_binary,
                 "default_input_channel": "driver_vm_console",
                 "framing_mode": "producer_tagged",
+            },
+            "channels": _logical_vm_qemu_virtio_channels(),
+        }
+    if profile == "vm_qemu_virtio" and prefix_demux_opt_in:
+        return {
+            "version": 1,
+            "run_id": run_id,
+            "target": target,
+            "binary_name": binary.name,
+            "transport": {
+                "type": "line_prefixes",
+                "owner": "qemu_runner",
+                "qemu_binary": spec.qemu_binary,
+                "default_input_channel": "driver_vm_console",
+                "prefix_map": {
+                    "[vm0] ": "driver_vm_console",
+                    "[vm1] ": "user_vm_console",
+                },
+                "fallback_channel": "vmm_mux_control",
+                "classification_mode": "ansi_stripped_vmm_mux_line_prefix",
+                "producer_kind": "legacy_vmm_serial_mux",
+                "note": "Prefix-demux classifies legacy VMM/mux annotations, not guest-native source tags.",
             },
             "channels": _logical_vm_qemu_virtio_channels(),
         }

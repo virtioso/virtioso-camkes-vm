@@ -124,6 +124,20 @@ Autopilot abstractions.
   - verified with:
     - `python3 -m py_compile projects/virtioso-camkes-vm/tools/qemu_runner.py`
     - `python3 projects/virtioso-camkes-vm/tools/qemu_runner.py run-remote ... --console-runtime-dir /tmp/router-remote-check --dry-run`
+- 2026-04-23: Eighth implementation slice completed
+  - Autopilot QEMU chain definitions now pass a caller-owned console runtime
+    directory to the runner
+  - current scope:
+    - `qemu_x86_64_defconfig.json` passes
+      `--console-runtime-dir {result_dir}/console`
+    - `qemu_arm64_defconfig.json` passes
+      `--console-runtime-dir {result_dir}/console`
+  - rationale: makes router-produced `sessions.json`, PTYs, raw logs, and event
+    logs land directly in the canonical result tree without Autopilot needing
+    to infer temp paths
+  - verified with:
+    - JSON parse validation of both chain files
+    - diff review showing only the new `--console-runtime-dir` arguments
 
 ## Problem Statement
 

@@ -53,6 +53,10 @@ Autopilot abstractions.
   `simulate` parsed as `--serial` with no argument. Serialize the override via
   a Bash argv array so `--serial` and `--extra-qemu-args` each stay a single
   argument when the wrapper expands them.
+- 2026-04-24: the argv-array fix was still insufficient because `simulate` uses
+  Python `argparse`, and option values beginning with `-` are rejected unless
+  bound in the same token. Emit `--serial=<value>` and
+  `--extra-qemu-args=<value>` as single argv entries.
 
 - 2026-04-23: Plan created and refined with:
   - manifest-driven demux configuration

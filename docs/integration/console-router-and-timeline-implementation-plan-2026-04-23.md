@@ -109,6 +109,21 @@ Autopilot abstractions.
     metadata without special-case filesystem assumptions
   - verified with:
     - `python3 -m py_compile /home/hlyytine/autopilot/sel4_client.py /home/hlyytine/autopilot/console_sessions.py /home/hlyytine/autopilot/chain_runtime.py`
+- 2026-04-23: Seventh implementation slice started
+  - target slice: land router runtime artifacts directly under Autopilot
+    `results/<request>/console/` for QEMU-backed runs
+  - current scope:
+    - split `qemu_runner.py` ownership between:
+      - `--runtime-dir` / `--runtime-tar` for QEMU runtime resolution
+      - `--console-runtime-dir` for launcher-owned router artifacts
+    - keep remote bundle generation unchanged while making local/remote runner
+      wrappers write `console-manifest.json`, `sessions.json`, PTYs, and event
+      logs into a caller-selected runtime root
+  - rationale: makes router artifacts first-class run outputs instead of temp
+    side effects and gives Autopilot a stable handoff point
+  - verified with:
+    - `python3 -m py_compile projects/virtioso-camkes-vm/tools/qemu_runner.py`
+    - `python3 projects/virtioso-camkes-vm/tools/qemu_runner.py run-remote ... --console-runtime-dir /tmp/router-remote-check --dry-run`
 
 ## Problem Statement
 

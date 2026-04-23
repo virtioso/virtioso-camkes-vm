@@ -256,6 +256,7 @@ def _run_subprocess(argv: list[str], *, cwd: Path, env: dict[str, str], dry_run:
 
 
 def _write_console_manifest(path: Path, target: str, binary: Path, spec: TargetSpec) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(_console_manifest(target, binary, spec), indent=2) + "\n")
     return path
 
@@ -323,7 +324,15 @@ def _fallback_local_command(binary: Path, spec: TargetSpec, qemu_binary: Path, e
     return argv
 
 
-def run_local(target: str, binary_path: str, extra_qemu_args: str, dry_run: bool, runtime_dir: str, runtime_tar: str) -> int:
+def run_local(
+    target: str,
+    binary_path: str,
+    extra_qemu_args: str,
+    dry_run: bool,
+    runtime_dir: str,
+    runtime_tar: str,
+    console_runtime_dir: str,
+) -> int:
     spec = _resolve_target(target)
     if spec.requires_remote:
         raise RunnerError(f"{target} must be run via the remote workflow")
@@ -344,14 +353,20 @@ def run_local(target: str, binary_path: str, extra_qemu_args: str, dry_run: bool
         wrapped_argv = _simulate_command(build_dir, runtime.binary, merged_extra_qemu_args)
     else:
         wrapped_argv = _fallback_local_command(binary, spec, runtime.binary, merged_extra_qemu_args)
-    console_root = Path(tempfile.mkdtemp(prefix="virtioso-console-local-"))
+    preserve_console_root = bool(console_runtime_dir.strip())
+    console_root = (
+        Path(console_runtime_dir).expanduser().resolve()
+        if preserve_console_root
+        else Path(tempfile.mkdtemp(prefix="virtioso-console-local-"))
+    )
     manifest_path = _write_console_manifest(console_root / "console-manifest.json", target, binary, spec)
     router_runtime_dir = console_root / "console-runtime"
     argv = _router_command(manifest_path, router_runtime_dir, wrapped_argv)
     try:
         return _run_subprocess(argv, cwd=build_dir, env=env, dry_run=dry_run)
     finally:
-        _remove_path(console_root)
+        if not preserve_console_root:
+            _remove_path(console_root)
         if temp_runtime_root is not None:
             _remove_path(temp_runtime_root)
 
@@ -819,14 +834,24 @@ def run_remote(
     dry_run: bool,
     runtime_dir: str,
     runtime_tar: str,
+    console_runtime_dir: str,
 ) -> int:
     spec = _resolve_target(target)
     if not spec.requires_remote:
         raise RunnerError(f"{target} is a local target; use run-local")
+    binary = _resolve_binary(binary_path)
     runner = _load_remote_config(config_path, target)
     bundle_dir = prepare_remote_bundle(target, binary_path, None, extra_qemu_args, runtime_dir, runtime_tar)
     tar_path = _tar_bundle(bundle_dir)
     temp_root = bundle_dir.parent
+    preserve_console_root = bool(console_runtime_dir.strip())
+    console_root = (
+        Path(console_runtime_dir).expanduser().resolve()
+        if preserve_console_root
+        else Path(tempfile.mkdtemp(prefix="virtioso-console-remote-"))
+    )
+    manifest_path = _write_console_manifest(console_root / "console-manifest.json", target, binary, spec)
+    router_runtime_dir = console_root / "console-runtime"
     remote = f"{runner['ssh_user']}@{runner['ssh_host']}"
     remote_dir = runner["remote_dir"]
     remote_scp_dir = _remote_home_relative(remote_dir).rstrip("/")
@@ -843,7 +868,8 @@ def run_remote(
     scp_cmd = ["scp", *ssh_opts, str(tar_path), scp_dest]
     remote_cleanup = _remote_cleanup_command(remote_shell_dir, bundle_dir.name, tar_path.name, diag_name)
     run_script = _remote_run_command(remote_shell_dir, bundle_dir.name, tar_path.name, diag_name, spec.qemu_binary)
-    run_cmd = ["ssh", *ssh_opts, remote, "bash", "-lc", run_script]
+    ssh_run_cmd = ["ssh", *ssh_opts, remote, "bash", "-lc", run_script]
+    run_cmd = _router_command(manifest_path, router_runtime_dir, ssh_run_cmd)
     cleanup_cmd = ["ssh", *ssh_opts, remote, "bash", "-lc", remote_cleanup]
     print(f"QEMU_RUNNER_INFO: remote={remote}", flush=True)
     print(f"QEMU_RUNNER_INFO: bundle={bundle_dir}", flush=True)
@@ -891,6 +917,8 @@ def run_remote(
                 pass
         _remove_path(tar_path)
         _remove_path(temp_root)
+        if not preserve_console_root:
+            _remove_path(console_root)
 
 
 def _config_template() -> str:
@@ -919,6 +947,7 @@ def parse_args() -> argparse.Namespace:
     common.add_argument("--binary", required=True, help="Path to the built seL4 image used to locate the build dir")
     common.add_argument("--extra-qemu-args", default="", help="Arguments forwarded to the generated simulate script")
     common.add_argument("--runtime-dir", default="", help="Path to an extracted QEMU runtime artifact root")
+    common.add_argument("--console-runtime-dir", default="", help="Directory where console router runtime artifacts are written")
     common.add_argument("--runtime-tar", default="", help="Path to a QEMU runtime artifact tarball")
     common.add_argument("--dry-run", action="store_true")
 
@@ -943,7 +972,15 @@ def main() -> int:
     args = parse_args()
     try:
         if args.handler == "run_local":
-            return run_local(args.target, args.binary, args.extra_qemu_args, args.dry_run, args.runtime_dir, args.runtime_tar)
+            return run_local(
+                args.target,
+                args.binary,
+                args.extra_qemu_args,
+                args.dry_run,
+                args.runtime_dir,
+                args.runtime_tar,
+                args.console_runtime_dir,
+            )
         if args.handler == "prepare_remote_bundle":
             bundle_dir = prepare_remote_bundle(
                 args.target,
@@ -964,6 +1001,7 @@ def main() -> int:
                 args.dry_run,
                 args.runtime_dir,
                 args.runtime_tar,
+                args.console_runtime_dir,
             )
         if args.handler == "print_config_template":
             print(_config_template(), flush=True)

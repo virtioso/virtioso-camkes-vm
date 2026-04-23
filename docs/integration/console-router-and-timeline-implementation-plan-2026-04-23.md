@@ -85,6 +85,17 @@ Autopilot abstractions.
   - verified with:
     - `python3 -m py_compile projects/virtioso-camkes-vm/tools/qemu_runner.py`
     - `python3 projects/virtioso-camkes-vm/tools/qemu_runner.py run-local ... --dry-run`
+- 2026-04-23: Fifth implementation slice completed
+  - live router now emits `sessions.json` in the runtime directory
+  - current scope:
+    - stable session discovery metadata for consumers
+    - includes logical name, raw log path, events path, and PTY path
+  - rationale: makes router-produced PTYs/logs discoverable without implicit
+    filesystem knowledge
+  - verified with:
+    - `python3 -m py_compile projects/virtioso-camkes-vm/tools/console_router.py`
+    - `python3 projects/virtioso-camkes-vm/tools/console_router.py run-command ...`
+    - inspection of generated `sessions.json`
 
 ## Problem Statement
 

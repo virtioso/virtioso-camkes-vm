@@ -999,9 +999,9 @@ def run_remote(
     scp_cmd = ["scp", *ssh_opts, str(tar_path), scp_dest]
     remote_cleanup = _remote_cleanup_command(remote_shell_dir, bundle_dir.name, tar_path.name, diag_name)
     run_script = _remote_run_command(remote_shell_dir, bundle_dir.name, tar_path.name, diag_name, spec.qemu_binary)
-    ssh_run_cmd = ["ssh", *ssh_opts, remote, "bash", "-lc", run_script]
+    ssh_run_cmd = ["ssh", *ssh_opts, remote, f"bash -lc {shlex.quote(run_script)}"]
     run_cmd = _router_command(manifest_path, router_runtime_dir, ssh_run_cmd)
-    cleanup_cmd = ["ssh", *ssh_opts, remote, "bash", "-lc", remote_cleanup]
+    cleanup_cmd = ["ssh", *ssh_opts, remote, f"bash -lc {shlex.quote(remote_cleanup)}"]
     print(f"QEMU_RUNNER_INFO: remote={remote}", flush=True)
     print(f"QEMU_RUNNER_INFO: bundle={bundle_dir}", flush=True)
     print(f"QEMU_RUNNER_INFO: ssh-mkdir={_shell_join(mkdir_cmd)}", flush=True)

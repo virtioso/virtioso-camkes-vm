@@ -218,6 +218,20 @@ Autopilot abstractions.
     - `python3 -m py_compile projects/virtioso-camkes-vm/tools/qemu_runner.py`
     - dry-run command inspection showing `--serial '-serial stdio -monitor none'`
       on `vm_qemu_virtio` when the split-monitor opt-in is enabled
+- 2026-04-24: Twelfth implementation follow-up started
+  - first real `qemu_x86_64_vm_qemu_virtio_uservm` run exposed a host-side
+    remote-launch bug before VM1 lifecycle logic was exercised
+  - concrete failure:
+    - `run_remote()` built `ssh ... bash -lc <script>` as separate argv items
+    - `ssh` flattened those into one remote command line, so `bash -lc`
+      received only `set` as the command string and printed shell state instead
+      of running the bundle wrapper
+  - action:
+    - quote the entire remote script as one remote shell command for both
+      `ssh-run` and `ssh-cleanup`
+  - rationale:
+    - this is required for the managed user-vm chain to test `uservmctl`
+      rather than failing in host-side launcher glue
 - 2026-04-23: Twelfth implementation slice completed
   - added an intermediate legacy-demux transport for VM-prefixed merged serial
     streams

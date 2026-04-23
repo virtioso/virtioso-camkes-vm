@@ -146,6 +146,22 @@ Autopilot abstractions.
   - verified with:
     - JSON parse validation of both chain files
     - diff review showing only the new `--console-runtime-dir` arguments
+- 2026-04-23: Ninth implementation slice completed
+  - `console_router.py` now supports a framed multi-channel transport in
+    addition to the legacy one-channel `process_stdio` wrapper
+  - current scope:
+    - new `transport.type=jsonl_frames` path for `run-command`
+    - one wrapped process stdout stream can carry multiple logical channels
+    - router now splits those frames into per-channel raw logs, event logs, and
+      PTY metadata using the existing manifest/session model
+    - interactive input is now modeled against a manifest-defined default input
+      channel for framed transports
+  - rationale: gives the console stack a real host-side demux path before the
+    seL4/QEMU producers are converted to emit framed source-tagged traffic
+  - verified with:
+    - `python3 -m py_compile projects/virtioso-camkes-vm/tools/console_router.py`
+    - smoke run with a two-channel `jsonl_frames` manifest producing distinct
+      `driver_vm_console` and `user_vm_console` artifacts
 
 ## Problem Statement
 

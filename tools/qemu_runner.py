@@ -255,6 +255,29 @@ def _run_subprocess(argv: list[str], *, cwd: Path, env: dict[str, str], dry_run:
     return proc.returncode
 
 
+def _write_console_manifest(path: Path, target: str, binary: Path, spec: TargetSpec) -> Path:
+    path.write_text(json.dumps(_console_manifest(target, binary, spec), indent=2) + "\n")
+    return path
+
+
+def _router_command(
+    manifest_path: Path,
+    runtime_dir: Path,
+    wrapped_command: list[str],
+) -> list[str]:
+    return [
+        "python3",
+        str(SCRIPT_DIR / "console_router.py"),
+        "run-command",
+        "--manifest",
+        str(manifest_path),
+        "--runtime-dir",
+        str(runtime_dir),
+        "--",
+        *wrapped_command,
+    ]
+
+
 def _build_extra_qemu_args(build_dir: Path) -> str:
     args_file = build_dir / "images" / "qemu-extra-args"
     if not args_file.exists():
@@ -318,12 +341,17 @@ def run_local(target: str, binary_path: str, extra_qemu_args: str, dry_run: bool
     )
     simulate = _simulate_script(build_dir)
     if simulate.exists():
-        argv = _simulate_command(build_dir, runtime.binary, merged_extra_qemu_args)
+        wrapped_argv = _simulate_command(build_dir, runtime.binary, merged_extra_qemu_args)
     else:
-        argv = _fallback_local_command(binary, spec, runtime.binary, merged_extra_qemu_args)
+        wrapped_argv = _fallback_local_command(binary, spec, runtime.binary, merged_extra_qemu_args)
+    console_root = Path(tempfile.mkdtemp(prefix="virtioso-console-local-"))
+    manifest_path = _write_console_manifest(console_root / "console-manifest.json", target, binary, spec)
+    router_runtime_dir = console_root / "console-runtime"
+    argv = _router_command(manifest_path, router_runtime_dir, wrapped_argv)
     try:
         return _run_subprocess(argv, cwd=build_dir, env=env, dry_run=dry_run)
     finally:
+        _remove_path(console_root)
         if temp_runtime_root is not None:
             _remove_path(temp_runtime_root)
 

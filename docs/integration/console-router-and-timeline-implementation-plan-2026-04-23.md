@@ -73,6 +73,18 @@ Autopilot abstractions.
     - generated bundle contains `runtime/console_router.py`
     - generated bundle `run-bundle.sh` invokes the router
     - runtime directory contains `raw.log`, `events.jsonl`, and `pty` symlink
+- 2026-04-23: Fourth implementation slice completed
+  - local QEMU runner path now goes through the same router seam as the remote
+    bundle path
+  - current scope:
+    - `run_local()` writes a temporary launcher-owned manifest
+    - `run_local()` invokes `console_router.py run-command` around the wrapped
+      local command
+  - rationale: keeps console architecture consistent across local and remote
+    QEMU-backed flows
+  - verified with:
+    - `python3 -m py_compile projects/virtioso-camkes-vm/tools/qemu_runner.py`
+    - `python3 projects/virtioso-camkes-vm/tools/qemu_runner.py run-local ... --dry-run`
 
 ## Problem Statement
 

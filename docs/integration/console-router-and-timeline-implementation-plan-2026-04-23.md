@@ -51,7 +51,7 @@ Autopilot abstractions.
 - 2026-04-24: enabling split-monitor immediately exposed a wrapper-generation
   bug: the generated `run-bundle.sh` passed the serial override in a form that
   `simulate` parsed as `--serial` with no argument. Serialize the override via
-  shell variables so `--serial` and `--extra-qemu-args` each stay a single
+  a Bash argv array so `--serial` and `--extra-qemu-args` each stay a single
   argument when the wrapper expands them.
 
 - 2026-04-23: Plan created and refined with:

@@ -736,14 +736,20 @@ def _write_remote_wrapper(
         'console_manifest="${SCRIPT_DIR}/../console-manifest.json"',
         (f'simulate_serial_opt={shlex.quote(simulate_serial_opt)}' if simulate_serial_opt else 'simulate_serial_opt=""'),
         (f'qemu_extra_opt={shlex.quote(qemu_extra)}' if qemu_extra else 'qemu_extra_opt=""'),
+        'router_cmd=(',
+        '  python3 "${SCRIPT_DIR}/console_router.py" run-command',
+        '  --manifest "${console_manifest}"',
+        '  --runtime-dir "${console_runtime_dir}"',
+        '  -- ./simulate -b ../qemu-wrapper.sh',
+        ')',
+        'if [[ -n "${simulate_serial_opt}" ]]; then',
+        '  router_cmd+=(--serial "${simulate_serial_opt}")',
+        'fi',
+        'if [[ -n "${qemu_extra_opt}" ]]; then',
+        '  router_cmd+=(--extra-qemu-args "${qemu_extra_opt}")',
+        'fi',
         "set +e",
-        'python3 "${SCRIPT_DIR}/console_router.py" run-command'
-        + ' --manifest "${console_manifest}"'
-        + ' --runtime-dir "${console_runtime_dir}"'
-        + ' -- ./simulate -b ../qemu-wrapper.sh'
-        + ' ${simulate_serial_opt:+--serial "${simulate_serial_opt}"}'
-        + ' ${qemu_extra_opt:+--extra-qemu-args "${qemu_extra_opt}"}'
-        + ' 2>&1 | tee "${log_path}"',
+        '"${router_cmd[@]}" 2>&1 | tee "${log_path}"',
         'sim_rc=${PIPESTATUS[0]}',
         "set -e",
         'if [[ "${sim_rc}" -eq 0 ]] && grep -qE "Segmentation fault \\(core dumped\\)|QEMU failed;" "${log_path}"; then',

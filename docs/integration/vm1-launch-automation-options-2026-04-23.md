@@ -20,6 +20,27 @@ Date: 2026-04-23
     - `status`
     - `wait-ready`
     - `stop`
+- 2026-04-23: Host-side validation lane split out for x86 remote QEMU
+  - kept `qemu_x86_64_defconfig` as the boot-to-driver-vm smoke test
+  - added a separate Autopilot chain,
+    `qemu_x86_64_vm_qemu_virtio_uservm`, for the deeper managed-launch check
+  - that chain boots to `driver-vm`, runs `uservmctl start`, waits on
+    `uservmctl wait-ready`, and emits managed-log diagnostics on failure
+  - this keeps the launcher contract testable on remote QEMU without
+    overloading the existing x86 smoke profile
+- 2026-04-24: First real x86 managed-launch run reached the next consumer gap
+  - the dedicated chain now reaches `driver-vm login:` on remote QEMU
+  - initial failure was not VM1 itself but host-side runner quoting; fixed in
+    `qemu_runner.py` so the remote bundle actually executes
+  - after that fix, the next blocker was Autopilot input routing:
+    - `send_root_login` executed
+    - but no `tx` events appeared in the router event log
+    - root input was being written only to the command wrapper stdin, not to
+      the router-exposed PTY for the logical console source
+  - current action:
+    - teach Autopilot `map_command_source` bindings to resolve router-backed
+      `tty0` writes through `console-manifest.json` plus `console-runtime/sessions.json`
+    - keep read-path ownership unchanged
 
 ## Summary
 

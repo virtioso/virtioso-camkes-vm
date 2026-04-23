@@ -99,6 +99,8 @@ This file is the canonical source for build and test command sequences.
 ## Notes
 
 - Build commands are always `make` targets from workspace root.
+- Defconfig commands are serialized steps. Do not run `make <name>_defconfig`
+  in parallel with any other command.
 - Testing is always `test_sel4_efi`.
 - Use Autopilot chains, not legacy profiles.
 - For QEMU defconfig targets, the Autopilot chain name matches the build

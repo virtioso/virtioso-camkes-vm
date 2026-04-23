@@ -1157,6 +1157,9 @@ def main() -> int:
             print(_config_template(), flush=True)
             return 0
         raise RunnerError(f"unhandled command: {args.handler}")
+    except subprocess.CalledProcessError as exc:
+        print(f"QEMU_RUNNER_ERROR: command failed rc={exc.returncode}: {_shell_join(exc.cmd)}", file=sys.stderr, flush=True)
+        return 2
     except RunnerError as exc:
         print(f"QEMU_RUNNER_ERROR: {exc}", file=sys.stderr, flush=True)
         return 2

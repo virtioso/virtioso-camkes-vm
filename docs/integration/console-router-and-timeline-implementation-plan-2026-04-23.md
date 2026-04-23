@@ -53,6 +53,26 @@ Autopilot abstractions.
     - `python3 -m py_compile projects/virtioso-camkes-vm/tools/console_router.py`
     - `python3 projects/virtioso-camkes-vm/tools/console_router.py describe-manifest ...`
     - `python3 projects/virtioso-camkes-vm/tools/console_router.py prepare-runtime ...`
+- 2026-04-23: Third implementation slice completed
+  - `console_router.py` now supports a live inline wrapper mode for the current
+    `process_stdio` transport
+  - current scope:
+    - spawn a wrapped command
+    - mirror command output to router stdout for compatibility
+    - write per-channel raw logs
+    - write per-channel event logs with monotonic/realtime ns timestamps
+    - create PTY symlinks for interactive channels and forward output to them
+    - forward PTY/stdin input back to the wrapped command
+  - `qemu_runner.py` now:
+    - marks the current merged console channel as PTY-capable
+    - copies `console_router.py` into remote bundles
+    - wraps `simulate` with `console_router.py run-command` in `run-bundle.sh`
+  - verified with:
+    - `python3 -m py_compile projects/virtioso-camkes-vm/tools/console_router.py projects/virtioso-camkes-vm/tools/qemu_runner.py`
+    - standalone router smoke test via `run-command -- bash -lc 'printf ...'`
+    - generated bundle contains `runtime/console_router.py`
+    - generated bundle `run-bundle.sh` invokes the router
+    - runtime directory contains `raw.log`, `events.jsonl`, and `pty` symlink
 
 ## Problem Statement
 

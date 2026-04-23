@@ -501,12 +501,21 @@ def _console_manifest(target: str, binary: Path, spec: TargetSpec) -> dict:
                 "name": "merged_console",
                 "kind": "console",
                 "interactive": True,
-                "pty": False,
+                "pty": True,
                 "legacy_aliases": ["tty0"],
                 "note": "Current QEMU runner topology merges runner and guest-visible console traffic.",
             }
         ],
     }
+
+
+def _copy_console_router(bundle_dir: Path) -> Path:
+    router_src = SCRIPT_DIR / "console_router.py"
+    router_dst = bundle_dir / "runtime" / "console_router.py"
+    router_dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(router_src, router_dst)
+    router_dst.chmod(0o755)
+    return router_dst
 
 
 def _write_remote_wrapper(
@@ -556,8 +565,13 @@ def _write_remote_wrapper(
         (f'export QEMU_DATA_DIR="${{TOOLCHAIN_USR}}/share/qemu"' if qemu_data_dir.exists() else "true"),
         'cd "${SCRIPT_DIR}/build"',
         'log_path="${SCRIPT_DIR}/qemu-run.log"',
+        'console_runtime_dir="${SCRIPT_DIR}/console-runtime"',
+        'console_manifest="${SCRIPT_DIR}/../console-manifest.json"',
         "set +e",
-        './simulate -b ../qemu-wrapper.sh'
+        'python3 "${SCRIPT_DIR}/console_router.py" run-command'
+        + ' --manifest "${console_manifest}"'
+        + ' --runtime-dir "${console_runtime_dir}"'
+        + ' -- ./simulate -b ../qemu-wrapper.sh'
         + (f" --extra-qemu-args {shlex.quote(qemu_extra)}" if qemu_extra else "")
         + ' 2>&1 | tee "${log_path}"',
         'sim_rc=${PIPESTATUS[0]}',
@@ -635,6 +649,7 @@ def prepare_remote_bundle(
         runtime_build = _collect_runtime_tree(build_dir, bundle_dir / "runtime")
         toolchain_usr = _copy_qemu_runtime(bundle_dir, runtime)
         bundled_interpreter = _copy_uninative_interpreter(bundle_dir, runtime.interpreter)
+        _copy_console_router(bundle_dir)
         _write_remote_wrapper(runtime_build, toolchain_usr, spec, merged_extra_qemu_args, runtime.bios_dir, bundled_interpreter)
         (bundle_dir / "bundle.json").write_text(json.dumps(_bundle_metadata(target, binary, spec), indent=2))
         (bundle_dir / "console-manifest.json").write_text(json.dumps(_console_manifest(target, binary, spec), indent=2))

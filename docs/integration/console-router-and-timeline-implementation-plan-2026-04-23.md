@@ -179,6 +179,21 @@ Autopilot abstractions.
     - opt-in manifest generation yielding
       `driver_vm_console` / `driver_vm_control` / `nested_qemu_control` /
       `user_vm_console` / `trace_control`
+- 2026-04-23: Eleventh implementation slice completed
+  - `qemu_runner.py` now has a producer-side serial-policy override seam for
+    generated `simulate` launches
+  - current scope:
+    - explicit `VIRTIOSO_QEMU_SIM_SERIAL_OPT` passthrough to `./simulate --serial`
+    - `vm_qemu_virtio`-specific shortcut `VIRTIOSO_QEMU_SPLIT_MONITOR=1`
+      switches generated launches from `-serial mon:stdio` to
+      `-serial stdio -monitor none`
+    - applies to both local and remote `simulate`-based launches
+  - rationale: removes one avoidable source of stream contamination before
+    deeper producer-side framing work exists
+  - verified with:
+    - `python3 -m py_compile projects/virtioso-camkes-vm/tools/qemu_runner.py`
+    - dry-run command inspection showing `--serial '-serial stdio -monitor none'`
+      on `vm_qemu_virtio` when the split-monitor opt-in is enabled
 
 ## Problem Statement
 

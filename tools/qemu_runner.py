@@ -305,11 +305,14 @@ def _merge_extra_qemu_args(
     return _shell_join(merged)
 
 
-def _simulate_command(build_dir: Path, qemu_binary: Path, extra_qemu_args: str) -> list[str]:
+def _simulate_command(build_dir: Path, binary: Path, qemu_binary: Path, extra_qemu_args: str) -> list[str]:
     simulate = _simulate_script(build_dir)
     if not simulate.exists():
         raise RunnerError(f"simulate script not found: {simulate}")
     argv = [str(simulate), "-b", str(qemu_binary)]
+    serial_opt = _simulate_serial_opt(binary)
+    if serial_opt:
+        argv.extend(["--serial", serial_opt])
     if extra_qemu_args.strip():
         argv.extend(["--extra-qemu-args", extra_qemu_args.strip()])
     return argv
@@ -350,7 +353,7 @@ def run_local(
     )
     simulate = _simulate_script(build_dir)
     if simulate.exists():
-        wrapped_argv = _simulate_command(build_dir, runtime.binary, merged_extra_qemu_args)
+        wrapped_argv = _simulate_command(build_dir, binary, runtime.binary, merged_extra_qemu_args)
     else:
         wrapped_argv = _fallback_local_command(binary, spec, runtime.binary, merged_extra_qemu_args)
     preserve_console_root = bool(console_runtime_dir.strip())
@@ -575,6 +578,19 @@ def _env_flag(name: str) -> bool:
     return value in {"1", "true", "yes", "on"}
 
 
+def _env_text(name: str) -> str:
+    return os.environ.get(name, "").strip()
+
+
+def _simulate_serial_opt(binary: Path) -> str:
+    explicit = _env_text("VIRTIOSO_QEMU_SIM_SERIAL_OPT")
+    if explicit:
+        return explicit
+    if _console_profile(binary) == "vm_qemu_virtio" and _env_flag("VIRTIOSO_QEMU_SPLIT_MONITOR"):
+        return "-serial stdio -monitor none"
+    return ""
+
+
 def _console_manifest(target: str, binary: Path, spec: TargetSpec) -> dict:
     run_id = datetime.now(timezone.utc).isoformat(timespec="seconds")
     profile = _console_profile(binary)
@@ -637,6 +653,7 @@ def _copy_console_router(bundle_dir: Path) -> Path:
 
 def _write_remote_wrapper(
     runtime_build: Path,
+    binary: Path,
     toolchain_usr: Path,
     spec: TargetSpec,
     extra_qemu_args: str,
@@ -672,6 +689,7 @@ def _write_remote_wrapper(
         qemu_wrapper_lines.append(f'exec "../../toolchain/usr/bin/{spec.qemu_binary}" "$@"')
     qemu_wrapper.write_text("\n".join(qemu_wrapper_lines) + "\n")
     qemu_wrapper.chmod(0o755)
+    simulate_serial_opt = _simulate_serial_opt(binary)
     lines = [
         "#!/usr/bin/env bash",
         "set -euo pipefail",
@@ -689,6 +707,7 @@ def _write_remote_wrapper(
         + ' --manifest "${console_manifest}"'
         + ' --runtime-dir "${console_runtime_dir}"'
         + ' -- ./simulate -b ../qemu-wrapper.sh'
+        + (f" --serial {shlex.quote(simulate_serial_opt)}" if simulate_serial_opt else "")
         + (f" --extra-qemu-args {shlex.quote(qemu_extra)}" if qemu_extra else "")
         + ' 2>&1 | tee "${log_path}"',
         'sim_rc=${PIPESTATUS[0]}',
@@ -767,7 +786,15 @@ def prepare_remote_bundle(
         toolchain_usr = _copy_qemu_runtime(bundle_dir, runtime)
         bundled_interpreter = _copy_uninative_interpreter(bundle_dir, runtime.interpreter)
         _copy_console_router(bundle_dir)
-        _write_remote_wrapper(runtime_build, toolchain_usr, spec, merged_extra_qemu_args, runtime.bios_dir, bundled_interpreter)
+        _write_remote_wrapper(
+            runtime_build,
+            binary,
+            toolchain_usr,
+            spec,
+            merged_extra_qemu_args,
+            runtime.bios_dir,
+            bundled_interpreter,
+        )
         (bundle_dir / "bundle.json").write_text(json.dumps(_bundle_metadata(target, binary, spec), indent=2))
         (bundle_dir / "console-manifest.json").write_text(json.dumps(_console_manifest(target, binary, spec), indent=2))
         return bundle_dir

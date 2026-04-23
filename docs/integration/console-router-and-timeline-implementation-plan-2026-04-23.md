@@ -232,6 +232,18 @@ Autopilot abstractions.
   - rationale:
     - this is required for the managed user-vm chain to test `uservmctl`
       rather than failing in host-side launcher glue
+- 2026-04-24: Thirteenth implementation slice started
+  - target slice: stop the x86 managed `vm_qemu_virtio` lane from matching the
+    merged legacy `tty0` stream
+  - current scope:
+    - expose router-produced channels as readable sources to Autopilot
+    - let `send_cmd` target router-backed channels directly through their PTYs
+    - switch the x86 managed chain to `driver_vm_console`
+    - enable `VIRTIOSO_CONSOLE_ROUTER_USE_VM_PREFIX_DEMUX=1` for that chain
+      so the existing `[vm0]` / `[vm1]` annotations become separable sources
+  - rationale:
+    - the managed user-vm lane should fail or pass based on VM0 shell and VM1
+      lifecycle behavior, not on unrelated VM1/VMM noise in the merged tty log
 - 2026-04-23: Twelfth implementation slice completed
   - added an intermediate legacy-demux transport for VM-prefixed merged serial
     streams

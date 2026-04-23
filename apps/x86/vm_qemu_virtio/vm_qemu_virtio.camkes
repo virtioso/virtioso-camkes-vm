@@ -22,6 +22,7 @@ import <vm-connectors.camkes>;
 
 component Init0 {
     VM_VIRTIOSO_INIT_DEF()
+    attribute string physical_pci_host_bridge;
 
     VIRTIO_DRIVER_COMPONENT_DEF(1)
 }
@@ -46,8 +47,16 @@ assembly {
         VM_VIRTIOSO_CONFIGURATION_DEF(0)
         VM_VIRTIOSO_CONFIGURATION_DEF(1)
 
+        vm0.simple_untyped23_pool = 21;
+        vm0.simple_untyped22_pool = 1;
         vm0.heap_size = 0x5000000;
+        vm0.iospace_domain = 0x0f;
+        vm0.pci_devices_iospace = 1;
         vm1.heap_size = 0x300000;
+        vm1.simple_untyped23_pool = 21;
+        vm1.simple_untyped22_pool = 1;
+        vm1.iospace_domain = 0x10;
+        vm1.pci_devices_iospace = 2;
         vm0.guest_ram_mb = 128;
         vm1.guest_ram_mb = 128;
 
@@ -55,10 +64,34 @@ assembly {
         vm0.kernel_image = "bzimage";
         vm0.kernel_relocs = "bzimage";
         vm0.initrd_image = "rootfs.cpio.gz";
+        vm0.physical_pci_host_bridge = "qemu_pc_q35";
+        vm0.physical_pci_devices = [
+            {
+                "name": "q35-virtio-net",
+                "owner": "guest",
+                "bus": 0x00,
+                "dev": 0x01,
+                "fun": 0x0,
+                "iospace": true,
+                "interrupt_pin": 1
+            },
+            {
+                "name": "q35-virtio-blk",
+                "owner": "guest",
+                "bus": 0x00,
+                "dev": 0x02,
+                "fun": 0x0,
+                "iospace": true,
+                "interrupt_pin": 1
+            }
+        ];
+        vm0.untyped_mmios = [];
+        vm0.vm_irqs = [];
 
         vm1.kernel_cmdline = VM1_GUEST_CMDLINE;
         vm1.kernel_image = "bzimage";
         vm1.kernel_relocs = "bzimage";
         vm1.initrd_image = "rootfs.cpio.gz";
+        vm1.vm_irqs = [];
     }
 }

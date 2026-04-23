@@ -244,6 +244,21 @@ Autopilot abstractions.
   - rationale:
     - the managed user-vm lane should fail or pass based on VM0 shell and VM1
       lifecycle behavior, not on unrelated VM1/VMM noise in the merged tty log
+- 2026-04-24: Thirteenth slice refined after first split-source run
+  - observed behavior:
+    - prefix demux produced the expected channel files
+    - but `driver_vm_console` stayed empty while `vmm_mux_control` absorbed the
+      full stream
+  - concrete finding:
+    - this x86 stream does not present driver-vm guest output as `[vm0] ...`
+    - the actual driver-vm guest console is currently the unprefixed
+      compatibility stream
+    - `vm0:` / `vm1:` prefixes are VMM annotations and should be treated as
+      control noise for this lane
+  - action:
+    - route `vm0:` / `vm1:` and `[vm0]` / `[vm1]` prefixes to
+      `vmm_mux_control`
+    - route unprefixed fallback lines to `driver_vm_console`
 - 2026-04-23: Twelfth implementation slice completed
   - added an intermediate legacy-demux transport for VM-prefixed merged serial
     streams

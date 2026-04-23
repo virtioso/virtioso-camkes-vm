@@ -14,10 +14,9 @@ This file is the canonical policy for Autopilot test submission and results.
 
 - Always pass `autopilot_dir="/home/hlyytine/tii-sel4/autopilot"`.
 - For daemon start/restart calls, always pass `use_tmux=true`.
-- `profile` is derived from target name with:
-  for QEMU defconfig targets, use `profile = target`
-- Confirm profile exists before submit:
-  `/home/hlyytine/autopilot/profiles/<profile>.json`
+- Use Autopilot chains, not legacy profiles.
+- For QEMU defconfig targets, use `chain = target`.
+- Do not verify legacy profile files before submit.
 
 ## Queue and Results
 

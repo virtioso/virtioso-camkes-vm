@@ -15,7 +15,7 @@ This file is the canonical source for build and test command sequences.
 5. Ensure Autopilot daemon is running in tmux:
    `mcp__sel4-autopilot__autopilot_restart(autopilot_dir="/home/hlyytine/tii-sel4/autopilot", use_tmux=true)`
 6. Submit EFI test:
-   `mcp__sel4-autopilot__test_sel4_efi(autopilot_dir="/home/hlyytine/tii-sel4/autopilot", binary_path="/home/hlyytine/tii-sel4/orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx", profile="vm-qemu-virtio")`
+   `mcp__sel4-autopilot__test_sel4_efi(autopilot_dir="/home/hlyytine/tii-sel4/autopilot", binary_path="/home/hlyytine/tii-sel4/orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx", chain="vm-qemu-virtio")`
 7. Poll status:
    `mcp__sel4-autopilot__get_test_status(...)` or `mcp__sel4-autopilot__wait_for_test(...)`
 8. Get logs:
@@ -36,7 +36,7 @@ This file is the canonical source for build and test command sequences.
 5. Ensure Autopilot daemon is running in tmux:
    `mcp__sel4-autopilot__autopilot_restart(autopilot_dir="/home/hlyytine/tii-sel4/autopilot", use_tmux=true)`
 6. Submit QEMU-backed test:
-   `mcp__sel4-autopilot__test_sel4_efi(autopilot_dir="/home/hlyytine/tii-sel4/autopilot", binary_path="/home/hlyytine/tii-sel4/qemu_x86_64_vm_qemu_virtio/images/capdl-loader-image-x86_64-pc99", profile="qemu_x86_64_defconfig")`
+   `mcp__sel4-autopilot__test_sel4_efi(autopilot_dir="/home/hlyytine/tii-sel4/autopilot", binary_path="/home/hlyytine/tii-sel4/qemu_x86_64_vm_qemu_virtio/images/capdl-loader-image-x86_64-pc99", chain="qemu_x86_64_defconfig")`
 7. Poll status:
    `mcp__sel4-autopilot__get_test_status(...)` or `mcp__sel4-autopilot__wait_for_test(...)`
 8. Get logs:
@@ -52,7 +52,7 @@ This file is the canonical source for build and test command sequences.
 3. `make vm_minimal`
 4. Verify binary:
    `/home/hlyytine/tii-sel4/orinagx_vm_minimal/images/capdl-loader-image-arm-orinagx`
-5. Submit test with `test_sel4_efi` and profile `vm-minimal`.
+5. Submit test with `test_sel4_efi` and chain `vm-minimal`.
 
 ## Orin AGX `sel4test`
 
@@ -61,7 +61,7 @@ This file is the canonical source for build and test command sequences.
 3. `make sel4test`
 4. Verify binary:
    `/home/hlyytine/tii-sel4/orinagx_sel4test/images/sel4test-driver-image-arm-orinagx`
-5. Submit test with `test_sel4_efi` and profile `sel4test`.
+5. Submit test with `test_sel4_efi` and chain `sel4test`.
 
 ## Orin AGX `kmod-sel4-virt` (Yocto Module Recipe)
 
@@ -100,10 +100,11 @@ This file is the canonical source for build and test command sequences.
 
 - Build commands are always `make` targets from workspace root.
 - Testing is always `test_sel4_efi`.
-- For QEMU defconfig targets, the autopilot profile name matches the build
+- Use Autopilot chains, not legacy profiles.
+- For QEMU defconfig targets, the Autopilot chain name matches the build
   target name exactly.
 - For daemon start/restart operations, always set `use_tmux=true`.
-- `qemu_x86_64_defconfig` uses the autopilot remote-QEMU backend with profile
+- `qemu_x86_64_defconfig` uses the autopilot remote-QEMU backend with chain
   `qemu_x86_64_defconfig`.
 - For manual x86 QEMU runs, prefer the deployed runtime artifact under
   `vm-images/build/tmp/deploy/virtioso-qemu-runtime/` or pass an explicit

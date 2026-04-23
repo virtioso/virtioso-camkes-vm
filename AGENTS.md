@@ -36,14 +36,14 @@ For “build and test `vm_qemu_virtio` on Orin AGX”:
 1. `make mrproper`
 2. `make orinagx_defconfig`
 3. `make vm_qemu_virtio`
-4. `mcp__sel4-autopilot__test_sel4_efi(..., profile="vm-qemu-virtio")`
+4. `mcp__sel4-autopilot__test_sel4_efi(..., chain="vm-qemu-virtio")`
 
 For `qemu_x86_64_defconfig` QEMU-backed x86 validation:
 
 1. `make mrproper`
 2. `make qemu_x86_64_defconfig`
 3. `make vm_qemu_virtio`
-4. `mcp__sel4-autopilot__test_sel4_efi(..., profile="qemu_x86_64_defconfig")`
+4. `mcp__sel4-autopilot__test_sel4_efi(..., chain="qemu_x86_64_defconfig")`
 
 ## Build/Test Policy
 
@@ -54,9 +54,9 @@ For `qemu_x86_64_defconfig` QEMU-backed x86 validation:
   - Use `YOCTO_INCREMENTAL=1 make kmod-sel4-virt` only when explicitly requested.
 - Use MCP for test submission/status/log retrieval, not for build commands in this workflow.
 - Canonical EFI test tool is `test_sel4_efi`.
-- For QEMU defconfig targets, use the same underscore form for the autopilot
-  profile as for the build target.
-- Verify `/home/hlyytine/autopilot/profiles/<profile>.json` before submitting tests.
+- Use Autopilot chains, not legacy profiles.
+- For QEMU defconfig targets, use the same underscore form for the Autopilot
+  chain as for the build target.
 - Always pass `autopilot_dir="/home/hlyytine/tii-sel4/autopilot"` to MCP tools.
 - `qemu_x86_64_defconfig` is an autopilot-backed remote QEMU target; prefer the
   autopilot path for test execution and only fall back to direct
@@ -84,9 +84,8 @@ For `qemu_x86_64_defconfig` QEMU-backed x86 validation:
   full-layer review.
 
 Note: `AUTOPILOT_DIR` is the working directory (queues/results/runtime),
-not the code path. Profiles are static data and live in
-`/home/hlyytine/autopilot/profiles` (single source of truth). Code lives in
-`/home/hlyytine/autopilot`.
+not the code path. Autopilot chain definitions live in the Autopilot codebase
+and are the source of truth. Code lives in `/home/hlyytine/autopilot`.
 
 ## MCP Server (Autopilot) Availability
 

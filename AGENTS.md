@@ -128,6 +128,10 @@ When starting or restarting Autopilot, always pass `use_tmux=true`:
 - `mcp__sel4-autopilot__autopilot_start(..., use_tmux=true)`
 - `mcp__sel4-autopilot__autopilot_restart(..., use_tmux=true)`
 
+When starting or restarting Autopilot from this workspace, always set
+`WORKSPACE=/home/hlyytine/tii-sel4` explicitly in the start command environment.
+Do not rely on inherited shell state for `WORKSPACE`.
+
 This guarantees an attachable tmux session and an attach hint
 (`tmux attach -t autopilot`) for TUI access.
 

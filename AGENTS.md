@@ -88,6 +88,13 @@ For `qemu_x86_64_defconfig` QEMU-backed x86 validation:
   `sources/isengard-core` as the current source-side implementation repo.
   Linux-side software for that plan must go through a dedicated Yocto layer
   `vm-images/meta-isengard`.
+- For `projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio`, treat the current
+  app as leftover early-Isengard scaffolding, not the target architecture.
+  The target is to replicate the Arm `vm_qemu_virtio` shape on `qemu_x86_64`:
+  two VMs, VM0 booting `vm-image-driver`, VM1 booting `vm-image-user` from
+  within VM0, with no Isengard-specific CAN/Kvaser/native PCI service logic in
+  the x86 app itself. Do not optimize the x86 wait path before that target
+  topology and the physical-PCI-plus-vPCI coexistence model are understood.
 
 Note: `AUTOPILOT_DIR` is the working directory (queues/results/runtime),
 not the code path. Autopilot chain definitions live in the Autopilot codebase

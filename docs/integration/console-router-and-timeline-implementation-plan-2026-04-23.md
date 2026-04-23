@@ -38,6 +38,11 @@ Autopilot abstractions.
   own slave FD, which let the master side hit `EIO` and unregister before
   Autopilot wrote to the channel. Keep the slave FD open for the lifetime of
   the channel so router-backed `send_cmd` produces actual `tx` events.
+- 2026-04-24: identified the next live interactivity break in the remote-QEMU
+  wrapper. Even after PTY `tx` events started appearing, the SSH-side launcher
+  still ran `./runtime/run-bundle.sh` as `setsid ... &`, which kept stdin on
+  the waiting remote shell instead of the QEMU path. Switch the remote launcher
+  back to foreground execution so router-backed input can reach the guest.
 
 - 2026-04-23: Plan created and refined with:
   - manifest-driven demux configuration

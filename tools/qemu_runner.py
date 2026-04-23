@@ -159,8 +159,18 @@ def _runtime_interpreter_from_dir(runtime_root: Path) -> Path | None:
     uninative_root = runtime_root / "uninative"
     if not uninative_root.exists():
         return None
+    direct_candidates = [
+        uninative_root / "x86_64-linux" / "lib" / "ld-linux-x86-64.so.2",
+        uninative_root / "lib" / "ld-linux-x86-64.so.2",
+    ]
+    for candidate in direct_candidates:
+        if candidate.exists():
+            return candidate
     for pattern in ("ld-linux*", "ld64.so.*", "ld-musl-*", "ld-linux-*.so.*"):
-        matches = sorted(uninative_root.rglob(pattern))
+        matches = [
+            path for path in sorted(uninative_root.rglob(pattern))
+            if ".debug" not in path.parts
+        ]
         if matches:
             return matches[0]
     return None
@@ -173,6 +183,10 @@ def _runtime_from_dir(spec: TargetSpec, runtime_dir: Path) -> QemuRuntime:
         raise RunnerError(f"runtime binary not found in runtime dir: {binary}")
     support_usr = runtime_root / "usr"
     bios_dir = runtime_root / "pc-bios"
+    if not bios_dir.exists():
+        share_qemu = support_usr / "share" / "qemu"
+        if (share_qemu / "bios-256k.bin").exists():
+            bios_dir = share_qemu
     return QemuRuntime(
         binary=binary,
         support_usr=support_usr,
@@ -509,8 +523,17 @@ def _write_remote_wrapper(
         'export QEMU_AUDIO_DRV="${QEMU_AUDIO_DRV:-none}"',
         (f'export QEMU_DATA_DIR="${{TOOLCHAIN_USR}}/share/qemu"' if qemu_data_dir.exists() else "true"),
         'cd "${SCRIPT_DIR}/build"',
-        'exec ./simulate -b ../qemu-wrapper.sh'
-        + (f" --extra-qemu-args {shlex.quote(qemu_extra)}" if qemu_extra else ""),
+        'log_path="${SCRIPT_DIR}/qemu-run.log"',
+        "set +e",
+        './simulate -b ../qemu-wrapper.sh'
+        + (f" --extra-qemu-args {shlex.quote(qemu_extra)}" if qemu_extra else "")
+        + ' 2>&1 | tee "${log_path}"',
+        'sim_rc=${PIPESTATUS[0]}',
+        "set -e",
+        'if [[ "${sim_rc}" -eq 0 ]] && grep -qE "Segmentation fault \\(core dumped\\)|QEMU failed;" "${log_path}"; then',
+        "  sim_rc=139",
+        "fi",
+        'exit "${sim_rc}"',
     ]
     wrapper.write_text("\n".join(lines) + "\n")
     wrapper.chmod(0o755)
@@ -607,24 +630,47 @@ def _remove_path(path: Path) -> None:
         pass
 
 
-def _remote_cleanup_command(remote_dir: str, bundle_name: str, tar_name: str) -> str:
+def _remote_cleanup_command(remote_dir: str, bundle_name: str, tar_name: str, diag_name: str) -> str:
     return (
         f"cd {remote_dir} && "
-        f"rm -rf {shlex.quote(bundle_name)} {shlex.quote(tar_name)}"
+        f"rm -rf {shlex.quote(bundle_name)} {shlex.quote(tar_name)} {shlex.quote(diag_name)} {shlex.quote(bundle_name + '.diagnostics')}"
     )
 
 
-def _remote_run_command(remote_dir: str, bundle_name: str, tar_name: str) -> str:
+def _remote_diag_name(bundle_name: str) -> str:
+    return f"{bundle_name}.diagnostics.tar.gz"
+
+
+def _remote_run_command(remote_dir: str, bundle_name: str, tar_name: str, diag_name: str, qemu_binary: str) -> str:
     quoted_bundle = shlex.quote(bundle_name)
     quoted_tar = shlex.quote(tar_name)
+    quoted_diag = shlex.quote(diag_name)
+    quoted_qemu = shlex.quote(qemu_binary)
     return "\n".join(
         [
             "set -euo pipefail",
             f"cd {remote_dir}",
             f"bundle_dir={quoted_bundle}",
             f"tar_name={quoted_tar}",
+            f"diag_name={quoted_diag}",
             "runner_pid=''",
             "runner_pgid=''",
+            "run_started_at=$(date --iso-8601=seconds)",
+            "collect_diagnostics() {",
+            "  local diag_dir=\"${bundle_dir}.diagnostics\"",
+            "  mkdir -p \"${diag_dir}\"",
+            "  env > \"${diag_dir}/env.txt\" || true",
+            "  if command -v coredumpctl >/dev/null 2>&1; then",
+            f"    coredumpctl --no-pager --since \"${{run_started_at}}\" list {quoted_qemu} > \"${{diag_dir}}/coredumpctl-list.txt\" 2>&1 || true",
+            f"    coredumpctl --no-pager --since \"${{run_started_at}}\" info {quoted_qemu} > \"${{diag_dir}}/coredumpctl-info.txt\" 2>&1 || true",
+            f"    coredumpctl --no-pager --since \"${{run_started_at}}\" dump {quoted_qemu} --output \"${{diag_dir}}/{qemu_binary}.core\" > /dev/null 2>&1 || true",
+            "  fi",
+            "  if compgen -G \"core\" > /dev/null; then mv core \"${diag_dir}/\"; fi",
+            "  if compgen -G \"core.*\" > /dev/null; then mkdir -p \"${diag_dir}/cores\" && mv core.* \"${diag_dir}/cores/\"; fi",
+            "  if [[ -d \"${diag_dir}\" ]]; then",
+            "    tar -czf \"../${diag_name}\" \"${diag_dir}\"",
+            "  fi",
+            "}",
             "cleanup() {",
             "  local rc=$?",
             '  if [[ -n "${runner_pgid}" ]]; then',
@@ -642,12 +688,51 @@ def _remote_run_command(remote_dir: str, bundle_name: str, tar_name: str) -> str
             "trap cleanup EXIT HUP INT TERM",
             "tar -xzf \"${tar_name}\"",
             "cd \"${bundle_dir}\"",
+            "ulimit -c unlimited || true",
             "setsid ./runtime/run-bundle.sh &",
             "runner_pid=$!",
             "runner_pgid=$(ps -o pgid= \"${runner_pid}\" | tr -d '[:space:]')",
+            "set +e",
             "wait \"${runner_pid}\"",
+            "runner_rc=$?",
+            "set -e",
+            'if [[ "${runner_rc}" -ne 0 ]]; then',
+            "  collect_diagnostics",
+            "fi",
+            "exit \"${runner_rc}\"",
         ]
     )
+
+
+def _remote_fetch_command(remote_dir: str, name: str) -> str:
+    return (
+        f"cd {remote_dir} && "
+        f"test -f {shlex.quote(name)}"
+    )
+
+
+def _persist_remote_diagnostics(
+    remote: str,
+    ssh_opts: list[str],
+    remote_scp_dir: str,
+    remote_shell_dir: str,
+    diag_name: str,
+) -> Path | None:
+    check_cmd = ["ssh", *ssh_opts, remote, "bash", "-lc", _remote_fetch_command(remote_shell_dir, diag_name)]
+    check = subprocess.run(check_cmd, check=False)
+    if check.returncode != 0:
+        return None
+
+    local_root = Path(tempfile.mkdtemp(prefix="virtioso-qemu-diagnostics-"))
+    local_tar = local_root / diag_name
+    remote_src = f"{remote}:{remote_scp_dir}/{diag_name}" if remote_scp_dir not in ("", ".") else f"{remote}:{diag_name}"
+    scp_cmd = ["scp", *ssh_opts, remote_src, str(local_tar)]
+    subprocess.run(scp_cmd, check=True)
+    extract_dir = local_root / "extracted"
+    extract_dir.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(local_tar, "r:gz") as tf:
+        tf.extractall(extract_dir)
+    return extract_dir
 
 
 def run_remote(
@@ -670,6 +755,7 @@ def run_remote(
     remote_dir = runner["remote_dir"]
     remote_scp_dir = _remote_home_relative(remote_dir).rstrip("/")
     remote_shell_dir = _remote_shell_dir(remote_dir)
+    diag_name = _remote_diag_name(bundle_dir.name)
     ssh_opts = [str(opt) for opt in runner.get("ssh_options", [])]
     mkdir_cmd = [
         "ssh",
@@ -679,8 +765,8 @@ def run_remote(
     ]
     scp_dest = f"{remote}:{remote_scp_dir}/" if remote_scp_dir not in ("", ".") else f"{remote}:"
     scp_cmd = ["scp", *ssh_opts, str(tar_path), scp_dest]
-    remote_cleanup = _remote_cleanup_command(remote_shell_dir, bundle_dir.name, tar_path.name)
-    run_script = _remote_run_command(remote_shell_dir, bundle_dir.name, tar_path.name)
+    remote_cleanup = _remote_cleanup_command(remote_shell_dir, bundle_dir.name, tar_path.name, diag_name)
+    run_script = _remote_run_command(remote_shell_dir, bundle_dir.name, tar_path.name, diag_name, spec.qemu_binary)
     run_cmd = ["ssh", *ssh_opts, remote, "bash", "-lc", run_script]
     cleanup_cmd = ["ssh", *ssh_opts, remote, "bash", "-lc", remote_cleanup]
     print(f"QEMU_RUNNER_INFO: remote={remote}", flush=True)
@@ -711,6 +797,10 @@ def run_remote(
         cleanup_requested = True
         subprocess.run(scp_cmd, check=True)
         proc = subprocess.run(run_cmd, check=False)
+        if proc.returncode != 0:
+            diagnostics_dir = _persist_remote_diagnostics(remote, ssh_opts, remote_scp_dir, remote_shell_dir, diag_name)
+            if diagnostics_dir is not None:
+                print(f"QEMU_RUNNER_INFO: diagnostics={diagnostics_dir}", flush=True)
         return proc.returncode
     except KeyboardInterrupt:
         cleanup_requested = True

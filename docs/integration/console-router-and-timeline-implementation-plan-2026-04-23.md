@@ -259,6 +259,16 @@ Autopilot abstractions.
     - route `vm0:` / `vm1:` and `[vm0]` / `[vm1]` prefixes to
       `vmm_mux_control`
     - route unprefixed fallback lines to `driver_vm_console`
+- 2026-04-24: Thirteenth slice refined again for prompt visibility
+  - observed behavior:
+    - `driver_vm_console` contained boot text
+    - but prompts without trailing newline, such as `driver-vm login:`, could
+      remain buffered and never reach the channel log
+  - action:
+    - flush unprefixed fallback fragments incrementally to
+      `driver_vm_console`
+    - keep prefixed `vm0:` / `vm1:` control lines line-buffered so prefix-based
+      classification remains stable
 - 2026-04-23: Twelfth implementation slice completed
   - added an intermediate legacy-demux transport for VM-prefixed merged serial
     streams

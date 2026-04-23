@@ -43,6 +43,11 @@ Autopilot abstractions.
   still ran `./runtime/run-bundle.sh` as `setsid ... &`, which kept stdin on
   the waiting remote shell instead of the QEMU path. Switch the remote launcher
   back to foreground execution so router-backed input can reach the guest.
+- 2026-04-24: after restoring remote stdin attachment, the managed x86 lane
+  still showed `tx` events without guest-side echo while using QEMU’s default
+  `-serial mon:stdio`. The existing `VIRTIOSO_QEMU_SPLIT_MONITOR=1` seam is the
+  right next move for the automation chain: use `-serial stdio -monitor none`
+  so guest login input is not sharing the same stdin path with the QEMU monitor.
 
 - 2026-04-23: Plan created and refined with:
   - manifest-driven demux configuration

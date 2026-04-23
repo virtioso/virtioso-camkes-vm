@@ -16,7 +16,8 @@ import <vm-connectors.camkes>;
 
 #define VM0_GUEST_CMDLINE "earlyprintk=ttyS0,115200 console=ttyS0,115200 i8042.nokbd=y i8042.nomux=y " \
 "i8042.noaux=y io_delay=udelay noisapnp pci=nomsi debug " \
-"loglevel=8 ignore_loglevel initcall_debug root=/dev/ram0 rdinit=/init"
+"loglevel=8 ignore_loglevel initcall_debug initcall_blacklist=raid6_select_algo " \
+"root=/dev/ram0 rdinit=/init"
 
 #define VM1_GUEST_CMDLINE VM0_GUEST_CMDLINE
 

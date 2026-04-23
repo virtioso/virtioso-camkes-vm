@@ -82,6 +82,10 @@ For `qemu_x86_64_defconfig` QEMU-backed x86 validation:
   touched recipe/source paths first; do not restudy whole
   `vm-images/virtioso-yocto-layers/` unless the request explicitly asks for a
   full-layer review.
+- For requests like “continue Isengard stuff”, route immediately to
+  `projects/isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md` and
+  treat `projects/isengard-camkes-vm` as the seL4-side repo plus
+  `sources/isengard-core` as the current source-side implementation repo.
 
 Note: `AUTOPILOT_DIR` is the working directory (queues/results/runtime),
 not the code path. Autopilot chain definitions live in the Autopilot codebase

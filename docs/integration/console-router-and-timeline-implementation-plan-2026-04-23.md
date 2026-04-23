@@ -33,6 +33,11 @@ Autopilot abstractions.
   `qemu_runner.py` now emits `QEMU_RUNNER_ERROR:` for subprocess failures, and
   the dedicated `qemu_x86_64_vm_qemu_virtio_uservm` chain treats that on legacy
   `tty0` as an early launch failure before split console sources exist.
+- 2026-04-24: found the first real router PTY input bug in live use. The
+  router published per-channel slave PTY paths and then immediately closed its
+  own slave FD, which let the master side hit `EIO` and unregister before
+  Autopilot wrote to the channel. Keep the slave FD open for the lifetime of
+  the channel so router-backed `send_cmd` produces actual `tx` events.
 
 - 2026-04-23: Plan created and refined with:
   - manifest-driven demux configuration

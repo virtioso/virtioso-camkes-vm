@@ -23,6 +23,13 @@ Autopilot abstractions.
 
 ## Progress
 
+- 2026-04-24: hardened `tools/qemu_runner.py` remote-QEMU execution so `ssh`/`scp`
+  run non-interactively (`stdin=DEVNULL`) and default to `BatchMode=yes` plus
+  `ConnectTimeout=10`. This closes a real failure mode in Autopilot-managed
+  runs where runner subprocesses could silently block on stdin before the
+  console router even started, which in turn made the split-source chain look
+  broken when the actual fault was remote transport interactivity.
+
 - 2026-04-23: Plan created and refined with:
   - manifest-driven demux configuration
   - dedicated CAmkES-side mux component direction for single-uart targets

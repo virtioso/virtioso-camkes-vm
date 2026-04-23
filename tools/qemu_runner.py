@@ -935,6 +935,23 @@ def _remote_fetch_command(remote_dir: str, name: str) -> str:
     )
 
 
+def _ssh_opts_with_defaults(raw_opts: list[str]) -> list[str]:
+    opts = [str(opt) for opt in raw_opts]
+    if not any(opt.startswith("BatchMode=") for opt in opts):
+        opts.extend(["-o", "BatchMode=yes"])
+    if not any(opt.startswith("ConnectTimeout=") for opt in opts):
+        opts.extend(["-o", "ConnectTimeout=10"])
+    return opts
+
+
+def _run_noninteractive(argv: list[str], *, check: bool) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        argv,
+        check=check,
+        stdin=subprocess.DEVNULL,
+    )
+
+
 def _persist_remote_diagnostics(
     remote: str,
     ssh_opts: list[str],
@@ -943,7 +960,7 @@ def _persist_remote_diagnostics(
     diag_name: str,
 ) -> Path | None:
     check_cmd = ["ssh", *ssh_opts, remote, "bash", "-lc", _remote_fetch_command(remote_shell_dir, diag_name)]
-    check = subprocess.run(check_cmd, check=False)
+    check = _run_noninteractive(check_cmd, check=False)
     if check.returncode != 0:
         return None
 
@@ -951,7 +968,7 @@ def _persist_remote_diagnostics(
     local_tar = local_root / diag_name
     remote_src = f"{remote}:{remote_scp_dir}/{diag_name}" if remote_scp_dir not in ("", ".") else f"{remote}:{diag_name}"
     scp_cmd = ["scp", *ssh_opts, remote_src, str(local_tar)]
-    subprocess.run(scp_cmd, check=True)
+    _run_noninteractive(scp_cmd, check=True)
     extract_dir = local_root / "extracted"
     extract_dir.mkdir(parents=True, exist_ok=True)
     with tarfile.open(local_tar, "r:gz") as tf:
@@ -990,7 +1007,7 @@ def run_remote(
     remote_scp_dir = _remote_home_relative(remote_dir).rstrip("/")
     remote_shell_dir = _remote_shell_dir(remote_dir)
     diag_name = _remote_diag_name(bundle_dir.name)
-    ssh_opts = [str(opt) for opt in runner.get("ssh_options", [])]
+    ssh_opts = _ssh_opts_with_defaults(runner.get("ssh_options", []))
     mkdir_cmd = [
         "ssh",
         *ssh_opts,
@@ -1028,10 +1045,10 @@ def run_remote(
         signal.signal(sig, _handle_signal)
 
     try:
-        subprocess.run(mkdir_cmd, check=True)
+        _run_noninteractive(mkdir_cmd, check=True)
         cleanup_requested = True
-        subprocess.run(scp_cmd, check=True)
-        proc = subprocess.run(run_cmd, check=False)
+        _run_noninteractive(scp_cmd, check=True)
+        proc = _run_noninteractive(run_cmd, check=False)
         if proc.returncode != 0:
             diagnostics_dir = _persist_remote_diagnostics(remote, ssh_opts, remote_scp_dir, remote_shell_dir, diag_name)
             if diagnostics_dir is not None:
@@ -1045,7 +1062,7 @@ def run_remote(
             signal.signal(sig, handler)
         if cleanup_requested:
             try:
-                subprocess.run(cleanup_cmd, check=False)
+                _run_noninteractive(cleanup_cmd, check=False)
             except Exception:
                 pass
         _remove_path(tar_path)

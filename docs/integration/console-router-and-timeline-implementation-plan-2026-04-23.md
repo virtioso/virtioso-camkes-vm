@@ -40,6 +40,19 @@ Autopilot abstractions.
   - verified with:
     - `python3 -m py_compile projects/virtioso-camkes-vm/tools/qemu_runner.py`
     - `python3 projects/virtioso-camkes-vm/tools/qemu_runner.py prepare-remote-bundle ...`
+- 2026-04-23: Second implementation slice completed
+  - added reusable `tools/console_router.py`
+  - current scope:
+    - validate `console-manifest.json`
+    - normalize manifest data
+    - prepare channel runtime layout under a chosen runtime directory
+    - emit `runtime-manifest.json` plus per-channel metadata/log file stubs
+  - rationale: makes the manifest executable as runtime state without tying the
+    design to Autopilot
+  - verified with:
+    - `python3 -m py_compile projects/virtioso-camkes-vm/tools/console_router.py`
+    - `python3 projects/virtioso-camkes-vm/tools/console_router.py describe-manifest ...`
+    - `python3 projects/virtioso-camkes-vm/tools/console_router.py prepare-runtime ...`
 
 ## Problem Statement
 

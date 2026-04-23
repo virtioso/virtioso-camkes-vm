@@ -46,6 +46,8 @@ string(
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/images")
 file(WRITE "${CMAKE_BINARY_DIR}/images/qemu-extra-args" "${VM_QEMU_EXTRA_ARGS}\n")
 
+DecompressLinuxKernel(extract_linux_kernel decompressed_kernel "${VM_IMAGE_BZIMAGE}")
+
 add_custom_command(
     OUTPUT "${VM_IMAGE_DRIVER_BUNDLE}"
     COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/images"
@@ -55,7 +57,7 @@ add_custom_command(
 )
 add_custom_target(vm_qemu_virtio_driver_disk ALL DEPENDS "${VM_IMAGE_DRIVER_BUNDLE}")
 
-AddToFileServer("bzimage" "${VM_IMAGE_BZIMAGE}")
+AddToFileServer("bzimage" "${decompressed_kernel}" DEPENDS extract_linux_kernel)
 AddToFileServer("rootfs.cpio.gz" "${VM_IMAGE_ROOTFS}")
 
 DeclareVirtiosoX86CAmkESVM(Init0)

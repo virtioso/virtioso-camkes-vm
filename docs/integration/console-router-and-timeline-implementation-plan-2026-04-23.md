@@ -147,6 +147,30 @@ Autopilot abstractions.
     - JSON parse validation of both chain files
     - diff review showing only the new `--console-runtime-dir` arguments
 - 2026-04-23: Ninth implementation slice completed
+  - end-to-end proof on a real Autopilot `qemu_x86_64_defconfig` run
+  - request id: `20260423-222133`
+  - current scope:
+    - clean rebuild completed via workspace-root flow:
+      - `make mrproper`
+      - `make qemu_x86_64_defconfig`
+      - `make vm_qemu_virtio`
+    - Autopilot result tree now contains router-owned console artifacts under
+      `results/20260423-222133/console/`
+    - verified artifacts include:
+      - `console-manifest.json`
+      - `console-runtime/runtime-manifest.json`
+      - `console-runtime/sessions.json`
+      - per-channel `raw.log`
+      - per-channel `events.jsonl`
+      - PTY symlink for interactive channel
+  - rationale: proves the runner/Autopilot handoff in the canonical QEMU-backed
+    workflow instead of only in dry runs or local smoke tests
+  - observed runtime note:
+    - the run reached `VIRTIOSO_INIT` and `INIT: version 3.14 booting`
+    - it did not yet reach `driver-vm login:`
+    - the visible stall is guest-side (`CE: Reprogramming failure. Giving up`),
+      not a console-artifact plumbing failure
+- 2026-04-23: Ninth implementation slice completed
   - `console_router.py` now supports a framed multi-channel transport in
     addition to the legacy one-channel `process_stdio` wrapper
   - current scope:

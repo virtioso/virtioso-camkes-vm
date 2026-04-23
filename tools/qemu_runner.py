@@ -734,13 +734,15 @@ def _write_remote_wrapper(
         'log_path="${SCRIPT_DIR}/qemu-run.log"',
         'console_runtime_dir="${SCRIPT_DIR}/console-runtime"',
         'console_manifest="${SCRIPT_DIR}/../console-manifest.json"',
+        (f'simulate_serial_opt={shlex.quote(simulate_serial_opt)}' if simulate_serial_opt else 'simulate_serial_opt=""'),
+        (f'qemu_extra_opt={shlex.quote(qemu_extra)}' if qemu_extra else 'qemu_extra_opt=""'),
         "set +e",
         'python3 "${SCRIPT_DIR}/console_router.py" run-command'
         + ' --manifest "${console_manifest}"'
         + ' --runtime-dir "${console_runtime_dir}"'
         + ' -- ./simulate -b ../qemu-wrapper.sh'
-        + (f" --serial {shlex.quote(simulate_serial_opt)}" if simulate_serial_opt else "")
-        + (f" --extra-qemu-args {shlex.quote(qemu_extra)}" if qemu_extra else "")
+        + ' ${simulate_serial_opt:+--serial "${simulate_serial_opt}"}'
+        + ' ${qemu_extra_opt:+--extra-qemu-args "${qemu_extra_opt}"}'
         + ' 2>&1 | tee "${log_path}"',
         'sim_rc=${PIPESTATUS[0]}',
         "set -e",

@@ -86,6 +86,8 @@ For `qemu_x86_64_defconfig` QEMU-backed x86 validation:
   `projects/isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md` and
   treat `projects/isengard-camkes-vm` as the seL4-side repo plus
   `sources/isengard-core` as the current source-side implementation repo.
+  Linux-side software for that plan must go through a dedicated Yocto layer
+  `vm-images/meta-isengard`.
 
 Note: `AUTOPILOT_DIR` is the working directory (queues/results/runtime),
 not the code path. Autopilot chain definitions live in the Autopilot codebase

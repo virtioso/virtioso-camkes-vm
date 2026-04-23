@@ -245,6 +245,21 @@ Autopilot abstractions.
     - prefix-demux manifests now record `producer_kind=legacy_vmm_serial_mux`
     - documentation and manifest notes now state that prefix classification is
       only an intermediate compatibility transport
+- 2026-04-23: x86 boot regression finding recorded
+  - request `20260423-223956` proved the console-router path was not the
+    blocker; the guest kernel stalled before `/init`
+  - compared with the last good x86 boot (`20260423-220157`), the
+    `nolapic_timer` removal regressed boot progression after restoring the
+    `raid6_select_algo` blacklist
+  - concrete divergence:
+    - good run continues through `acpi_button_driver_init`, prints both power
+      and sleep button probes, returns from that initcall, and later reaches
+      `Run /init as init process`
+    - bad run stops inside `acpi_button_driver_init` immediately after the
+      power-button line and never reaches the sleep-button probe or `/init`
+  - action:
+    - restore `nolapic_timer` while keeping
+      `initcall_blacklist=raid6_select_algo`
 
 ## Problem Statement
 

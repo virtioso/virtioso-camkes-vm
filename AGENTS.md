@@ -49,6 +49,11 @@ For `qemu_x86_64_defconfig` QEMU-backed x86 validation:
 
 - Build instructions must be followed precisely, without adding or removing a single character.
 - Build commands come from runbooks and are executed with `make <target>` from workspace root.
+- Defconfig targets must also be executed from workspace root.
+- Do not switch to repo-local build entrypoints such as `make -C virtioso-build ...`
+  for canonical configuration/build flows, even if they appear to work around
+  a local workspace issue. If the workspace-root path fails, treat that as a
+  real issue to be fixed or reported, not as permission to change the entrypoint.
 - For Yocto module-only rebuild of `kmod-sel4-virt`, use `make kmod-sel4-virt`.
   - Default is clean (`bitbake -c cleansstate kernel-module-sel4-virt` then build).
   - Use `YOCTO_INCREMENTAL=1 make kmod-sel4-virt` only when explicitly requested.

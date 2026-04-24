@@ -23,6 +23,23 @@ Autopilot abstractions.
 
 ## Progress
 
+- 2026-04-24: corrected the current x86 login investigation methodology after
+  a bad five-run repetition summary mixed remote SSH transport failures with
+  guest-console behavior. The chain/sample interpretation must now treat these
+  as separate layers:
+  - remote-QEMU host reachability (`ssh_wait_ready` / transport)
+  - remote runner launch success (`QEMU_RUNNER_ERROR`, process exit)
+  - guest boot/login progression on split console sources
+  The next chain revisions should therefore gate every x86 remote-QEMU run on
+  explicit SSH readiness to the configured host before starting the runner, so
+  transport failures stop looking like “banner/login did not appear” guest
+  regressions.
+- 2026-04-24: updated the live x86 remote-QEMU runner dotfile configuration
+  from the older ThinkPad hostname to the explicit machine IP
+  `192.168.101.110` for user `hlyytine`. The intent is to reduce
+  name-resolution ambiguity and keep the host identity aligned between runtime
+  diagnostics and the actual remote launch target without baking site-local
+  values into the in-repo sample config.
 - 2026-04-24: added an x86 `vm_qemu_virtio_minimal` app as a VM0-only isolation
   target for the current `driver-vm login:` investigation. The intent is not a
   new long-term product shape; it is a controlled experiment that keeps the

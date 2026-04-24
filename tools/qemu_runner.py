@@ -11,7 +11,6 @@ import argparse
 from datetime import datetime, timezone
 import json
 import os
-import re
 import shlex
 import shutil
 import signal
@@ -387,6 +386,28 @@ def _copy_file_preserve_rel(src: Path, root: Path, dst_root: Path) -> None:
     _copy_tree(src, dst_root / rel)
 
 
+def _ensure_soname_aliases(lib_dir: Path) -> None:
+    for path in sorted(lib_dir.iterdir()):
+        if not path.is_file() or path.is_symlink():
+            continue
+        name = path.name
+        if ".so." not in name:
+            continue
+        stem, version = name.split(".so.", 1)
+        version_parts = [part for part in version.split(".") if part]
+        if not version_parts:
+            continue
+        aliases = [f"{stem}.so"]
+        for idx in range(1, len(version_parts)):
+            aliases.append(f"{stem}.so.{'.'.join(version_parts[:idx])}")
+        aliases.append(f"{stem}.so.{version_parts[0]}")
+        for alias in sorted(set(aliases)):
+            alias_path = lib_dir / alias
+            if alias_path.exists() or alias_path.is_symlink():
+                continue
+            alias_path.symlink_to(name)
+
+
 def _collect_runtime_tree(build_dir: Path, bundle_runtime: Path) -> Path:
     simulate = _simulate_script(build_dir)
     if not simulate.exists():
@@ -399,26 +420,6 @@ def _collect_runtime_tree(build_dir: Path, bundle_runtime: Path) -> Path:
     _copy_tree(simulate, runtime_build / "simulate")
     _copy_tree(images_dir, runtime_build / "images")
     return runtime_build
-
-
-def _runtime_lib_files(binary: Path, support_usr: Path) -> set[Path]:
-    proc = subprocess.run(["ldd", str(binary)], check=True, capture_output=True, text=True)
-    libs: set[Path] = set()
-    pattern = re.compile(r"=>\s+(\S+)")
-    for line in proc.stdout.splitlines():
-        match = pattern.search(line)
-        if match:
-            lib_path = Path(match.group(1))
-            if lib_path.exists() and support_usr in lib_path.parents:
-                libs.add(lib_path.resolve())
-            continue
-        stripped = line.strip()
-        if "=>" in stripped or not stripped.startswith("/"):
-            continue
-        lib_path = Path(stripped.split()[0])
-        if lib_path.exists() and support_usr in lib_path.parents:
-            libs.add(lib_path.resolve())
-    return libs
 
 
 def _find_qemu_bios_blob(runtime: QemuRuntime, bios_name: str) -> Path | None:
@@ -451,8 +452,11 @@ def _copy_qemu_runtime(bundle_dir: Path, runtime: QemuRuntime) -> Path:
     binary_dst = toolchain_usr / "bin" / runtime.binary.name
     binary_dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(runtime.binary, binary_dst)
-    for lib_path in sorted(_runtime_lib_files(runtime.binary, runtime.support_usr)):
-        _copy_file_preserve_rel(lib_path, runtime.support_usr, toolchain_usr)
+    for rel in ("lib", "lib64", "libexec"):
+        src_dir = runtime.support_usr / rel
+        if src_dir.exists():
+            shutil.copytree(src_dir, toolchain_usr / rel, symlinks=True, dirs_exist_ok=True)
+            _ensure_soname_aliases(toolchain_usr / rel)
     qemu_share_dirs = [
         runtime.support_usr / "share" / "qemu",
         runtime.support_usr / "share" / "qemu-firmware",

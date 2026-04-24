@@ -40,6 +40,16 @@ Autopilot abstractions.
   name-resolution ambiguity and keep the host identity aligned between runtime
   diagnostics and the actual remote launch target without baking site-local
   values into the in-repo sample config.
+- 2026-04-24: the first live run against `192.168.101.110` (`20260424-111341`)
+  proved the new x86 SSH preflight worked, and also exposed a separate remote
+  runtime portability bug: the bundle reached remote launch but
+  `qemu-system-x86_64` failed immediately with
+  `libslirp.so.0: cannot open shared object file`. Root cause:
+  `tools/qemu_runner.py` was not producing a self-sufficient runtime library
+  tree for hosts that do not already carry the same QEMU dependencies. The
+  runner now bundles the runtime `usr/lib*` trees and synthesizes standard
+  `.so` soname aliases such as `libslirp.so.0` inside the bundle, so remote
+  execution no longer depends on the old host’s incidental system packages.
 - 2026-04-24: added an x86 `vm_qemu_virtio_minimal` app as a VM0-only isolation
   target for the current `driver-vm login:` investigation. The intent is not a
   new long-term product shape; it is a controlled experiment that keeps the

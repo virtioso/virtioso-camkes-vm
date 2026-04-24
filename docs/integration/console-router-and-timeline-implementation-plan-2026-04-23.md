@@ -57,6 +57,11 @@ Autopilot abstractions.
   Python `argparse`, and option values beginning with `-` are rejected unless
   bound in the same token. Emit `--serial=<value>` and
   `--extra-qemu-args=<value>` as single argv entries.
+- 2026-04-24: found the next PTY-side defect in live use. After keeping the
+  slave FD open, the channel started generating large bogus `tx` events that
+  were really its own output looping back through the default cooked slave TTY
+  settings. Hold the slave open in raw/no-echo mode so only real external input
+  is forwarded back into the wrapped process.
 
 - 2026-04-23: Plan created and refined with:
   - manifest-driven demux configuration

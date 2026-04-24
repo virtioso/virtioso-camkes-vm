@@ -45,6 +45,30 @@ This file is the canonical source for build and test command sequences.
 10. For direct runner debugging, prefer a deployed or unpacked runtime artifact
     over the legacy `tmp/work/.../qemu-system-native` path.
 
+## `qemu_x86_64_defconfig` `vm_qemu_virtio` With VM1 Launch Validation
+
+1. Clean build state:
+   `make mrproper`
+2. Configure platform:
+   `make qemu_x86_64_defconfig`
+3. Build target:
+   `make vm_qemu_virtio`
+4. Verify binary exists:
+   `/home/hlyytine/tii-sel4/qemu_x86_64_vm_qemu_virtio/images/capdl-loader-image-x86_64-pc99`
+5. Ensure Autopilot daemon is running in tmux:
+   `mcp__sel4-autopilot__autopilot_restart(autopilot_dir="/home/hlyytine/tii-sel4/autopilot", use_tmux=true)`
+6. Submit the deeper VM1-launch validation:
+   `mcp__sel4-autopilot__test_sel4_efi(autopilot_dir="/home/hlyytine/tii-sel4/autopilot", binary_path="/home/hlyytine/tii-sel4/qemu_x86_64_vm_qemu_virtio/images/capdl-loader-image-x86_64-pc99", chain="qemu_x86_64_vm_qemu_virtio_uservm")`
+7. Poll status:
+   `mcp__sel4-autopilot__get_test_status(...)` or `mcp__sel4-autopilot__wait_for_test(...)`
+8. Get logs:
+   `mcp__sel4-autopilot__get_logs(...)`
+9. Inspect managed-launch evidence under:
+   `results/<id>/console/tty0.ansi.log`
+10. The `qemu_x86_64_defconfig` chain remains the boot-to-login smoke test;
+    `qemu_x86_64_vm_qemu_virtio_uservm` is the x86 profile that actually runs
+    `uservmctl start` and `uservmctl wait-ready`.
+
 ## Orin AGX `vm_minimal`
 
 1. `make mrproper`

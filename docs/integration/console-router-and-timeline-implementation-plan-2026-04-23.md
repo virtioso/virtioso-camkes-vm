@@ -40,6 +40,18 @@ Autopilot abstractions.
   `vm_qemu_virtio`. That preserves comparability for the login experiment: the
   minimal app now gets `driver_vm_console` routing instead of falling back to
   the legacy merged `tty0` manifest.
+- 2026-04-24: validated the VM0-only login isolation run on
+  `qemu_x86_64_vm_qemu_virtio_minimal_login` (`20260424-085550`). This answered
+  the main question the experiment was created for:
+  - the minimal VM0-only app reaches `driver-vm login:` on `driver_vm_console`
+  - Autopilot writes a clean `root\n` as a router `tx` event
+  - the guest echoes `root` back and immediately starts printing the standard
+    Poky post-login warning text
+  - therefore the injected login path does work in the VM0-only shape
+  - the full `vm_qemu_virtio` failure is not a generic x86 VM0 `ttyS0` or
+    router PTY write problem; it is introduced by the additional two-VM /
+    nested-QEMU topology or by the way that topology changes the observable
+    console contract after the login prompt appears
 - 2026-04-24: hardened `tools/qemu_runner.py` remote-QEMU execution so `ssh`/`scp`
   run non-interactively (`stdin=DEVNULL`) and default to `BatchMode=yes` plus
   `ConnectTimeout=10`. This closes a real failure mode in Autopilot-managed

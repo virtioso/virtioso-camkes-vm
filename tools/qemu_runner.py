@@ -781,6 +781,10 @@ def _bundle_name(binary: Path, target: str) -> str:
     return f"{target}-{binary.stem}"
 
 
+def _remote_run_suffix() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+
 def _remote_home_relative(path: str) -> str:
     text = str(path).strip()
     if text.startswith("~/"):
@@ -986,6 +990,9 @@ def run_remote(
     binary = _resolve_binary(binary_path)
     runner = _load_remote_config(config_path, target)
     bundle_dir = prepare_remote_bundle(target, binary_path, None, extra_qemu_args, runtime_dir, runtime_tar)
+    unique_bundle_dir = bundle_dir.with_name(f"{bundle_dir.name}-{_remote_run_suffix()}")
+    bundle_dir.rename(unique_bundle_dir)
+    bundle_dir = unique_bundle_dir
     tar_path = _tar_bundle(bundle_dir)
     temp_root = bundle_dir.parent
     preserve_console_root = bool(console_runtime_dir.strip())

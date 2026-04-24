@@ -62,6 +62,11 @@ Autopilot abstractions.
   were really its own output looping back through the default cooked slave TTY
   settings. Hold the slave open in raw/no-echo mode so only real external input
   is forwarded back into the wrapped process.
+- 2026-04-24: repeated remote-QEMU reruns exposed a remote bundle lifecycle
+  race. The remote workflow reused the same bundle directory name every time,
+  so cleanup from an older run could delete the newer run’s bundle while its
+  in-bundle console router was still appending logs. Make remote bundle names
+  unique per submission.
 
 - 2026-04-23: Plan created and refined with:
   - manifest-driven demux configuration

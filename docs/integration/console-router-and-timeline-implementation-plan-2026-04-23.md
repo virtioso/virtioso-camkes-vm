@@ -23,6 +23,23 @@ Autopilot abstractions.
 
 ## Progress
 
+- 2026-04-24: added an x86 `vm_qemu_virtio_minimal` app as a VM0-only isolation
+  target for the current `driver-vm login:` investigation. The intent is not a
+  new long-term product shape; it is a controlled experiment that keeps the
+  current x86 VM0 disk, kernel, cmdline, q35 passthrough, and outer-QEMU path
+  while removing VM1 and inter-VM virtio channels. This gives the login
+  automation work a way to distinguish “VM0 console/login itself is broken”
+  from “the two-VM topology or nested-QEMU layer is interfering.”
+- 2026-04-24: the first minimal app build exposed a real coupling point:
+  simply removing VM1 from the `vm_qemu_virtio` CAmkES assembly was not enough,
+  because `Init0` still declared the VirtIO driver-side cross-VM interfaces.
+  Removing those declarations made the app a true VM0-only shape and the clean
+  workspace-root build now succeeds as `make vm_qemu_virtio_minimal`.
+- 2026-04-24: extended `tools/qemu_runner.py` console-profile detection so the
+  new minimal binary uses the same x86 split-console router contract as
+  `vm_qemu_virtio`. That preserves comparability for the login experiment: the
+  minimal app now gets `driver_vm_console` routing instead of falling back to
+  the legacy merged `tty0` manifest.
 - 2026-04-24: hardened `tools/qemu_runner.py` remote-QEMU execution so `ssh`/`scp`
   run non-interactively (`stdin=DEVNULL`) and default to `BatchMode=yes` plus
   `ConnectTimeout=10`. This closes a real failure mode in Autopilot-managed

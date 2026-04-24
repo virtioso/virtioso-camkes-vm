@@ -577,6 +577,8 @@ def _console_profile(binary: Path) -> str:
     build_dir = _build_dir_for_binary(binary)
     if build_dir.name.endswith("vm_qemu_virtio"):
         return "vm_qemu_virtio"
+    if build_dir.name.endswith("vm_qemu_virtio_minimal"):
+        return "vm_qemu_virtio"
     return "default"
 
 

@@ -210,6 +210,39 @@ Implementation notes:
       `68.968493s` in live console output
   - so the batching slice did not solve the whole boot path, but it materially
     reduced the severity of the earlier console-path slowdown
+- 2026-04-25: implemented the next batching slice on the
+  `GuestConsoleSink -> ConsoleMux` leg as well.
+  - `GuestConsoleSink` no longer RPC-calls `ConsoleMuxEmit` per payload byte
+  - instead, each sink now:
+    - frames bytes locally using its fixed `stream_id`
+    - appends those framed bytes into its own `Batch` shared buffer
+    - flushes that buffer to `ConsoleMux` on newline, carriage return,
+      `:`, or when the buffer reaches a local threshold
+  - `ConsoleMux` no longer assigns stream ids itself on this path; it now acts
+    as a batch relay from each sink’s framed batch buffer to the downstream
+    uplink batch buffer
+  - clean validation build still passed:
+    - `make mrproper`
+    - `make qemu_x86_64_defconfig`
+    - `make vm_qemu_virtio`
+- 2026-04-25: first runtime after that second batching slice was mixed rather
+  than a clear win.
+  - preserved runtime:
+    [qemu-x86-consolemux-runtime-batch2](/tmp/qemu-x86-consolemux-runtime-batch2/console-runtime/runtime-manifest.json:1)
+  - the run stayed healthy and all three active channels continued growing:
+    - `driver_vm_console`: `58,566` bytes
+    - `user_vm_console`: `66,121` bytes
+    - `vmm_mux_control`: `139,772` bytes
+  - within a `180s` watch window it did **not** yet reach either:
+    - `jent_mod_init`
+    - `driver-vm login:`
+  - the latest sampled VM0 console tail was still progressing around guest time
+    `26.483517s`, so this slice did not deadlock the boot, but it also did not
+    produce the same obvious speedup that the first uplink-batching slice did
+  Current interpretation:
+  - batching `GuestConsoleSink -> ConsoleMux` is structurally right, but the
+    current local flush policy needs further tuning or measurement before it can
+    be called a runtime win
 - 2026-04-25: started Slice 1 implementation in
   [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:1)
   and added

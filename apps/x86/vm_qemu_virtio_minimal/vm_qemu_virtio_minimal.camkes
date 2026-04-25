@@ -33,7 +33,7 @@ import <vm-connectors.camkes>;
     component TimeServer time_server; \
     component RTC rtc; \
     connection seL4SerialServer console_mux_uplink(from console_mux.uplink_batch, to serial.raw_batch); \
-    connection seL4RPCCall vm0_guest_console_sink_mux(from VM_GUEST_SINK_NAME(0).mux_emit, to console_mux.mux_emit); \
+    connection seL4SerialServer vm0_guest_console_sink_mux(from VM_GUEST_SINK_NAME(0).mux_batch, to console_mux.mux_batch); \
     connection seL4RPCCall serial_pci_config(from pci_config.putchar, to serial.processed_putchar); \
     connection seL4RPCCall serial_time_server(from time_server.putchar, to serial.processed_putchar); \
     connection seL4RPCCall serial_rtc(from rtc.putchar, to serial.processed_putchar); \

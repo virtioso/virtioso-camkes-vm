@@ -174,6 +174,17 @@ Implementation notes:
   `vm1_guest_console_sink.instance.bin`, which is the first proof that the new
   repo-owned mux/sink components are not just scaffolding but are now part of
   the x86 app composition.
+- 2026-04-25: added direct CapDL loader instrumentation in
+  [projects/capdl/capdl-loader-app/src/main.c](/home/hlyytine/tii-sel4/projects/capdl/capdl-loader-app/src/main.c:1)
+  for the non-static allocation path.
+  - the loader now logs, at `INFO` level, the exact object name/id/type/size
+    and bootinfo untyped cptr/index/paddr/size whenever a `seL4_NotEnoughMemory`
+    retry happens during `create_objects(...)`
+  - it also logs the final object/untyped state immediately before the loader
+    gives up with `Ran out of untyped memory while creating objects.`
+  - this keeps future allocator debugging anchored in CapDL loader output
+    instead of relying only on the kernel's generic `Untyped Retype:
+    Insufficient memory` line
 
 ## Scope Update
 

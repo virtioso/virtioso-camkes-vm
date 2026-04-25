@@ -82,6 +82,6 @@ DeclareCAmkESVMRootServer(vm_qemu_virtio_minimal.camkes)
 
 if(SIMULATION)
     include(simulation)
-    SetSimulationScriptProperty(MEM_SIZE "2048M")
+    SetSimulationScriptProperty(MEM_SIZE "4096M")
     GenerateSimulateScript()
 endif()

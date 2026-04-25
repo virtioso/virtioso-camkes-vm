@@ -82,6 +82,41 @@ Implementation notes:
     [vmm_mux_control/raw.log](/tmp/qemu-x86-consolemux-runtime-driver-prompt/console-runtime/channels/vmm_mux_control/raw.log:1)
     remained the largest stream and still carried heavy `[vmmdbg]` traffic,
     while `vmm_debug` stayed empty.
+- 2026-04-25: deeper slowness analysis against that preserved prompt-attempt
+  runtime narrowed the current dominant costs.
+  - VM0 is booting with an explicitly very noisy kernel command line:
+    `debug loglevel=8 ignore_loglevel initcall_debug`
+    in
+    [driver_vm_console/raw.log](/tmp/qemu-x86-consolemux-runtime-driver-prompt/console-runtime/channels/driver_vm_console/raw.log:2).
+  - In the captured VM0 log there are at least:
+    - `348` `calling ...` initcall traces
+    - `258` `initcall ... returned ...` traces
+    - about `86 KiB` of guest-console text in `driver_vm_console/raw.log`
+  - The measured VM0 initcall wall time is not spread evenly. Parsing the
+    captured `initcall ... returned ... after N usecs` lines shows:
+    - total parsed VM0 initcall time: `178,099,548 usec`
+    - top 3 initcalls alone account for `93.6%` of that:
+      - `bochs_pci_driver_init`: `109,931,164 usec` (`61.7%`)
+      - `inet_init`: `41,577,966 usec` (`23.3%`)
+      - `jent_mod_init`: `15,241,873 usec` (`8.6%`)
+    - `virtio_console_init` is slow but much smaller by comparison:
+      `849,733 usec`
+  - VM1 is also slow, but less dominant in the captured initcall budget:
+    - total parsed VM1 initcall time: `27,345,924 usec`
+    - largest parsed VM1 initcalls were:
+      - `acpi_button_driver_init`: `10,372,661 usec`
+      - `intel_pstate_init`: `2,068,663 usec`
+      - `piix_init`: `1,560,087 usec`
+  - Output volume is still skewed toward the control/debug lane:
+    - `driver_vm_console`: `87,891` bytes (`16.7%`)
+    - `user_vm_console`: `120,972` bytes (`23.0%`)
+    - `vmm_mux_control`: `316,722` bytes (`60.3%`)
+  Current working conclusion:
+  - the present slowness is dominated first by extremely verbose boot logging
+    plus a small number of very expensive VM0 initcalls, especially
+    `bochs_pci_driver_init`, `inet_init`, and `jent_mod_init`
+  - `virtio_console_init` is measurably slow, but it is not currently the main
+    reason the whole system fails to reach login
 - 2026-04-25: started Slice 1 implementation in
   [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:1)
   and added

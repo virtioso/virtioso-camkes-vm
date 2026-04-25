@@ -17,11 +17,25 @@ work. Progress should be updated here as slices move from design into code.
 Current slice status:
 
 - Slice 1 `Dedicated QEMU mux uplink`: `in_progress`
-- Slice 2 `Shared ConsoleMux component`: `pending`
+- Slice 2 `Shared ConsoleMux component`: `in_progress`
 - Slice 3 `Init diagnostics -> mux-facing interface`: `pending`
 - Slice 4 `Guest UART sources -> explicit mux inputs`: `pending`
 - Slice 5 `Physical UART sink boundary`: `pending`
 - Slice 6 `Router/Autopilot stay dumb`: `pending`
+
+Migration policy update:
+
+- do not spend time trying to make the old PoC globally "sane" before the new
+  seams exist
+- do not broadly polish or normalize legacy `SerialServer`-shaped paths that
+  are already known to be architecturally wrong
+- build the new infrastructure in parallel behind narrow, explicit composition
+  points
+- keep default builds working unless a specific app/composition is being
+  migrated onto the new path
+- allow transitional ugliness only when it clearly moves ownership toward the
+  target architecture
+- cleanup of the old path follows migration; it does not precede it
 
 Implementation notes:
 
@@ -114,6 +128,32 @@ Implementation notes:
   next implementation/debugging step should focus on the live
   `console_router.py` materialization path rather than on QEMU socket
   allocation again.
+- 2026-04-25: migration strategy was tightened explicitly: stop spending effort
+  on making the old PoC path look coherent, and instead continue landing the
+  repo-owned target seams in parallel, with narrow cutover points and without
+  broad cleanup of the legacy path first.
+- 2026-04-25: started Slice 2 by adding repo-owned shared component
+  scaffolding:
+  - [components/ConsoleMux/ConsoleMux.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsoleMux/ConsoleMux.camkes:1)
+  - [components/ConsoleMux/interfaces/ConsoleMuxEmit.idl4](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsoleMux/interfaces/ConsoleMuxEmit.idl4:1)
+  - [components/ConsoleMux/src/console_mux.c](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsoleMux/src/console_mux.c:1)
+  - [components/GuestConsoleSink/GuestConsoleSink.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/GuestConsoleSink/GuestConsoleSink.camkes:1)
+  - [components/GuestConsoleSink/src/guest_console_sink.c](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/GuestConsoleSink/src/guest_console_sink.c:1)
+  The current scope of this slice is intentionally narrow:
+  `ConsoleMux` owns stream-id-aware frame emission onto one downstream uplink,
+  and `GuestConsoleSink` binds a fixed guest-visible stream id without forcing
+  callers like PL011 or `guest_putchar`-style producers to know the raw
+  framing format.
+- 2026-04-25: registered those new shared components in the x86
+  `vm_qemu_virtio` and `vm_qemu_virtio_minimal` app CMake import/build path so
+  upcoming cutovers can use repo-owned seams directly:
+  [apps/x86/vm_qemu_virtio/CMakeLists.txt](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio/CMakeLists.txt:1)
+  and
+  [apps/x86/vm_qemu_virtio_minimal/CMakeLists.txt](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio_minimal/CMakeLists.txt:1).
+  A clean validation build still passed:
+  - `make mrproper`
+  - `make qemu_x86_64_defconfig`
+  - `make vm_qemu_virtio`
 
 ## Scope Update
 

@@ -36,6 +36,13 @@ Migration policy update:
 - allow transitional ugliness only when it clearly moves ownership toward the
   target architecture
 - cleanup of the old path follows migration; it does not precede it
+- user instruction, 2026-04-25:
+  - do not give up on the broken cutover just because there is an easy rollback
+    path
+  - keep the failing shape available long enough to diagnose the real fault
+    directly
+  - prefer targeted instrumentation and root-cause work over quickly restoring
+    the last known-good topology
 
 Implementation notes:
 
@@ -185,6 +192,92 @@ Implementation notes:
   - this keeps future allocator debugging anchored in CapDL loader output
     instead of relying only on the kernel's generic `Untyped Retype:
     Insufficient memory` line
+- 2026-04-25: reran the intentionally broken x86 `GuestConsoleSink` /
+  `ConsoleMux` cutover with that loader instrumentation enabled.
+  Result:
+  - there were no `retype retry:` lines
+  - there was no `out of untyped while creating object=...` summary
+  - `CapDL Loader done, suspending...` was reached cleanly
+  - the dedicated COM2 mux uplink still remained completely silent
+    (`qemu-run.log` stayed at `0` bytes)
+  Current conclusion:
+  - the active blocker for the broken cutover is no longer the CapDL loader
+    allocator path
+  - the failure has moved later, into post-CapDL bring-up / runtime execution
+    of the x86 app shape that includes `ConsoleMux` and `GuestConsoleSink`
+- 2026-04-25: isolated the first wire-level corruption in the x86 cutover.
+  The x86 app still had `-DVMM_CONSOLE_FRAMED_OUTPUT=1` enabled for both `Init`
+  instances while also routing guest-console bytes through `GuestConsoleSink`
+  and `ConsoleMux`. Preserved remote `qemu-run.log` for that shape started with
+  `43 43 46 ...` (`CCF`) and local `vmm_mux_control` content was visibly
+  scrambled, proving there were two framed producers on the same dedicated COM2
+  uplink.
+- 2026-04-25: removed the old `Init`-side framed producer from the x86 app
+  path by:
+  - dropping `-DVMM_CONSOLE_FRAMED_OUTPUT=1` from
+    [apps/x86/vm_qemu_virtio/CMakeLists.txt](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio/CMakeLists.txt:1)
+  - routing `vm.putchar` plus `pci_config`, `time_server`, and `rtc` `putchar`
+    connections through fixed-stream sink instances into `ConsoleMux` instead
+    of directly to the serial sink in
+    [apps/x86/vm_qemu_virtio/vm_qemu_virtio.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio/vm_qemu_virtio.camkes:1)
+  This established a single intended producer path onto the dedicated uplink.
+- 2026-04-25: rerunning that single-producer shape showed a second, narrower
+  corruption source. The old `Init` overlap was gone, but preserved remote
+  `qemu-run.log` still began with `CCF`, proving the remaining interleave was
+  inside `ConsoleMux` itself: each frame was being emitted as 11 separate
+  `uplink_putchar` RPCs with no frame-level serialization across concurrent
+  callers.
+- 2026-04-25: added a frame-level lock in
+  [components/ConsoleMux/src/console_mux.c](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsoleMux/src/console_mux.c:1)
+  so one complete frame is serialized on the uplink before another caller can
+  emit. Temporary `run()` bring-up markers that had been added to
+  `ConsoleMux` and `GuestConsoleSink` for post-CapDL diagnosis were then
+  removed again so startup-order probe traffic would not distort the real VM
+  traffic path in later runs.
+- 2026-04-25: deeper x86 runtime instrumentation narrowed the current post-CapDL
+  stall to the repo-owned sink side, not to `ConsoleMux` or the guest sink
+  instances.
+  - long-lived direct `seL4_DebugPutChar` breadcrumbs showed:
+    - all five `GuestConsoleSink` control threads reach `run()`
+    - `ConsoleMux` reaches `run()`
+    - at least one guest sink reaches `guest_putchar_putchar()`
+    - `ConsoleMux` reaches `mux_emit_emit()`
+  - but the dedicated COM2 uplink still stays silent (`qemu-run.log` remains
+    `0` bytes), and the sink-side markers showed:
+    - `ConsolePassthroughSink` reaches `pre_init()`
+    - `camkes_io_ops(&io_ops)` returns
+    - `ps_cdev_init(PS_SERIAL_DEFAULT, ...)` returns
+    - `ConsolePassthroughSink` does **not** reach `run()`
+    - `ConsolePassthroughSink.raw_putchar_putchar()` is never entered
+  Current conclusion:
+  - the active dead point is now between `ConsolePassthroughSink.pre_init()`
+    completion and the generated `raw_putchar` server thread becoming runnable
+  - this strongly suggests a generated startup/barrier or connector-semantics
+    issue in the `serial` component shape, rather than a COM2 device-init
+    failure or a `ConsoleMux` producer failure
+- 2026-04-25: sink-side per-interface init hooks identified the exact blocked
+  participant in the generated `serial` startup barrier.
+  - added explicit `raw_putchar__init`, `getchar__init`, and
+    `serial_irq__init` markers in
+    [components/ConsolePassthroughSink/src/console_passthrough_sink.c](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsolePassthroughSink/src/console_passthrough_sink.c:1)
+  - observed at runtime:
+    - `[cps raw init]`
+    - `[cps getchar init]`
+    - no `[cps irq init]`
+    - no `[cps post_init]`
+  Refined conclusion:
+  - the `ConsolePassthroughSink` control thread was blocked in the generated
+    `pre_init_interface_sync()` barrier waiting for the `serial_irq` interface
+    thread to report ready
+  - the missing `serial_irq` startup, not COM2 initialization itself, is what
+    prevented `raw_putchar__run()` from starting
+- 2026-04-25: started a repo-owned no-IRQ sink experiment by removing the
+  hardware interrupt dependency from
+  [components/ConsolePassthroughSink/ConsolePassthroughSink.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsolePassthroughSink/ConsolePassthroughSink.camkes:1)
+  while keeping the output path otherwise intact.
+  - clean x86 rebuild passed after this change
+  - runtime validation is in progress, but the remote host became unstable
+    again before a clean verdict was captured
 
 ## Scope Update
 

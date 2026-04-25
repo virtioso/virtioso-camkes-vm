@@ -19,7 +19,7 @@ Current slice status:
 - Slice 1 `Dedicated QEMU mux uplink`: `in_progress`
 - Slice 2 `Shared ConsoleMux component`: `in_progress`
 - Slice 3 `Init diagnostics -> mux-facing interface`: `pending`
-- Slice 4 `Guest UART sources -> explicit mux inputs`: `pending`
+- Slice 4 `Guest UART sources -> explicit mux inputs`: `in_progress`
 - Slice 5 `Physical UART sink boundary`: `pending`
 - Slice 6 `Router/Autopilot stay dumb`: `pending`
 
@@ -154,6 +154,26 @@ Implementation notes:
   - `make mrproper`
   - `make qemu_x86_64_defconfig`
   - `make vm_qemu_virtio`
+- 2026-04-25: started the first real producer cutover in the x86 app-local
+  composition:
+  - `vm##num.guest_putchar` no longer goes straight to the serial sink
+  - it now routes through `GuestConsoleSink`
+  - `GuestConsoleSink` forwards stream-tagged bytes to `ConsoleMux`
+  - `ConsoleMux` emits framed bytes to the downstream `serial.raw_putchar`
+  - ordinary `vm##num.putchar` still stays on the legacy processed path for now
+  This was wired in:
+  [apps/x86/vm_qemu_virtio/vm_qemu_virtio.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio/vm_qemu_virtio.camkes:1)
+  and
+  [apps/x86/vm_qemu_virtio_minimal/vm_qemu_virtio_minimal.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio_minimal/vm_qemu_virtio_minimal.camkes:1).
+- 2026-04-25: validated that first x86 cutover by another clean build:
+  - `make mrproper`
+  - `make qemu_x86_64_defconfig`
+  - `make vm_qemu_virtio`
+  The build generated `console_mux.instance.bin`,
+  `vm0_guest_console_sink.instance.bin`, and
+  `vm1_guest_console_sink.instance.bin`, which is the first proof that the new
+  repo-owned mux/sink components are not just scaffolding but are now part of
+  the x86 app composition.
 
 ## Scope Update
 

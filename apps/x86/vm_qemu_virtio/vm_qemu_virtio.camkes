@@ -10,7 +10,6 @@ import <std_connector.camkes>;
 import <global-connectors.camkes>;
 import <FileServerInterface.camkes>;
 import <FileServer/FileServer.camkes>;
-import <ConsoleMux.camkes>;
 import <GuestConsoleSink.camkes>;
 import <ConsolePassthroughSink.camkes>;
 import <VM/vm.camkes>;
@@ -29,7 +28,6 @@ import <vm-connectors.camkes>;
 #undef VM_COMPOSITION_DEF
 #define VM_COMPOSITION_DEF() \
     component FileServer fserv; \
-    component ConsoleMux console_mux; \
     component ConsolePassthroughSink serial; \
     component GuestConsoleSink VM_GUEST_SINK_NAME(0); \
     component GuestConsoleSink VM_GUEST_SINK_NAME(1); \
@@ -39,12 +37,11 @@ import <vm-connectors.camkes>;
     component PCIConfigIO pci_config; \
     component TimeServer time_server; \
     component RTC rtc; \
-    connection seL4SerialServer console_mux_uplink(from console_mux.uplink_batch, to serial.raw_batch); \
-    connection seL4SerialServer vm0_guest_console_sink_mux(from VM_GUEST_SINK_NAME(0).mux_batch, to console_mux.mux_batch); \
-    connection seL4SerialServer vm1_guest_console_sink_mux(from VM_GUEST_SINK_NAME(1).mux_batch, to console_mux.mux_batch); \
-    connection seL4SerialServer vm0_vmm_diag_sink_mux(from VM_DIAG_SINK_NAME(0).mux_batch, to console_mux.mux_batch); \
-    connection seL4SerialServer vm1_vmm_diag_sink_mux(from VM_DIAG_SINK_NAME(1).mux_batch, to console_mux.mux_batch); \
-    connection seL4SerialServer infra_diag_sink_mux(from infra_diag_sink.mux_batch, to console_mux.mux_batch); \
+    connection seL4SerialServer vm0_guest_console_sink_uplink(from VM_GUEST_SINK_NAME(0).mux_batch, to serial.raw_batch); \
+    connection seL4SerialServer vm1_guest_console_sink_uplink(from VM_GUEST_SINK_NAME(1).mux_batch, to serial.raw_batch); \
+    connection seL4SerialServer vm0_vmm_diag_sink_uplink(from VM_DIAG_SINK_NAME(0).mux_batch, to serial.raw_batch); \
+    connection seL4SerialServer vm1_vmm_diag_sink_uplink(from VM_DIAG_SINK_NAME(1).mux_batch, to serial.raw_batch); \
+    connection seL4SerialServer infra_diag_sink_uplink(from infra_diag_sink.mux_batch, to serial.raw_batch); \
     connection seL4RPCCall serial_pci_config(from pci_config.putchar, to infra_diag_sink.guest_putchar); \
     connection seL4RPCCall serial_time_server(from time_server.putchar, to infra_diag_sink.guest_putchar); \
     connection seL4RPCCall serial_rtc(from rtc.putchar, to infra_diag_sink.guest_putchar); \

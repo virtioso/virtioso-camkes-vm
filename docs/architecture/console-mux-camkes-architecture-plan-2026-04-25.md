@@ -268,6 +268,46 @@ Implementation notes:
     flushes is not enough
   - the `GuestConsoleSink -> ConsoleMux` batching slice needs a different
     policy or a different ownership split to become a runtime improvement
+- 2026-04-25: direct x86 fixed-stream bypass of `ConsoleMux` produced the
+  clearest measured reduction so far.
+  - for this probe, the x86 app composition was changed so the fixed-stream
+    sink instances no longer route through a shared `ConsoleMux` component:
+    - `vm0_guest_console_sink.mux_batch -> serial.raw_batch`
+    - `vm1_guest_console_sink.mux_batch -> serial.raw_batch`
+    - `vm0_vmm_diag_sink.mux_batch -> serial.raw_batch`
+    - `vm1_vmm_diag_sink.mux_batch -> serial.raw_batch`
+    - `infra_diag_sink.mux_batch -> serial.raw_batch`
+  - the x86 app also drops the local `ConsoleMux` component registration in
+    `apps/x86/vm_qemu_virtio/CMakeLists.txt`, so the measured hot path removes
+    the whole synchronous middle hop instead of trying to optimize it further
+  - clean rebuild still passed:
+    - `make mrproper`
+    - `make qemu_x86_64_defconfig`
+    - `make vm_qemu_virtio`
+  - preserved runtime:
+    [qemu-x86-consolemux-runtime-bypass1](/tmp/qemu-x86-consolemux-runtime-bypass1/console-runtime/runtime-manifest.json:1)
+  - clean measurement lines are in:
+    [vmm_debug/raw.log](/tmp/qemu-x86-consolemux-runtime-bypass1/console-runtime/channels/vmm_debug/raw.log:1)
+  - with `ConsoleMux` removed from the x86 fixed-stream path:
+    - stream `3` (`vmm_mux_control`) caller-side cost dropped from the old
+      `~220M..260M` cycle range to roughly `~180M..200M` cycles per call after
+      the earliest samples
+    - stream `5` (`user_vm_console`) dropped from about `~150M` cycles per
+      call early to roughly `~88M..106M`
+    - stream `1` (`driver_vm_console`) dropped from about `~165M` cycles per
+      call early to roughly `~85M..101M`
+  - representative bypass samples:
+    - `gcs caller stream=3 calls=64 ... avg_call=178744472`
+    - `gcs caller stream=5 calls=128 ... avg_call=88966466`
+    - `gcs caller stream=1 calls=144 ... avg_call=85433632`
+  Current interpretation:
+  - the extra synchronous `GuestConsoleSink -> ConsoleMux -> uplink` topology
+    is a real measurable cost center
+  - removing the whole middle hop helps more than the earlier micro-level lock
+    or flush tuning
+  - for x86 fixed-stream sinks, direct framing in the sink plus direct
+    `Batch` delivery to the uplink sink is currently the best-performing shape
+    we have measured
 - 2026-04-25: directly gated generic VMM diag output at the producer and
   reran the preserved x86 probe to separate “generic diag chatter” from the
   remaining control-lane cost.

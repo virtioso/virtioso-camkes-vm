@@ -8,6 +8,8 @@ cmake_minimum_required(VERSION 3.8.2)
 
 project(vm-qemu-virtio-x86 C)
 
+add_definitions(-DVMM_CONSOLE_DROP_DIAG_OUTPUT=1)
+
 include(${CAMKES_VM_HELPERS_PATH})
 include(${VIRTIOSO_CAMKES_VM_HELPERS_PATH})
 find_package(camkes-vm-linux REQUIRED)
@@ -76,8 +78,8 @@ add_custom_target(vm_qemu_virtio_driver_disk ALL DEPENDS "${VM_IMAGE_DRIVER_BUND
 AddToFileServer("bzimage" "${decompressed_kernel}" DEPENDS extract_linux_kernel)
 AddToFileServer("rootfs.cpio.gz" "${VM_IMAGE_ROOTFS}")
 
-DeclareVirtiosoX86CAmkESVM(Init0 EXTRA_C_FLAGS -DVMM_CONSOLE_FRAMED_OUTPUT=1)
-DeclareVirtiosoX86CAmkESVM(Init1 EXTRA_C_FLAGS -DVMM_CONSOLE_FRAMED_OUTPUT=1)
+DeclareVirtiosoX86CAmkESVM(Init0)
+DeclareVirtiosoX86CAmkESVM(Init1)
 
 DeclareCAmkESVMRootServer(vm_qemu_virtio.camkes)
 

@@ -258,7 +258,7 @@ Implementation notes:
   - this tuning did **not** produce a runtime win:
     - within a `180s` watch window it still did not reach
       `jent_mod_init`
-    - it also did not reach `driver-vm login:`
+      or `driver-vm login:`
     - at the 180s watch point the active channels were only at:
       - `driver_vm_console`: `18,059` bytes
       - `user_vm_console`: `18,576` bytes
@@ -268,6 +268,54 @@ Implementation notes:
     flushes is not enough
   - the `GuestConsoleSink -> ConsoleMux` batching slice needs a different
     policy or a different ownership split to become a runtime improvement
+- 2026-04-25: directly gated generic VMM diag output at the producer and
+  reran the preserved x86 probe to separate “generic diag chatter” from the
+  remaining control-lane cost.
+  - x86 app-local build now defines `VMM_CONSOLE_DROP_DIAG_OUTPUT=1`, and
+    [console_frame_transport.c](/home/hlyytine/tii-sel4/projects/vm/components/Init/src/console_frame_transport.c:1)
+    drops `vmm_console_diag_putchar()` bytes while keeping:
+    - explicit `vmm_console_debug_putchar()` traffic
+    - producer-side `txg` / `txd` / `txdbg` heartbeat counters
+  - clean validation build still passed:
+    - `make mrproper`
+    - `make qemu_x86_64_defconfig`
+    - `make vm_qemu_virtio`
+  - preserved runtime:
+    [qemu-x86-consolemux-runtime-instr3](/tmp/qemu-x86-consolemux-runtime-instr3/console-runtime/runtime-manifest.json:1)
+  - early heartbeat samples show the intended effect:
+    - first samples still had startup `txd` bursts, for example:
+      - `vm1 hb=1`: `txd=+2909B` with `cyc=+8,014,600,064`
+      - `vm0 hb=3`: `txd=+1160B` with `cyc=+2,999,427,472`
+      - `vm1 hb=4`: `txd=+1044B` with `cyc=+3,056,896,480`
+    - after those first few startup heartbeats, `txd` dropped to zero and
+      stayed there in later steady-state samples:
+      - by heartbeats around `hb=392..418`, both VMs reported
+        `txd=+0B ... cyc=+0`
+  - despite that, the run remained slow and the control lane still dominated:
+    - `driver_vm_console`: `58,562` bytes
+    - `user_vm_console`: `116,296` bytes
+    - `vmm_mux_control`: `340,895` bytes
+  - direct content counts from
+    [vmm_mux_control/raw.log](/tmp/qemu-x86-consolemux-runtime-instr3/console-runtime/channels/vmm_mux_control/raw.log:1)
+    show what that lane is carrying now:
+    - `[vmmdbg]` markers: `822`
+    - `vm0:` prefixes: `269`
+    - `vm1:` prefixes: `275`
+  - late heartbeat samples show the remaining dominant control-lane source is
+    now explicit debug heartbeat traffic rather than generic diag output:
+    - typical later samples reported:
+      - `txg=+0B ... txd=+0B ... txdbg=+375B` on VM0
+      - `txg=+0B ... txd=+0B ... txdbg=+373..375B` on VM1
+      - `top_exit=EPT_VIOLATION(48)` rather than the earlier
+        `IO_INSTRUCTION(30)` dominance
+  Current interpretation:
+  - generic VMM diag chatter was a real producer-side cost, but suppressing it
+    did **not** remove the overall slowness
+  - the remaining dominant control-lane volume is now mostly the explicit
+    `[vmmdbg]` heartbeat/debug path, and the hot exit profile has shifted to
+    `EPT_VIOLATION(48)` while the run is still slow
+  - this means the next high-value measurement target is the explicit debug
+    heartbeat path itself, not more blind tuning of generic diag suppression
 - 2026-04-25: added producer-side transport counters in
   `projects/vm/components/Init/src/console_frame_transport.c` and surfaced them
   through the existing `[vmmdbg]` heartbeat in

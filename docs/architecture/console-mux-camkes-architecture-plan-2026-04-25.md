@@ -268,6 +268,40 @@ Implementation notes:
     flushes is not enough
   - the `GuestConsoleSink -> ConsoleMux` batching slice needs a different
     policy or a different ownership split to become a runtime improvement
+- 2026-04-25: added producer-side transport counters in
+  `projects/vm/components/Init/src/console_frame_transport.c` and surfaced them
+  through the existing `[vmmdbg]` heartbeat in
+  `projects/vm/components/Init/src/main.c`.
+  - the new counters track, separately for guest, diag, and debug output:
+    - payload bytes
+    - framed/wire bytes
+    - total calls
+    - cumulative TSC cycles spent inside the producer-side console transport
+  - first measured runtime:
+    [qemu-x86-consolemux-runtime-instr1](/tmp/qemu-x86-consolemux-runtime-instr1/console-runtime/runtime-manifest.json:1)
+  - the early heartbeats are the strongest new fact so far:
+    - before guest console output starts, `txg=0B` while `txd` is already
+      burning billions of cycles per heartbeat
+    - representative early samples:
+      - `txd=+906B ... cyc=+2,669,969,248`
+      - `txd=+950B ... cyc=+2,836,222,878`
+      - `txd=+806B ... cyc=+2,495,207,78x`
+    - at the same time `txdbg` is also non-trivial, typically on the order of
+      `+270B` and `+0.65B` to `+0.76B` cycles per heartbeat
+  - once guest console bytes start, the picture changes:
+    - `txg` becomes non-zero and is itself expensive, often around:
+      - `+570B ... cyc=+2,031,341,784`
+      - `+587B ... cyc=+1,898,104,468`
+      - `+705B ... cyc=+2,369,121,116`
+      - `+899B ... cyc=+2,224,933,076`
+    - but the critical finding is that the system is already spending huge time
+      in the producer-side diag path before guest console output meaningfully
+      begins
+  Current interpretation:
+  - this is the first direct evidence that a substantial part of the remaining
+    slowness lives before the mux/router boundary
+  - early VMM diag/control output generation itself is now a stronger suspect
+    than the downstream demuxer or the later sink batching policy
 - 2026-04-25: started Slice 1 implementation in
   [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:1)
   and added

@@ -350,6 +350,34 @@ Implementation notes:
     now justifies focusing on reducing or bypassing the
     `GuestConsoleSink -> ConsoleMux` hop before spending more effort on local
     Python demux or generic host-side explanations
+- 2026-04-25: ran a direct null-sink comparison to test whether the physical
+  `115200` UART path is the dominant source of the measured RPC latency.
+  - x86 app-local build now defines `CONSOLE_SINK_DROP_OUTPUT=1`, so
+    [ConsolePassthroughSink](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsolePassthroughSink/src/console_passthrough_sink.c:1)
+    discards bytes instead of calling `ps_cdev_putchar()`
+  - preserved comparison runtime:
+    [qemu-x86-consolemux-runtime-null1](/tmp/qemu-x86-consolemux-runtime-null1/console-runtime/runtime-manifest.json:1)
+  - first framed `rpcprof` samples in
+    [vmm_debug/raw.log](/tmp/qemu-x86-consolemux-runtime-null1/console-runtime/channels/vmm_debug/raw.log:1)
+    did **not** show the dramatic collapse that a UART-backpressure root cause
+    would predict:
+    - `GuestConsoleSink -> ConsoleMux` stream `3` still sat roughly around
+      `220M..260M` cycles per call in early samples
+    - `ConsoleMux` server/uplink still sat roughly around
+      `100M..125M` cycles per call
+  - direct comparison against the serial-backed `rpc3` run:
+    - serial-backed `rpc3`:
+      - `gcs stream=3` early samples around `216M..251M` cycles/call
+      - `mux srv_avg` early samples around `100M..136M` cycles/call
+    - null-sink `null1`:
+      - `gcs stream=3` early samples around `219M..260M` cycles/call
+      - `mux srv_avg` early samples around `100M..132M` cycles/call
+  Current interpretation:
+  - the physical `115200` UART sink is **not** the primary explanation for the
+    tens-of-milliseconds caller-side RPC timings
+  - removing COM2 writes did not materially reduce the measured hop costs
+  - the dominant cost still lives earlier in the repo-owned synchronous path,
+    especially around the `GuestConsoleSink -> ConsoleMux` interaction itself
 - 2026-04-25: added producer-side transport counters in
   `projects/vm/components/Init/src/console_frame_transport.c` and surfaced them
   through the existing `[vmmdbg]` heartbeat in

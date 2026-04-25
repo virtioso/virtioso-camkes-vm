@@ -30,6 +30,11 @@ Implementation notes:
   and added
   [tools/qemu_mux_uplink_bridge.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_mux_uplink_bridge.py:1)
   to establish a dedicated second-QEMU-uplink mode for binary-framed runs.
+- 2026-04-25: verified by smoke test that the remote bundle wrapper emitted for
+  a `vm_qemu_virtio`-profile binary includes:
+  - `qemu_mux_uplink_bridge.py`
+  - `console-mux.sock`
+  - `socket,id=virtioso_mux`
 
 ## Scope Update
 

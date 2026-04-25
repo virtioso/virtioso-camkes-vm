@@ -39,6 +39,13 @@ Implementation notes:
   [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:1)
   so local runs can also append a dedicated QEMU mux uplink socket and route
   it through `qemu_mux_uplink_bridge.py`.
+- 2026-04-25: moved x86 `vm_qemu_virtio` and
+  `vm_qemu_virtio_minimal` app settings to COM2 via
+  [apps/x86/vm_qemu_virtio/app_settings.cmake](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio/app_settings.cmake:1)
+  and
+  [apps/x86/vm_qemu_virtio_minimal/app_settings.cmake](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio_minimal/app_settings.cmake:1),
+  so the seL4-side console sink can target the dedicated QEMU uplink on x86
+  without reusing the legacy COM1 console line.
 
 ## Scope Update
 

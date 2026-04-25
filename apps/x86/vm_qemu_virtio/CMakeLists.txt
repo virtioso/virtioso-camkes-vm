@@ -12,6 +12,11 @@ include(${CAMKES_VM_HELPERS_PATH})
 include(${VIRTIOSO_CAMKES_VM_HELPERS_PATH})
 find_package(camkes-vm-linux REQUIRED)
 include(${CAMKES_VM_LINUX_HELPERS_PATH})
+CAmkESAddImportPath(${VIRTIOSO_CAMKES_VM_DIR}/components/ConsolePassthroughSink)
+add_subdirectory(
+    ${VIRTIOSO_CAMKES_VM_DIR}/components/ConsolePassthroughSink
+    ${CMAKE_CURRENT_BINARY_DIR}/ConsolePassthroughSink
+)
 
 if(EXISTS "${VM_IMAGES_DIR}/${VM_IMAGE_MACHINE}/vm-image-driver-${VM_IMAGE_MACHINE}.rootfs.ext4.qcow2")
     set(VM_IMAGE_DRIVER_SOURCE
@@ -60,8 +65,8 @@ add_custom_target(vm_qemu_virtio_driver_disk ALL DEPENDS "${VM_IMAGE_DRIVER_BUND
 AddToFileServer("bzimage" "${decompressed_kernel}" DEPENDS extract_linux_kernel)
 AddToFileServer("rootfs.cpio.gz" "${VM_IMAGE_ROOTFS}")
 
-DeclareVirtiosoX86CAmkESVM(Init0)
-DeclareVirtiosoX86CAmkESVM(Init1)
+DeclareVirtiosoX86CAmkESVM(Init0 EXTRA_C_FLAGS -DVMM_CONSOLE_FRAMED_OUTPUT=1)
+DeclareVirtiosoX86CAmkESVM(Init1 EXTRA_C_FLAGS -DVMM_CONSOLE_FRAMED_OUTPUT=1)
 
 DeclareCAmkESVMRootServer(vm_qemu_virtio.camkes)
 

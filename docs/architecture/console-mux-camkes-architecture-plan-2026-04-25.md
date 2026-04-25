@@ -46,6 +46,38 @@ Implementation notes:
   [apps/x86/vm_qemu_virtio_minimal/app_settings.cmake](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio_minimal/app_settings.cmake:1),
   so the seL4-side console sink can target the dedicated QEMU uplink on x86
   without reusing the legacy COM1 console line.
+- 2026-04-25: started removing upstream `SerialServer` from the x86
+  authoritative path by adding a repo-owned
+  [components/ConsolePassthroughSink/ConsolePassthroughSink.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsolePassthroughSink/ConsolePassthroughSink.camkes:1)
+  component plus
+  [components/ConsolePassthroughSink/src/console_passthrough_sink.c](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsolePassthroughSink/src/console_passthrough_sink.c:1),
+  and switching the x86 app-local `VM_COMPOSITION_DEF()` overrides in
+  [apps/x86/vm_qemu_virtio/vm_qemu_virtio.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio/vm_qemu_virtio.camkes:1)
+  and
+  [apps/x86/vm_qemu_virtio_minimal/vm_qemu_virtio_minimal.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio_minimal/vm_qemu_virtio_minimal.camkes:1)
+  to instantiate that sink instead of upstream `SerialServer`.
+- 2026-04-25: first x86 verification build failed in two useful ways:
+  - the new sink component needed an explicit CAmkES import path
+  - `LibPlatSupportX86ConsoleDeviceCom2` alone did not override the
+    `LibPlatSupportX86ConsoleDevice` choice, so the build still auto-selected
+    COM1
+  Both were corrected in the x86 app CMake/app-settings path before the next
+  rebuild.
+- 2026-04-25: the second x86 verification build reached link time and proved
+  the new sink component was being instantiated, but also showed the remaining
+  integration gap: the component needed repo-local `DeclareCAmkESComponent(...)`
+  registration plus a trivial `run()` entrypoint. Those were added in
+  [components/ConsolePassthroughSink/CMakeLists.txt](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsolePassthroughSink/CMakeLists.txt:1)
+  and
+  [components/ConsolePassthroughSink/src/console_passthrough_sink.c](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsolePassthroughSink/src/console_passthrough_sink.c:1)
+  before the next rebuild.
+- 2026-04-25: clean x86 rebuild succeeded after the repo-owned sink wiring:
+  - `make mrproper`
+  - `make qemu_x86_64_defconfig`
+  - `make vm_qemu_virtio`
+  This validates the current x86 build-time path where upstream
+  `SerialServer` is no longer instantiated by the `vm_qemu_virtio` app and the
+  repo-owned `ConsolePassthroughSink` owns the `serial` component role instead.
 
 ## Scope Update
 

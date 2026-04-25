@@ -10,7 +10,7 @@ import <std_connector.camkes>;
 import <global-connectors.camkes>;
 import <FileServerInterface.camkes>;
 import <FileServer/FileServer.camkes>;
-import <SerialServer/SerialServer.camkes>;
+import <ConsolePassthroughSink.camkes>;
 import <VM/vm.camkes>;
 import <vm-connectors.camkes>;
 
@@ -18,6 +18,18 @@ import <vm-connectors.camkes>;
 "i8042.noaux=y io_delay=udelay noisapnp pci=nomsi nolapic_timer debug " \
 "loglevel=8 ignore_loglevel initcall_debug initcall_blacklist=raid6_select_algo " \
 "root=/dev/ram0 rdinit=/init"
+
+#undef VM_COMPOSITION_DEF
+#define VM_COMPOSITION_DEF() \
+    component FileServer fserv; \
+    component ConsolePassthroughSink serial; \
+    component PCIConfigIO pci_config; \
+    component TimeServer time_server; \
+    component RTC rtc; \
+    connection seL4RPCCall serial_pci_config(from pci_config.putchar, to serial.processed_putchar); \
+    connection seL4RPCCall serial_time_server(from time_server.putchar, to serial.processed_putchar); \
+    connection seL4RPCCall serial_rtc(from rtc.putchar, to serial.processed_putchar); \
+    /**/
 
 component Init0 {
     VM_VIRTIOSO_INIT_DEF()

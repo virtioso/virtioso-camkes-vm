@@ -46,6 +46,23 @@ Migration policy update:
 
 Implementation notes:
 
+- 2026-04-25: removed the temporary `while (1) { seL4_Yield(); }` control-thread
+  loops from the repo-owned mux/sink components after verifying they were only
+  bring-up scaffolding, not part of the target design.
+  - [components/ConsoleMux/ConsoleMux.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsoleMux/ConsoleMux.camkes:1)
+    and
+    [components/GuestConsoleSink/GuestConsoleSink.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/GuestConsoleSink/GuestConsoleSink.camkes:1)
+    no longer declare a `control` thread at all.
+  - [components/ConsolePassthroughSink/src/console_passthrough_sink.c](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsolePassthroughSink/src/console_passthrough_sink.c:1)
+    now returns from `run()` instead of spinning in a yield loop.
+  - a fresh clean x86 build still passed:
+    - `make mrproper`
+    - `make qemu_x86_64_defconfig`
+    - `make vm_qemu_virtio`
+  - a fresh x86 runtime rerun then proved the sink now reaches `post_init`,
+    enters `run()`, and services `raw_putchar`, so the old “control thread
+    never becomes meaningfully runnable” concern is no longer explained by our
+    own idle-loop scaffolding.
 - 2026-04-25: started Slice 1 implementation in
   [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:1)
   and added

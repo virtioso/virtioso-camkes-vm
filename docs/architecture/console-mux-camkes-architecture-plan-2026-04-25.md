@@ -378,6 +378,31 @@ Implementation notes:
   - removing COM2 writes did not materially reduce the measured hop costs
   - the dominant cost still lives earlier in the repo-owned synchronous path,
     especially around the `GuestConsoleSink -> ConsoleMux` interaction itself
+- 2026-04-25: removed the extra `ConsoleMux` userspace spin/yield lock and
+  reran the short null-sink RPC probe to check whether we were paying for
+  avoidable serialization on top of the generated single-threaded `Batch`
+  server path.
+  - removed `console_mux_emit_lock`, `console_mux_lock()`, and
+    `console_mux_unlock()` from
+    [ConsoleMux/src/console_mux.c](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsoleMux/src/console_mux.c:1)
+  - preserved comparison runtime:
+    [qemu-x86-consolemux-runtime-null2](/tmp/qemu-x86-consolemux-runtime-null2/console-runtime/runtime-manifest.json:1)
+  - generated topology still confirms the `mux_batch` hot path is already
+    served by one active server thread:
+    [console_mux/mux_batch_seL4SerialServer_0.c](/home/hlyytine/tii-sel4/qemu_x86_64_vm_qemu_virtio/console_mux/mux_batch_seL4SerialServer_0.c:348)
+  - the lock-free rerun did **not** produce a dramatic timing drop:
+    - `null1` with lock:
+      - `gcs stream=3` early samples roughly `219M..260M` cycles/call
+      - `mux srv_avg` early samples roughly `100M..132M` cycles/call
+    - `null2` without lock:
+      - `gcs stream=3` early samples roughly `225M..305M` cycles/call
+      - `mux srv_avg` early samples roughly `94M..155M` cycles/call
+      - later `mux srv_avg` samples did settle around `94M..106M`
+  Current interpretation:
+  - removing the extra userspace lock was still architecturally correct, but
+    it was **not** the dominant source of the measured hop cost
+  - the real problem remains the synchronous two-hop structure itself, not an
+    avoidable lock around `uplink_batch_batch()`
 - 2026-04-25: added producer-side transport counters in
   `projects/vm/components/Init/src/console_frame_transport.c` and surfaced them
   through the existing `[vmmdbg]` heartbeat in

@@ -10,6 +10,8 @@ import <std_connector.camkes>;
 import <global-connectors.camkes>;
 import <FileServerInterface.camkes>;
 import <FileServer/FileServer.camkes>;
+import <ConsoleMux.camkes>;
+import <GuestConsoleSink.camkes>;
 import <ConsolePassthroughSink.camkes>;
 import <VM/vm.camkes>;
 import <vm-connectors.camkes>;
@@ -19,13 +21,19 @@ import <vm-connectors.camkes>;
 "loglevel=8 ignore_loglevel initcall_debug initcall_blacklist=raid6_select_algo " \
 "root=/dev/ram0 rdinit=/init"
 
+#define VM_GUEST_SINK_NAME(num) CAT(CAT(vm, num), _guest_console_sink)
+
 #undef VM_COMPOSITION_DEF
 #define VM_COMPOSITION_DEF() \
     component FileServer fserv; \
+    component ConsoleMux console_mux; \
     component ConsolePassthroughSink serial; \
+    component GuestConsoleSink VM_GUEST_SINK_NAME(0); \
     component PCIConfigIO pci_config; \
     component TimeServer time_server; \
     component RTC rtc; \
+    connection seL4SerialServer console_mux_uplink(from console_mux.uplink_batch, to serial.raw_batch); \
+    connection seL4RPCCall vm0_guest_console_sink_mux(from VM_GUEST_SINK_NAME(0).mux_emit, to console_mux.mux_emit); \
     connection seL4RPCCall serial_pci_config(from pci_config.putchar, to serial.processed_putchar); \
     connection seL4RPCCall serial_time_server(from time_server.putchar, to serial.processed_putchar); \
     connection seL4RPCCall serial_rtc(from rtc.putchar, to serial.processed_putchar); \
@@ -36,7 +44,7 @@ import <vm-connectors.camkes>;
     connection seL4GlobalAsynch intreadycon##num(from vm##num.intready_connector, to vm##num.intready); \
     connection seL4RPCDataport fs##num(from vm##num.fs, to fserv.fs_ctrl); \
     connection seL4RPCCall serial_vm##num(from vm##num.putchar, to serial.processed_putchar); \
-    connection seL4RPCCall serial_guest_vm##num(from vm##num.guest_putchar, to serial.raw_putchar); \
+    connection seL4RPCCall serial_guest_vm##num(from vm##num.guest_putchar, to VM_GUEST_SINK_NAME(num).guest_putchar); \
     connection seL4SerialServer serial_input##num(from vm##num.serial_getchar, to serial.getchar); \
     connection seL4RPCCall rtctest##num(from vm##num.system_rtc, to rtc.rtc); \
     connection seL4TimeServer CAT(pit##num,_timer)(from vm##num.init_timer, to time_server.the_timer); \
@@ -57,6 +65,8 @@ assembly {
     configuration {
         VM_CONFIGURATION_DEF()
         VM_VIRTIOSO_CONFIGURATION_DEF(0)
+
+        vm0_guest_console_sink.stream_id = 1;
 
         vm0.simple_untyped23_pool = 21;
         vm0.simple_untyped22_pool = 1;

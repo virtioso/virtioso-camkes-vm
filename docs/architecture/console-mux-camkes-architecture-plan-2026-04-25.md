@@ -172,6 +172,44 @@ Implementation notes:
   - this does not yet prove it is the only root cause of slowness, but it is
     now a hard architectural delta between the older fast runs and the current
     path, and it matches the direction of the regression
+- 2026-04-25: implemented the first concrete overhead reduction on that hot
+  path by batching the `ConsoleMux -> sink` leg instead of RPCing every framed
+  byte separately.
+  - `ConsoleMux` now uses the existing upstream-style `Batch` connector model
+    on its downstream uplink rather than `PutChar`
+  - `ConsolePassthroughSink` now provides `raw_batch`
+  - x86 app-local composition now wires:
+    `console_mux.uplink_batch -> serial.raw_batch`
+    via `seL4SerialServer`
+  - this changes the downstream cost of one framed payload byte from:
+    - 11 `uplink_putchar(...)` calls
+    to:
+    - 1 shared-buffer fill plus 1 `uplink_batch.batch()` call carrying the same
+      11 frame bytes
+  - in call-count terms, the current guest-to-uplink path drops from roughly
+    `13` call-like operations per payload byte to roughly `3`
+  - clean validation build still passed after the change:
+    - `make mrproper`
+    - `make qemu_x86_64_defconfig`
+    - `make vm_qemu_virtio`
+- 2026-04-25: first runtime after that batching slice showed a real improvement
+  even though it still did not reach `driver-vm login:` in the observation
+  window.
+  - preserved runtime:
+    [qemu-x86-consolemux-runtime-batch1](/tmp/qemu-x86-consolemux-runtime-batch1/console-runtime/runtime-manifest.json:1)
+  - after a 120s prompt watch window:
+    - `driver_vm_console/raw.log` reached `60,795` bytes
+    - `user_vm_console/raw.log` reached `120,486` bytes
+    - `vmm_mux_control/raw.log` reached `223,505` bytes
+    - no `driver-vm login:` marker appeared yet
+  - the important live comparison point from the rerun was VM0 progress around
+    the old hot region:
+    - previous preserved prompt-attempt run reported
+      `jent_mod_init` around guest time `301.491323s`
+    - the first batching rerun reached `jent_mod_init` around guest time
+      `68.968493s` in live console output
+  - so the batching slice did not solve the whole boot path, but it materially
+    reduced the severity of the earlier console-path slowdown
 - 2026-04-25: started Slice 1 implementation in
   [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:1)
   and added

@@ -78,6 +78,42 @@ Implementation notes:
   This validates the current x86 build-time path where upstream
   `SerialServer` is no longer instantiated by the `vm_qemu_virtio` app and the
   repo-owned `ConsolePassthroughSink` owns the `serial` component role instead.
+- 2026-04-25: first runtime validation of the dedicated-uplink x86 path failed
+  before any framed bytes were emitted. Preserved remote-bundle diagnostics
+  showed the cause in `qemu-run.log.stderr`:
+  `QEMU_MUX_UPLINK_BRIDGE_ERROR: ... AF_UNIX path too long`.
+  The dedicated mux socket path was then shortened in
+  [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:1)
+  to allocate the socket under `/tmp` instead of inside the long remote bundle
+  directory.
+- 2026-04-25: the dedicated-uplink wrapper generation had two additional real
+  bugs after the socket-length fix:
+  - the generated remote `run-bundle.sh` still passed a stale
+    `../console-mux.sock` path to QEMU while the bridge used the new short
+    `/tmp` socket path
+  - the script appended `--extra-qemu-args=${qemu_extra_opt}` to
+    `producer_cmd` before mutating `qemu_extra_opt` with the dynamic dedicated
+    uplink arguments
+  Both were corrected in
+  [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:1)
+  so the bridge and QEMU now share the same dynamically allocated short socket
+  path.
+- 2026-04-25: remote runtime validation after those fixes proved the dedicated
+  second-uart uplink is now active and carrying framed producer traffic.
+  Inspection of the preserved remote `qemu-run.log` for
+  `qemu_x86_64_defconfig-capdl-loader-image-x86_64-pc99-20260425T094716Z`
+  showed valid binary frames for stream ids `1`, `3`, `5`, and `7`, while
+  legacy firmware/kernel chatter remained side-logged in `qemu-run.log.legacy`.
+  That is the first end-to-end proof that the authoritative framed path is no
+  longer sharing the contaminated primary serial/stdout lane.
+- 2026-04-25: the same validation also narrowed the next blocker. The local
+  live router runtime only materialized the initial `vmm_mux_control` bytes
+  (`vm1: main_continued@`) during the observed run, and the run was later
+  interrupted before clean completion. So Slice 1 now has transport proof but
+  not yet a clean full-run proof through the SSH-backed live demux path. The
+  next implementation/debugging step should focus on the live
+  `console_router.py` materialization path rather than on QEMU socket
+  allocation again.
 
 ## Scope Update
 

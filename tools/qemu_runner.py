@@ -376,6 +376,11 @@ def _append_qemu_dedicated_mux_uplink(extra_qemu_args: str, socket_path: str) ->
     return _shell_join(argv)
 
 
+def _short_mux_socket_path(prefix: str) -> Path:
+    tmp_dir = Path(tempfile.gettempdir())
+    return tmp_dir / f"{prefix}-{os.getpid()}.sock"
+
+
 def _simulate_command(build_dir: Path, binary: Path, qemu_binary: Path, extra_qemu_args: str) -> list[str]:
     simulate = _simulate_script(build_dir)
     if not simulate.exists():
@@ -430,7 +435,7 @@ def run_local(
     )
     merged_extra_qemu_args = _rewrite_extra_qemu_args_for_binary_frames(binary, merged_extra_qemu_args)
     dedicated_mux_uplink = _dedicated_mux_uplink_opt_in(binary)
-    mux_socket_path = console_root / "console-mux.sock"
+    mux_socket_path = _short_mux_socket_path("virtioso-local-mux")
     if dedicated_mux_uplink:
         merged_extra_qemu_args = _append_qemu_dedicated_mux_uplink(
             merged_extra_qemu_args,
@@ -849,11 +854,6 @@ def _write_remote_wrapper(
         qemu_extra_parts.extend(["-L", "../../toolchain/pc-bios"])
     if extra_qemu_args.strip():
         qemu_extra_parts.extend(shlex.split(extra_qemu_args))
-    if dedicated_mux_uplink:
-        qemu_extra_parts.extend([
-            "-chardev", "socket,id=virtioso_mux,path=../console-mux.sock,server=on,wait=off",
-            "-serial", "chardev:virtioso_mux",
-        ])
     qemu_extra = _shell_join(qemu_extra_parts)
     qemu_wrapper_lines = [
         "#!/usr/bin/env bash",
@@ -900,21 +900,29 @@ def _write_remote_wrapper(
         'if [[ -n "${simulate_serial_opt}" ]]; then',
         '  producer_cmd+=("--serial=${simulate_serial_opt}")',
         'fi',
-        'if [[ -n "${qemu_extra_opt}" ]]; then',
-        '  producer_cmd+=("--extra-qemu-args=${qemu_extra_opt}")',
-        'fi',
     ]
     if binary_frames_opt_in:
         if dedicated_mux_uplink:
             lines.extend([
-                'rm -f "${SCRIPT_DIR}/console-mux.sock"',
+                'mux_socket_base="${TMPDIR:-/tmp}/virtioso-mux-${PPID:-$$}"',
+                'mux_socket="${mux_socket_base}.sock"',
+                'mux_socket_counter=0',
+                'while [[ -e "${mux_socket}" ]]; do',
+                '  mux_socket_counter=$((mux_socket_counter + 1))',
+                '  mux_socket="${mux_socket_base}-${mux_socket_counter}.sock"',
+                'done',
+                'dedicated_mux_args="-chardev socket,id=virtioso_mux,path=${mux_socket},server=on,wait=off -serial chardev:virtioso_mux"',
+                'if [[ -n "${qemu_extra_opt}" ]]; then',
+                '  qemu_extra_opt="${qemu_extra_opt} ${dedicated_mux_args}"',
+                'else',
+                '  qemu_extra_opt="${dedicated_mux_args}"',
+                'fi',
                 'router_cmd=(',
                 '  python3 "${SCRIPT_DIR}/qemu_mux_uplink_bridge.py"',
-                '  --socket-path "${SCRIPT_DIR}/console-mux.sock"',
+                '  --socket-path "${mux_socket}"',
                 '  --legacy-log "${log_path}.legacy"',
                 '  --',
                 ')',
-                'router_cmd+=("${producer_cmd[@]}")',
             ])
         else:
             lines.extend([
@@ -930,8 +938,13 @@ def _write_remote_wrapper(
             '  --runtime-dir "${console_runtime_dir}"',
             '  --',
             ')',
-            'router_cmd+=("${producer_cmd[@]}")',
         ])
+    lines.extend([
+        'if [[ -n "${qemu_extra_opt}" ]]; then',
+        '  producer_cmd+=("--extra-qemu-args=${qemu_extra_opt}")',
+        'fi',
+        'router_cmd+=("${producer_cmd[@]}")',
+    ])
     lines.extend([
         "set +e",
         ('"${router_cmd[@]}" 2>>"${log_path}.stderr" | tee "${log_path}"' if binary_frames_opt_in else '"${router_cmd[@]}" 2>&1 | tee "${log_path}"'),

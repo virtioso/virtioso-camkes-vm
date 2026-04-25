@@ -278,6 +278,32 @@ Implementation notes:
   - clean x86 rebuild passed after this change
   - runtime validation is in progress, but the remote host became unstable
     again before a clean verdict was captured
+- 2026-04-25: retried the no-IRQ x86 shape on
+  `hlyytine@192.168.101.110` after the user added that account to the remote
+  `kvm` group.
+  - the first manual reuse attempts were invalid because an interrupted local
+    `.tar.gz` bundle had been reused and was itself corrupt
+  - after rebuilding the tarball locally and validating it both locally and on
+    the remote host, the reused bundle launched successfully under KVM
+  - the cleaned-host run produced the same qualitative shape as the earlier
+    no-IRQ run:
+    - `driver_vm_console` and `user_vm_console` were both active
+    - `vmm_mux_control` still dominated byte volume
+    - `vmm_debug` remained empty in this composition
+    - guest logs advanced through early kernel bring-up but still had not
+      reached userspace/login markers
+  Sample runtime state from the cleaned-host rerun:
+  - `driver_vm_console/raw.log`: about `16 KiB`
+  - `user_vm_console/raw.log`: about `16 KiB`
+  - `vmm_mux_control/raw.log`: about `89 KiB`
+  - recent guest tail still around early initcall / SMP / memory-init output
+  - recent `vmmdbg` heartbeats in stream `3` still reported
+    `top_exit=IO_INSTRUCTION(30)` and `serial=+0`
+  Current conclusion:
+  - removing the stale remote host CPU pollution did not produce an obvious
+    architectural change in guest progression
+  - the active bottleneck/stall pattern still appears to be inside the guest /
+    VMM console and exit path, not simply remote host background load
 
 ## Scope Update
 

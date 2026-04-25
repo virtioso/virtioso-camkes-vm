@@ -117,6 +117,61 @@ Implementation notes:
     `bochs_pci_driver_init`, `inet_init`, and `jent_mod_init`
   - `virtio_console_init` is measurably slow, but it is not currently the main
     reason the whole system fails to reach login
+- 2026-04-25: older Autopilot evidence shows the noisy guest kernel command
+  line is not enough to explain the current regression by itself.
+  - older x86 runs already used the same
+    `debug loglevel=8 ignore_loglevel initcall_debug` command line on the guest
+    side
+  - in `/home/hlyytine/tii-sel4/autopilot/results/20260417-232313/console/tty0.raw`
+    and `/home/hlyytine/tii-sel4/autopilot/results/20260418-194754/console/tty0.raw`,
+    the same initcalls completed much faster:
+    - `inet_init`: about `114k` to `117k usec`
+    - `jent_mod_init`: about `14k usec`
+    - `virtio_console_init`: about `40` to `48 usec`
+    - `bochs_pci_driver_init`: about `22` to `49 usec`
+  - in the current preserved mux run the same initcalls took:
+    - `inet_init`: `41,577,966 usec`
+    - `jent_mod_init`: `15,241,873 usec`
+    - `virtio_console_init`: `849,733 usec`
+    - `bochs_pci_driver_init`: `109,931,164 usec`
+  - this makes the new console/mux/runtime shape a credible regression source;
+    the present slowdown cannot be explained away as “Linux is slow because of
+    initcall_debug”
+- 2026-04-25: the current repo-owned mux path is dramatically more expensive
+  per payload byte than the older `SerialServer` path, and this is now backed
+  by direct code comparison.
+  - old x86 app shape at commit `95e29d9` still used upstream
+    `SerialServer` directly:
+    - `vm##num.putchar -> serial.processed_putchar`
+    - `vm##num.guest_putchar -> serial.raw_putchar`
+  - upstream
+    [SerialServer/src/serial.c](/home/hlyytine/tii-sel4/projects/global-components/components/SerialServer/src/serial.c:252)
+    appends each received byte into an internal output buffer and flushes that
+    buffer opportunistically or on its periodic timer path, rather than
+    re-encoding every payload byte into a separate transport record
+  - the current x86 app shape routes guest output through:
+    - `Init guest_putchar`
+    - `GuestConsoleSink`
+    - `ConsoleMux`
+    - `ConsolePassthroughSink`
+  - current
+    [ConsoleMux/src/console_mux.c](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsoleMux/src/console_mux.c:1)
+    emits one payload byte as one full 11-byte frame and does so by calling the
+    downstream `uplink_putchar(...)` once per frame byte
+  - in the preserved prompt-attempt runtime the three populated payload streams
+    sum to `525,585` bytes:
+    - `driver_vm_console`: `87,891`
+    - `user_vm_console`: `120,972`
+    - `vmm_mux_control`: `316,722`
+  - under the current implementation that payload implies approximately:
+    - `5,781,435` framed uplink bytes (`11x` payload expansion)
+    - `1,051,170` extra RPC-style calls just for the
+      `guest/source -> GuestConsoleSink -> ConsoleMux` steps
+    - about `6,832,605` total call-like operations across the current
+      guest-to-uplink path if each `uplink_putchar(...)` is counted as a call
+  - this does not yet prove it is the only root cause of slowness, but it is
+    now a hard architectural delta between the older fast runs and the current
+    path, and it matches the direction of the regression
 - 2026-04-25: started Slice 1 implementation in
   [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:1)
   and added

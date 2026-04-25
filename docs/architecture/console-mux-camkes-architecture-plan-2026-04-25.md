@@ -302,6 +302,35 @@ Implementation notes:
     slowness lives before the mux/router boundary
   - early VMM diag/control output generation itself is now a stronger suspect
     than the downstream demuxer or the later sink batching policy
+- 2026-04-25: removed three specific high-frequency x86 producer-side bring-up
+  log sites and reran the producer-side measurement.
+  - removed:
+    - `check external interrupt pending=...` in
+      `libsel4vm/src/arch/x86/interrupt.c`
+    - `cpuid leaf=...` frequency logs in
+      `libsel4vm/src/arch/x86/processor/cpuid.c`
+    - `PIT irq update ...` and `PIT timer callback ...` in
+      `projects/vm/components/Init/src/i8254.c`
+  - preserved runtime after that change:
+    [qemu-x86-consolemux-runtime-instr2](/tmp/qemu-x86-consolemux-runtime-instr2/console-runtime/runtime-manifest.json:1)
+  - result: early `txd` cost remained very large, so those sites were not the
+    dominant producer-side culprit
+  - representative early post-removal heartbeat samples still showed:
+    - `txd=+2445B ... cyc=+6,315,672,976`
+    - `txd=+3083B ... cyc=+7,604,703,292`
+    - later early samples around:
+      - `txd=+1160B ... cyc=+2,948,659,420`
+      - `txd=+1160B ... cyc=+2,952,090,124`
+  - at the same point the run had already produced:
+    - `driver_vm_console`: `23,566` bytes
+    - `user_vm_console`: `23,546` bytes
+    - `vmm_mux_control`: `73,804` bytes
+  Current interpretation:
+  - the remaining heavy producer-side `txd` cost is broader than those
+    hand-added probes
+  - the next suspect is the generic VMM diag/startup path itself
+    (`set_putchar(vmm_console_diag_putchar)` plus broad `ZF_LOGI`/`ZF_LOGD`
+    traffic), not just the three removed x86 debug print sites
 - 2026-04-25: started Slice 1 implementation in
   [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:1)
   and added

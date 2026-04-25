@@ -243,6 +243,31 @@ Implementation notes:
   - batching `GuestConsoleSink -> ConsoleMux` is structurally right, but the
     current local flush policy needs further tuning or measurement before it can
     be called a runtime win
+- 2026-04-25: tried the first direct flush-policy tuning for that second
+  batching slice.
+  - changed `GuestConsoleSink` so that:
+    - batch threshold increased from `256` to `1024`
+    - `:`-triggered flushes are now limited to interactive guest-console
+      streams (`stream_id` `1` and `5`) instead of all sink streams
+  - clean validation build still passed:
+    - `make mrproper`
+    - `make qemu_x86_64_defconfig`
+    - `make vm_qemu_virtio`
+  - preserved runtime:
+    [qemu-x86-consolemux-runtime-batch3](/tmp/qemu-x86-consolemux-runtime-batch3/console-runtime/runtime-manifest.json:1)
+  - this tuning did **not** produce a runtime win:
+    - within a `180s` watch window it still did not reach
+      `jent_mod_init`
+    - it also did not reach `driver-vm login:`
+    - at the 180s watch point the active channels were only at:
+      - `driver_vm_console`: `18,059` bytes
+      - `user_vm_console`: `18,576` bytes
+      - `vmm_mux_control`: `89,155` bytes
+  Current interpretation:
+  - simply increasing the flush threshold and restricting colon-triggered
+    flushes is not enough
+  - the `GuestConsoleSink -> ConsoleMux` batching slice needs a different
+    policy or a different ownership split to become a runtime improvement
 - 2026-04-25: started Slice 1 implementation in
   [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:1)
   and added

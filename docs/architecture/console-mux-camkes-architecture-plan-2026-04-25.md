@@ -316,6 +316,40 @@ Implementation notes:
     `EPT_VIOLATION(48)` while the run is still slow
   - this means the next high-value measurement target is the explicit debug
     heartbeat path itself, not more blind tuning of generic diag suppression
+- 2026-04-25: added direct `rdtsc`-based RPC timing probes on the repo-owned
+  x86 console components and reran a short preserved probe.
+  - instrumentation now measures:
+    - caller-side batch RPC cost in
+      [GuestConsoleSink](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/GuestConsoleSink/src/guest_console_sink.c:1)
+      around `mux_batch_batch()`
+    - server-side batch handling plus caller-side uplink RPC cost in
+      [ConsoleMux](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsoleMux/src/console_mux.c:1)
+      around `mux_batch_batch()` and `uplink_batch_batch()`
+  - the probes publish low-frequency `[rpcprof]` summaries on the framed debug
+    stream, preserved in:
+    [qemu-x86-consolemux-runtime-rpc3/vmm_debug/raw.log](/tmp/qemu-x86-consolemux-runtime-rpc3/console-runtime/channels/vmm_debug/raw.log:1)
+  - first clean measurements show the two measured hops are both expensive,
+    but `GuestConsoleSink -> ConsoleMux` is clearly worse than the
+    `ConsoleMux -> uplink` hop:
+    - early `ConsoleMux` server/uplink samples:
+      - `srv_avg=136,133,709` cycles, `uplink_avg=136,124,730`
+      - then settling roughly into `95M..110M` cycles per call
+    - early `GuestConsoleSink` caller samples for stream `3`:
+      - `avg_call=251,197,996`
+      - `avg_call=269,086,361`
+      - later settling roughly into `216M..227M` cycles per call
+    - guest-console streams are lower but still expensive:
+      - stream `5`: about `150M` cycles per call in the first samples
+      - stream `1`: about `165M` cycles per call in the first sample
+  Current interpretation:
+  - the caller-visible `GuestConsoleSink -> ConsoleMux` hop is roughly about
+    `2x` the cost of the measured `ConsoleMux -> uplink` hop in the same run
+  - so the sink-to-mux RPC leg is now a proven major cost center, not just a
+    vague suspicion
+  - the repo-owned mux path still has other costs too, but the measured data
+    now justifies focusing on reducing or bypassing the
+    `GuestConsoleSink -> ConsoleMux` hop before spending more effort on local
+    Python demux or generic host-side explanations
 - 2026-04-25: added producer-side transport counters in
   `projects/vm/components/Init/src/console_frame_transport.c` and surfaced them
   through the existing `[vmmdbg]` heartbeat in

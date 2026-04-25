@@ -63,6 +63,25 @@ Implementation notes:
     enters `run()`, and services `raw_putchar`, so the old “control thread
     never becomes meaningfully runnable” concern is no longer explained by our
     own idle-loop scaffolding.
+- 2026-04-25: fresh end-to-end x86 prompt attempt on the dedicated
+  `binary_frames` path still does not reach `driver-vm login:` in the current
+  shape.
+  - run command used the rebuilt
+    `images/capdl-loader-image-x86_64-pc99` with:
+    - `VIRTIOSO_CONSOLE_ROUTER_USE_BINARY_FRAMES=1`
+    - `VIRTIOSO_QEMU_DEDICATED_MUX_UPLINK=1`
+  - preserved runtime:
+    [qemu-x86-consolemux-runtime-driver-prompt](/tmp/qemu-x86-consolemux-runtime-driver-prompt/console-runtime/runtime-manifest.json:1)
+  - `driver_vm_console` and `user_vm_console` both stayed active and grew, so
+    this is not a dead console path:
+    - [driver_vm_console/raw.log](/tmp/qemu-x86-consolemux-runtime-driver-prompt/console-runtime/channels/driver_vm_console/raw.log:1)
+    - [user_vm_console/raw.log](/tmp/qemu-x86-consolemux-runtime-driver-prompt/console-runtime/channels/user_vm_console/raw.log:1)
+  - no `driver-vm login:` marker appeared on any channel during the prompt
+    wait window, so there was nothing valid to type `root` into.
+  - at the same time
+    [vmm_mux_control/raw.log](/tmp/qemu-x86-consolemux-runtime-driver-prompt/console-runtime/channels/vmm_mux_control/raw.log:1)
+    remained the largest stream and still carried heavy `[vmmdbg]` traffic,
+    while `vmm_debug` stayed empty.
 - 2026-04-25: started Slice 1 implementation in
   [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:1)
   and added

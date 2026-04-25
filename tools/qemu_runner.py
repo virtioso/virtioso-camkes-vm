@@ -367,6 +367,15 @@ def _rewrite_extra_qemu_args_for_binary_frames(binary: Path, extra_qemu_args: st
     return _shell_join(filtered)
 
 
+def _append_qemu_dedicated_mux_uplink(extra_qemu_args: str, socket_path: str) -> str:
+    argv = shlex.split(extra_qemu_args) if extra_qemu_args.strip() else []
+    argv.extend([
+        "-chardev", f"socket,id=virtioso_mux,path={socket_path},server=on,wait=off",
+        "-serial", "chardev:virtioso_mux",
+    ])
+    return _shell_join(argv)
+
+
 def _simulate_command(build_dir: Path, binary: Path, qemu_binary: Path, extra_qemu_args: str) -> list[str]:
     simulate = _simulate_script(build_dir)
     if not simulate.exists():
@@ -403,6 +412,12 @@ def run_local(
         raise RunnerError(f"{target} must be run via the remote workflow")
     binary = _resolve_binary(binary_path)
     build_dir = _build_dir_for_binary(binary)
+    preserve_console_root = bool(console_runtime_dir.strip())
+    console_root = (
+        Path(console_runtime_dir).expanduser().resolve()
+        if preserve_console_root
+        else Path(tempfile.mkdtemp(prefix="virtioso-console-local-"))
+    )
     runtime, temp_runtime_root = _resolve_runtime(spec, runtime_dir, runtime_tar)
     env = _base_env(runtime.support_usr)
     build_extra_qemu_args = _build_extra_qemu_args(build_dir)
@@ -414,17 +429,29 @@ def run_local(
         include_local_bios=True,
     )
     merged_extra_qemu_args = _rewrite_extra_qemu_args_for_binary_frames(binary, merged_extra_qemu_args)
+    dedicated_mux_uplink = _dedicated_mux_uplink_opt_in(binary)
+    mux_socket_path = console_root / "console-mux.sock"
+    if dedicated_mux_uplink:
+        merged_extra_qemu_args = _append_qemu_dedicated_mux_uplink(
+            merged_extra_qemu_args,
+            str(mux_socket_path),
+        )
     simulate = _simulate_script(build_dir)
     if simulate.exists():
         wrapped_argv = _simulate_command(build_dir, binary, runtime.binary, merged_extra_qemu_args)
     else:
         wrapped_argv = _fallback_local_command(binary, spec, runtime.binary, merged_extra_qemu_args)
-    preserve_console_root = bool(console_runtime_dir.strip())
-    console_root = (
-        Path(console_runtime_dir).expanduser().resolve()
-        if preserve_console_root
-        else Path(tempfile.mkdtemp(prefix="virtioso-console-local-"))
-    )
+    if dedicated_mux_uplink:
+        wrapped_argv = [
+            "python3",
+            str(SCRIPT_DIR / "qemu_mux_uplink_bridge.py"),
+            "--socket-path",
+            str(mux_socket_path),
+            "--legacy-log",
+            str(console_root / "qemu-legacy.log"),
+            "--",
+            *wrapped_argv,
+        ]
     manifest_path = _write_console_manifest(console_root / "console-manifest.json", target, binary, spec)
     router_runtime_dir = console_root / "console-runtime"
     argv = _router_command(manifest_path, router_runtime_dir, wrapped_argv)

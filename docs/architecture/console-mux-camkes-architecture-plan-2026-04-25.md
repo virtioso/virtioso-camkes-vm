@@ -35,6 +35,10 @@ Implementation notes:
   - `qemu_mux_uplink_bridge.py`
   - `console-mux.sock`
   - `socket,id=virtioso_mux`
+- 2026-04-25: extended Slice 1 support into the local QEMU path in
+  [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:1)
+  so local runs can also append a dedicated QEMU mux uplink socket and route
+  it through `qemu_mux_uplink_bridge.py`.
 
 ## Scope Update
 

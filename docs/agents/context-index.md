@@ -167,6 +167,9 @@ Recovery note:
   `sources/kmod-vio-trace` commit `f6f834c` consumes it. No event or phase IDs
   were added. The VMM trace DT generator now uses the shared contract constants
   for the `vio_trace` reserved-memory node and shard identity properties.
+  `sources/virtioso-contracts` commit `899149d` adds the raw
+  `VIO_TRACE_STREAM` transfer contract; `tools/vio-trace` now extracts raw
+  buffers and manifests without decoding obsolete event/phase IDs.
 - Updated: 2026-04-27
 
 ### Cross-EL tracing implementation

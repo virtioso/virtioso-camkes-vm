@@ -552,6 +552,12 @@ Rewrite status, 2026-04-27:
 - Local module build still requires the existing `sel4/sel4-support.h`
   dependency from the seL4 kernel-support sysroot; the contract include itself
   was compile-checked separately.
+- `sources/virtioso-contracts`: `899149d trace: define raw stream transfer
+  contract` adds `<virtioso/trace/stream.h>` with the event-agnostic
+  `VIO_TRACE_STREAM` transfer constants.
+- `projects/virtioso-camkes-vm`: the retained `tools/vio-trace` extractor
+  parses `VIO_TRACE_STREAM`, validates raw size and CRC32, and writes raw
+  buffers plus a manifest without decoding event IDs or phase names.
 
 ### 7. Trace Shard Bridge and EL0 Trace Export
 

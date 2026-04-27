@@ -545,6 +545,9 @@ Rewrite status, 2026-04-27:
 - `sources/kmod-vio-trace`: `f6f834c vio-trace: consume shared trace
   framework contract` removes private copies of those constants/layouts and
   includes the shared contract instead.
+- `projects/virtioso-camkes-vm`: the trace DT generation path emits the
+  `vio_trace` reserved-memory node using the shared compatible strings and
+  shard identity property names.
 - No event IDs or trace phase IDs were introduced in this slice.
 - Local module build still requires the existing `sel4/sel4-support.h`
   dependency from the seL4 kernel-support sysroot; the contract include itself

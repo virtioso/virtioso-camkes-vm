@@ -165,7 +165,8 @@ Recovery note:
 - Trace framework extraction has started: `sources/virtioso-contracts` commit
   `8d16eb9` defines the minimal trace framework contract, and
   `sources/kmod-vio-trace` commit `f6f834c` consumes it. No event or phase IDs
-  were added.
+  were added. The VMM trace DT generator now uses the shared contract constants
+  for the `vio_trace` reserved-memory node and shard identity properties.
 - Updated: 2026-04-27
 
 ### Cross-EL tracing implementation

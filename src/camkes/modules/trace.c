@@ -10,7 +10,9 @@
 
 #include <vmlinux.h>
 
+#include <virtioso/fdt.h>
 #include <virtioso/trace.h>
+#include <virtioso/trace/trace.h>
 
 const int __attribute__((weak)) tracebuffer_base;
 const int __attribute__((weak)) tracebuffer_size;
@@ -111,9 +113,29 @@ static int fdt_generate_trace_nodes(void *gen_fdt)
     int err;
 
     if (tracebuffer_base && tracebuffer_size) {
-        err = fdt_generate_reserved_node(gen_fdt, "sel4_tracebuffer",
-                                         "sel4_tracebuffer", tracebuffer_base,
-                                         tracebuffer_size, NULL);
+        int node = fdt_generate_reserved_node(gen_fdt, "vio_trace",
+                                              VIO_TRACE_COMPATIBLE,
+                                              tracebuffer_base,
+                                              tracebuffer_size);
+        if (node < 0) {
+            return node;
+        }
+
+        err = fdt_appendprop_string(gen_fdt, node, "compatible",
+                                    VIO_TRACE_MEMORY_COMPATIBLE);
+        if (err < 0) {
+            return err;
+        }
+        err = fdt_setprop_u32(gen_fdt, node, VIO_TRACE_VMID_PROPERTY, 0);
+        if (err < 0) {
+            return err;
+        }
+        err = fdt_setprop_u32(gen_fdt, node, VIO_TRACE_EXEC_DOMAIN_PROPERTY,
+                              VIO_TRACE_EXEC_DOMAIN_GUEST_EL1);
+        if (err < 0) {
+            return err;
+        }
+        err = fdt_setprop_u32(gen_fdt, node, VIO_TRACE_DRIVER_VMID_PROPERTY, 0);
         if (err < 0) {
             return err;
         }
@@ -121,7 +143,7 @@ static int fdt_generate_trace_nodes(void *gen_fdt)
 
     if (ramoops_base && ramoops_size) {
         err = fdt_generate_reserved_node(gen_fdt, "ramoops", "ramoops",
-                                         ramoops_base, ramoops_size, NULL);
+                                         ramoops_base, ramoops_size);
         if (err < 0) {
             return err;
         }

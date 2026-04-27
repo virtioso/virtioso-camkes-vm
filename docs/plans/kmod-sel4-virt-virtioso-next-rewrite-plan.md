@@ -768,8 +768,10 @@ recipes and package wiring for kmod, QEMU, `virtioso-contracts`, and
 
 Evidence:
 
-- `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/recipes-devtools/virtioso-contracts/virtioso-contracts.bb`
+- `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/recipes-support/virtioso-contracts/virtioso-contracts.bb`
 - `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/recipes-kernel/kernel-module-sel4-virt/kernel-module-sel4-virt.bb`
+- `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/recipes-kernel/kernel-module-sel4-tracebuffer/kernel-module-sel4-tracebuffer.bb`
+- `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/recipes-core/images/vm-image-driver.bbappend`
 - `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/recipes-devtools/qemu/qemu_%.bbappend`
 - relevant commits include:
   - `de2b2af trace(contracts): add yocto recipe and deps for shared contracts`
@@ -778,12 +780,38 @@ Evidence:
   - `8d8b3aa yocto(trace): retarget trace module bindings to canonical kmod-vio-trace`
   - `11f7fe3 yocto(vio-trace): load canonical vio_trace module and emit modprobe diagnostics`
 
+Rewrite status, 2026-04-27:
+
+- `vm-images/virtioso-yocto-layers`: the retained trace image slice updates
+  the active `virtioso-next` layer so the `virtioso-contracts` recipe installs
+  only current shared headers:
+  - `<virtioso/backend/dt.h>`
+  - `<virtioso/backend/pci.h>`
+  - `<virtioso/rpc/rpc.h>`
+  - `<virtioso/rpc/rpc_queue.h>`
+  - `<virtioso/trace/stream.h>`
+  - `<virtioso/trace/trace.h>`
+- The same slice retargets the legacy-named trace module recipe to the
+  workspace local-source contract:
+  `VIO_TRACE_LOCAL_SRC = "${VIRTIOSO_LOCAL_SOURCES_DIR}/kmod-vio-trace"`.
+  It depends on both `kernel-sel4-support` and `virtioso-contracts`, and passes
+  `CONTRACTS_INCLUDE_DIR=${STAGING_INCDIR}` into the module build.
+- `vm-image-driver` installs `kernel-module-vio-trace` alongside
+  `kernel-module-sel4-virt`, so the generated `vio_trace` DT shard has a guest
+  module consumer in the driver VM image.
+- The layer cleanliness guard now treats `virtioso-contracts` and
+  `kmod-vio-trace` as local-source repos, matching the rewritten dependency
+  graph.
+- This slice intentionally does not package backend mailbox headers,
+  direct-MMIO-slot contracts, generation fields, or old trace event/phase IDs.
+
 Rewrite note:
 
 - Treat Yocto as part of the validation surface. A host build of kmod or QEMU is
   not enough if the VM images still package old headers/modules.
 - Keep local-source cleanliness guards in place because this workflow consumes
-  `sources/qemu`, `sources/kmod-sel4-virt`, and `sources/virtioso-contracts`.
+  `sources/qemu`, `sources/virtioso-contracts`, `sources/kmod-sel4-virt`,
+  `sources/kmod-vio-trace`, and `sources/sel4-linux-kernel-support`.
 - For trace framework extraction, package only the minimal trace contract,
   `kmod-vio-trace`, and tools that consume the retained binary/shard format.
 

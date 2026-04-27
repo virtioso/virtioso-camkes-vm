@@ -170,6 +170,12 @@ Recovery note:
   `sources/virtioso-contracts` commit `899149d` adds the raw
   `VIO_TRACE_STREAM` transfer contract; `tools/vio-trace` now extracts raw
   buffers and manifests without decoding obsolete event/phase IDs.
+  `vm-images/virtioso-yocto-layers` now has a retained trace image-integration
+  slice: `virtioso-contracts` packages the current backend/RPC/trace headers,
+  the trace module recipe consumes local `sources/kmod-vio-trace` plus staged
+  contracts, `vm-image-driver` installs `kernel-module-vio-trace`, and the
+  local-source cleanliness guard includes both `virtioso-contracts` and
+  `kmod-vio-trace`.
 - Updated: 2026-04-27
 
 ### Cross-EL tracing implementation

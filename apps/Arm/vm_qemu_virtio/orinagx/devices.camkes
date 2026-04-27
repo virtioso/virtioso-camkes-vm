@@ -84,7 +84,7 @@ assembly {
             "provide_initrd" : true,
             "initrd_name" : "linux-initrd",
             "map_one_to_one" : true,
-            "clean_cache" : true,
+            "clean_cache" : false,
         };
         vm0.vm_virtio_device_channels = [
             VIRTIO_CHANNEL_DEVICE_CONFIGURATION_DEF(0, 1)
@@ -230,7 +230,7 @@ assembly {
             "generate_dtb" : true,
             "provide_dtb" : false,
             "provide_initrd" : false,
-            "clean_cache" : true,
+            "clean_cache" : false,
         };
         vm1.vm_virtio_driver_channels = [
             VIRTIO_CHANNEL_DRIVER_CONFIGURATION_DEF(0, 1)

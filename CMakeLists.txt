@@ -42,9 +42,17 @@ endif()
 
 add_library(virtioso_camkes_vm OBJECT ${virtioso_camkes_vm_sources})
 
+set(
+    VIRTIOSO_CONTRACTS_INCLUDE_DIR
+    "${CMAKE_CURRENT_LIST_DIR}/../../sources/virtioso-contracts/include"
+    CACHE PATH "Path to shared Virtioso contract headers"
+)
+
 target_include_directories(
     virtioso_camkes_vm
-    PUBLIC include
+    PUBLIC
+        include
+        ${VIRTIOSO_CONTRACTS_INCLUDE_DIR}
 )
 target_link_libraries(
     virtioso_camkes_vm

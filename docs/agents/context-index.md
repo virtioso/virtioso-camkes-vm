@@ -1,0 +1,239 @@
+# Context Index
+
+Purpose: help future agents recover active or recently paused work after chat
+context loss.
+
+Use this file as a routing index, not as the full work log. Each entry should
+point to the primary durable note, summarize the last known state, and name the
+next useful action.
+
+When creating or substantially updating a durable plan, investigation note, or
+long-running work item, update the matching entry here or add a new one.
+
+## Recovery Workflow
+
+For questions like "do you remember us working on X?", check this file first,
+then open only the linked primary notes that match the topic.
+
+Entry fields:
+
+- Status: `active`, `paused`, `blocked`, or `done`
+- Primary note: the first file to open
+- Related notes: optional supporting files
+- Last known state: current proof, decision, or failure boundary
+- Next action: the most useful next bounded step
+- Updated: last known update date
+
+## Active Threads
+
+### Orin AGX `vm_qemu_virtio` VM1 virtio-console stall
+
+- Status: active
+- Primary note: [../integration/orinagx-vm-qemu-virtio-crossvm-irq-analysis-2026-02-09.md](../integration/orinagx-vm-qemu-virtio-crossvm-irq-analysis-2026-02-09.md)
+- Related notes:
+  - [../platforms/orin-agx/investigations/vm-qemu-virtio-boot-investigation.md](../platforms/orin-agx/investigations/vm-qemu-virtio-boot-investigation.md)
+  - [build-test-runbook.md](build-test-runbook.md#orin-agx-vm_qemu_virtio)
+- Last known state: cross-VM IRQ path is active; `irq=236` injects successfully. The focus has moved from IRQ delivery to virtio-console init/probe behavior.
+- Next action: reproduce with the canonical clean Orin flow, then inspect the VM1 `virtio_console_init`/probe boundary and logs before changing IRQ reserves.
+- Updated: 2026-04-27
+
+### Cross-arch console mux and stream routing
+
+- Status: active
+- Primary note: [../architecture/console-mux-nvidia-style-rewrite-plan-2026-04-27.md](../architecture/console-mux-nvidia-style-rewrite-plan-2026-04-27.md)
+- Related notes:
+  - [../architecture/console-mux-camkes-architecture-plan-2026-04-25.md](../architecture/console-mux-camkes-architecture-plan-2026-04-25.md)
+  - [../architecture/console-transport-and-routing.md](../architecture/console-transport-and-routing.md)
+  - [../architecture/autopilot-console-source-integration.md](../architecture/autopilot-console-source-integration.md)
+  - [../architecture/console-stream-topology-diagrams.md](../architecture/console-stream-topology-diagrams.md)
+  - [../integration/console-router-and-timeline-implementation-plan-2026-04-23.md](../integration/console-router-and-timeline-implementation-plan-2026-04-23.md)
+  - [../integration/console-timeline-and-interactive-architecture-2026-04-23.md](../integration/console-timeline-and-interactive-architecture-2026-04-23.md)
+  - [../integration/x86-vm-qemu-virtio-console-stream-inventory-2026-04-24.md](../integration/x86-vm-qemu-virtio-console-stream-inventory-2026-04-24.md)
+  - [../integration/x86-vm-qemu-virtio-framed-console-transport-plan-2026-04-24.md](../integration/x86-vm-qemu-virtio-framed-console-transport-plan-2026-04-24.md)
+- Last known state: the earlier `CF` / `binary_frames` direction is no longer the target architecture. The new direction is a minimal NVIDIA-style mux protocol on the seL4 side, second-UART isolation for low-level output, generated CAmkES stream enumeration, and `tcu_muxer`-style host demux. `vmm_mux_control` and `vmm_debug` must stay distinct.
+- Next action: audit active-path dependencies on `CF`, `binary_frames`, and `line_prefixes`, then replace target emission and host demux around a generated stream inventory seam.
+- Updated: 2026-04-27
+
+Recovery note:
+
+- if a future session asks whether the console/mux work already has a plan,
+  open the primary note above first
+- do not restart from the older framed-transport notes unless the task is
+  explicitly historical or removal-related
+- the key decision recorded on 2026-04-27 is that we own the full stack and
+  therefore do not preserve compatibility with `CF` or `binary_frames`
+- the intended target is NVIDIA-style `0xff <stream-id>` switching, not richer
+  protocol framing
+
+### `qemu_x86_64_defconfig` `vm_qemu_virtio` target topology
+
+- Status: active
+- Primary note: [../integration/x86-qemu-pc99-vm-qemu-virtio-port-notes-2026-04-16.md](../integration/x86-qemu-pc99-vm-qemu-virtio-port-notes-2026-04-16.md)
+- Related notes:
+  - [../integration/arm64-vm-qemu-virtio-shape.md](../integration/arm64-vm-qemu-virtio-shape.md)
+  - [../architecture/autopilot-qemu-backends.md](../architecture/autopilot-qemu-backends.md)
+  - [build-test-runbook.md](build-test-runbook.md)
+- Last known state: the x86 app is considered leftover early-Isengard scaffolding. The target is to replicate the Arm `vm_qemu_virtio` shape on `qemu_x86_64`: two VMs, VM0 booting `vm-image-driver`, VM1 booting `vm-image-user` from within VM0, without Isengard-specific CAN/Kvaser/native PCI service logic in the x86 app itself.
+- Next action: understand and preserve the physical-PCI-plus-vPCI coexistence model before optimizing wait paths or deleting apparently awkward topology.
+- Updated: 2026-04-27
+
+### QEMU backend enablement and remote runner flow
+
+- Status: paused
+- Primary note: [../architecture/autopilot-qemu-backends.md](../architecture/autopilot-qemu-backends.md)
+- Related notes:
+  - [../integration/qemu-backend.md](../integration/qemu-backend.md)
+  - [../integration/qemu-sel4-accelerator.md](../integration/qemu-sel4-accelerator.md)
+  - [../architecture/yocto-qemu-runtime-artifact-contract.md](../architecture/yocto-qemu-runtime-artifact-contract.md)
+  - [../architecture/yocto-qemu-runtime-implementation-plan.md](../architecture/yocto-qemu-runtime-implementation-plan.md)
+  - [../start-here/running-qemu.md](../start-here/running-qemu.md)
+- Last known state: repo-side manual runners/docs are the source of truth; Autopilot should orchestrate that path rather than reimplement boot mechanics. `qemu_x86_64_defconfig` is a remote Autopilot-backed QEMU target.
+- Next action: when QEMU validation fails, separate runner/transport failures from guest/runtime failures and collect queue truth from Autopilot.
+- Updated: 2026-04-23
+
+### qemuarm64 `vm_minimal` and `vm_qemu_virtio` build/boot fixes
+
+- Status: paused
+- Primary note: [../integration/arm64-vm-qemu-virtio-shape.md](../integration/arm64-vm-qemu-virtio-shape.md)
+- Related notes:
+  - [../integration/qemu-backend.md](../integration/qemu-backend.md)
+  - [../architecture/yocto-qemu-runtime-artifact-contract.md](../architecture/yocto-qemu-runtime-artifact-contract.md)
+- Last known state: workspace-root config and `ARCH_ARM64=AARCH64` mapping were central. Remaining qemuarm64 virtio boot trouble was tied to guest DT/PCI host layout; `highmem=off` was part of the intended low-vPCI design rather than the first thing to remove.
+- Next action: reproduce exact top-level commands before diagnosing generated artifacts; inspect generated DT and PCI host layout before changing QEMU machine flags.
+- Updated: 2026-04-16
+
+### Isengard portable semantic core and Linux-only QEMU path
+
+- Status: active
+- Primary note: [../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md](../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md)
+- Related notes:
+  - [../../../isengard-camkes-vm/docs/architecture.md](../../../isengard-camkes-vm/docs/architecture.md)
+  - [../../../isengard-camkes-vm/docs/README.md](../../../isengard-camkes-vm/docs/README.md)
+- Last known state: business logic must exist in one shared semantic implementation and remain freely placeable in native seL4, native Linux, or Linux-on-seL4. `projects/isengard-camkes-vm` is seL4-side only; host-portable implementation belongs under `sources/`, currently `sources/isengard-core`, with new Linux-side image work routed through `vm-images/meta-isengard`.
+- Next action: for "continue Isengard" requests, start from the primary migration plan and keep new deployment-neutral contracts out of CAmkES IDL.
+- Updated: 2026-04-23
+
+### Autopilot MCP startup, status, and queue truth
+
+- Status: paused
+- Primary note: [autopilot-testing-policy.md](autopilot-testing-policy.md)
+- Related notes:
+  - [build-test-runbook.md](build-test-runbook.md)
+  - [repo-topology-policy.md](repo-topology-policy.md)
+  - `/home/hlyytine/autopilot/sel4_mcp_server.py`
+  - `/home/hlyytine/autopilot/sel4_mcp_server_wrapper.sh`
+- Last known state: `WORKSPACE=/home/hlyytine/tii-sel4` and `AUTOPILOT_DIR=/home/hlyytine/tii-sel4/autopilot` are required. Some failures were startup/env issues, some were Codex live-session binding issues, and one compatibility fix required newline-delimited JSON on stdout rather than `Content-Length` framing.
+- Next action: if MCP tools are missing or stale, check the active Codex registry and wrapper/server logs, then directly probe initialize/tools-list or queue status before speculating.
+- Updated: 2026-04-23
+
+### Yocto VM image and local-source workflow
+
+- Status: paused
+- Primary note: [build-test-runbook.md#orin-agx-kmod-sel4-virt-yocto-module-recipe](build-test-runbook.md#orin-agx-kmod-sel4-virt-yocto-module-recipe)
+- Related notes:
+  - [example-workflows-fastpath.md#yocto-vm-image-fast-path](example-workflows-fastpath.md#yocto-vm-image-fast-path)
+  - [../plans/kmod-sel4-virt-virtioso-next-rewrite-plan.md](../plans/kmod-sel4-virt-virtioso-next-rewrite-plan.md)
+- Last known state: active Yocto layer is `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/`. Yocto-managed source edits belong only in `sources/qemu`, `sources/kmod-sel4-virt`, and `sources/sel4-linux-kernel-support`, and those repos must be clean before bitbake.
+- Next action: for VM image work, scope first to touched recipes/source paths and stale `vm-images/build/workspace` appends before re-studying whole layers.
+- Updated: 2026-04-27
+
+### Manifest-level `kmod-sel4-virt` / QEMU / contracts rewrite on `virtioso-next`
+
+- Status: active
+- Primary note: [../plans/kmod-sel4-virt-virtioso-next-rewrite-plan.md](../plans/kmod-sel4-virt-virtioso-next-rewrite-plan.md)
+- Related notes:
+  - [../integration/kmod-sel4-virt-backend-analysis.md](../integration/kmod-sel4-virt-backend-analysis.md)
+  - [../architecture/cross-el-tracing-feasibility.md](../architecture/cross-el-tracing-feasibility.md)
+  - [../plans/ftrace-upstream-integration-plan.md](../plans/ftrace-upstream-integration-plan.md)
+  - [build-test-runbook.md#orin-agx-kmod-sel4-virt-yocto-module-recipe](build-test-runbook.md#orin-agx-kmod-sel4-virt-yocto-module-recipe)
+- Last known state: `sources/kmod-sel4-virt` post-`virtioso-next` work was grouped into replay topics, then expanded into a manifest-level rewrite. Connected repos include `sources/qemu`, `sources/virtioso-contracts`, `sources/kmod-vio-trace`, `projects/virtioso-camkes-vm`, `vm-images/virtioso-yocto-layers`, `sources/sel4-linux-kernel-support`, and selected `projects/sel4_projects_libs` support. Current direction: first extract headers/protocol definitions already common to kmod, QEMU, and the seL4 VMM into `sources/virtioso-contracts` so separate copies are eliminated before feature replay. `sources/virtioso-contracts` now starts with `6985775 rpc: bootstrap shared contract headers`; use `backup-virtioso-next-before-contracts-first-rewrite` as the local source branch for later contract replay. `sources/kmod-sel4-virt` has been switched to `virtioso-next` for the wrapper/include-path slice. Important correction remains: later `virtioso-contracts` commits must not be landed as one blob; direct MMIO slots, backend/control mailbox, RPC ordering/cache helpers, and trace phase IDs travel with their consuming topic.
+- Next action: the single-device event/data/control BAR slice has been replayed
+  with `sources/virtioso-contracts` commit `eeb8a36` and
+  `sources/kmod-sel4-virt` commit `cb128e9`; the active VMM template already
+  emits `guest-device-<id>` single connector entries, and no current QEMU
+  source change was found for this slice. Continue with the next narrow feature
+  slice: DT backend, RPC/cache fixes, tracing hooks, direct delegation, backend
+  mailbox, trace shard bridge, QEMU consumers, and image integration. Keep
+  broad platform/debug history out unless a commit is contract-critical.
+- Updated: 2026-04-27
+
+### Cross-EL tracing implementation
+
+- Status: paused
+- Primary note: [../architecture/cross-el-tracing-feasibility.md](../architecture/cross-el-tracing-feasibility.md)
+- Related notes:
+  - [../plans/ftrace-upstream-integration-plan.md](../plans/ftrace-upstream-integration-plan.md)
+- Last known state: tracing implementation has strict change control. Repos to be touched must be clean, work must happen on a dedicated branch, and commits should reference the design source.
+- Next action: before any tracing code edits, verify repo cleanliness and request explicit approval for branch creation or dirty-repo handling.
+- Updated: 2026-04-27
+
+### CANopen snapshot publication from seL4 to Linux
+
+- Status: paused
+- Primary note: [../../../../normet/docs/can-stack-architecture.md](../../../../normet/docs/can-stack-architecture.md)
+- Related notes:
+  - [../architecture/memory-model.md](../architecture/memory-model.md)
+  - [../architecture/virtio-architecture.md](../architecture/virtio-architecture.md)
+- Last known state: preferred direction was coherent shared-memory snapshots from native seL4-owned CANopen state to a Linux guest, rather than treating virtio as the default answer for application-state sharing.
+- Next action: if resumed, verify the exact `normet/docs` tree in this workspace before editing and keep the snapshot consistency requirement central.
+- Updated: 2026-04-18
+
+### Normet rugged x86 secure boot, TPM, attestation, and BSP questions
+
+- Status: active
+- Primary note: [../../../../../normet/docs/05-platform-next/trust-and-update/Rugged_x86_Secure_Boot_TPM_Attestation_And_BSP_Questions.md](../../../../../normet/docs/05-platform-next/trust-and-update/Rugged_x86_Secure_Boot_TPM_Attestation_And_BSP_Questions.md)
+- Related notes:
+  - [../../../../../normet/docs/05-platform-next/trust-and-update/Boot_Trust_And_Platform_Ownership_Comparison.md](../../../../../normet/docs/05-platform-next/trust-and-update/Boot_Trust_And_Platform_Ownership_Comparison.md)
+  - [../../../../../normet/docs/05-platform-next/trust-and-update/Why_Update_And_Boot_Trust_Must_Be_First_Class_In_Normet_Platform_Design.md](../../../../../normet/docs/05-platform-next/trust-and-update/Why_Update_And_Boot_Trust_Must_Be_First_Class_In_Normet_Platform_Design.md)
+- Last known state: EPEC rugged `x86` call-prep requirements were captured in a durable Normet note. The key questions are customer-owned `UEFI` Secure Boot `PK`/`KEK`/`db`/`dbx`, `TPM 2.0` type and provisioning, measured boot and attestation behavior, BSP source availability, arbitrary customer-signed EFI payloads, custom Linux or hypervisor/seL4 loader support, `VT-x`/`VT-d`/IOMMU exposure, update/recovery semantics, and the minimum engineering package to request from the vendor.
+- Next action: after the EPEC call, update the primary note with vendor answers and classify each answer as acceptable, risky, blocked, or requiring follow-up evidence.
+- Updated: 2026-04-27
+
+### PX4 uORB access model
+
+- Status: paused
+- Primary note: this entry; no dedicated repo note exists yet.
+- Related notes:
+  - PX4 uORB documentation: `https://docs.px4.io/main/en/middleware/uorb`
+  - PX4 uORB manager source/API references for the `px4_open`/`px4_read` backing model.
+- Last known state: PX4 uORB topics are exposed internally as file-like virtual device nodes, commonly visible under `/obj`, and the implementation uses file-descriptor style operations such as open/read/ioctl/poll. Normal application code should still be described as using the uORB pub/sub API (`orb_advertise`, `orb_publish`, `orb_subscribe`, `orb_copy`, or C++ wrappers), not as reading and writing ordinary persistent files.
+- Next action: if this becomes part of a platform architecture comparison, create a dedicated architecture note and keep the distinction between virtual device-node backing and application-level pub/sub semantics explicit.
+- Updated: 2026-04-27
+
+### Novice AI usage guidance
+
+- Status: paused
+- Primary note: `ohjeet2.md` if present in the workspace root
+- Related notes:
+  - `ohjeet.md` if present in the workspace root
+- Last known state: `ohjeet2.md` was written as the improved beginner-facing replacement while preserving the original. The useful sections included concrete prompt examples, on-disk instruction files, planning before edits, verification requests, MCP, context management, and tool/vendor caveats.
+- Next action: if revising, keep it beginner-friendly and explicit about differences between Claude, OpenAI, browser chat, and local coding-agent behavior.
+- Updated: 2026-04-24
+
+## Completed Or Historical Threads Worth Remembering
+
+### Orin AGX platform porting and low-level plans
+
+- Status: paused
+- Primary note: [../platforms/orin-agx/porting/orinagx-camkes-porting.md](../platforms/orin-agx/porting/orinagx-camkes-porting.md)
+- Related notes:
+  - [../platforms/orin-agx/porting/vm-qemu-virtio-orinagx.md](../platforms/orin-agx/porting/vm-qemu-virtio-orinagx.md)
+  - [../platforms/orin-agx/plans/gicv3-vgic-implementation-plan.md](../platforms/orin-agx/plans/gicv3-vgic-implementation-plan.md)
+  - [../platforms/orin-agx/plans/orin-agx-smmu-implementation-plan.md](../platforms/orin-agx/plans/orin-agx-smmu-implementation-plan.md)
+  - [../platforms/orin-agx/plans/ras-errors-implementation-plan.md](../platforms/orin-agx/plans/ras-errors-implementation-plan.md)
+  - [../platforms/orin-agx/plans/stage2-device-cacheability-fix-plan.md](../platforms/orin-agx/plans/stage2-device-cacheability-fix-plan.md)
+- Last known state: useful historical context for Orin AGX platform work, but not command authority for routine build/test tasks.
+- Next action: use only when a platform-porting question specifically needs the old technical context.
+- Updated: 2026-04-27
+
+### VM image boot unification and CAmkES-to-Microkit planning
+
+- Status: paused
+- Primary note: [../plans/vm-image-boot-unification-plan.md](../plans/vm-image-boot-unification-plan.md)
+- Related notes:
+  - [../plans/camkes-to-microkit-migration.md](../plans/camkes-to-microkit-migration.md)
+  - [../plans/dtb-generation-enhancements-plan.md](../plans/dtb-generation-enhancements-plan.md)
+  - [../plans/capdl-autopilot-extension-plan.md](../plans/capdl-autopilot-extension-plan.md)
+- Last known state: planning material for future architecture/migration work; do not treat as overriding current AGENTS/runbook policy.
+- Next action: open when the user asks about long-term VM boot, DT generation, CapDL automation, or CAmkES-to-Microkit migration.
+- Updated: 2026-04-27

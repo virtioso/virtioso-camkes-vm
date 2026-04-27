@@ -162,6 +162,10 @@ Recovery note:
   record/source/shard contracts, `kmod-vio-trace`, DT shard wiring, and tooling,
   without bulk replay of old cache/mailbox/MMIO-slot phase IDs. Keep broad
   platform/debug history out unless a commit is contract-critical.
+- Trace framework extraction has started: `sources/virtioso-contracts` commit
+  `8d16eb9` defines the minimal trace framework contract, and
+  `sources/kmod-vio-trace` commit `f6f834c` consumes it. No event or phase IDs
+  were added.
 - Updated: 2026-04-27
 
 ### Cross-EL tracing implementation

@@ -532,6 +532,24 @@ Rewrite decision, 2026-04-27:
   header initialization, debugfs exposure, and shard-fd export build cleanly
   against the minimal contract.
 
+Rewrite status, 2026-04-27:
+
+- `sources/virtioso-contracts`: `8d16eb9 trace: define minimal framework
+  contract` adds `<virtioso/trace/trace.h>` with only stable framework
+  definitions:
+  - compatible strings for `vio_trace` DT nodes;
+  - shard identity property names;
+  - guest EL1/EL0 execution-domain constants;
+  - guest trace buffer and entry layout;
+  - the canonical guest shard capacity cap.
+- `sources/kmod-vio-trace`: `f6f834c vio-trace: consume shared trace
+  framework contract` removes private copies of those constants/layouts and
+  includes the shared contract instead.
+- No event IDs or trace phase IDs were introduced in this slice.
+- Local module build still requires the existing `sel4/sel4-support.h`
+  dependency from the seL4 kernel-support sysroot; the contract include itself
+  was compile-checked separately.
+
 ### 7. Trace Shard Bridge and EL0 Trace Export
 
 This is related to tracing, but it is a distinct UAPI and memory-export topic.

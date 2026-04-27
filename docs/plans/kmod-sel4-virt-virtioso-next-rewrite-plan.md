@@ -605,6 +605,26 @@ Rewrite note:
 - Do not make the bridge depend on rejected mailbox, direct-MMIO-slot, or
   generation-based protocols.
 
+Rewrite status, 2026-04-27:
+
+- `sources/virtioso-contracts`: `<virtioso/trace/bridge.h>` defines the
+  shared shard-open request struct and aliases execution-domain constants from
+  `<virtioso/trace/trace.h>`.
+- `sources/kmod-sel4-virt`: `SEL4_TRACE_OPEN_SHARD` is a VM-fd ioctl. The core
+  validates request shape and target VM id, then delegates to the
+  `kmod-vio-trace` provider symbol `vio_trace_open_shard_fd`.
+- The bridge does not own DT discovery, does not create a second mapper, and
+  does not change cacheability. Shard tuple matching and mmap behavior stay in
+  `kmod-vio-trace`.
+- Missing provider remains deterministic (`-ENODEV` through the VM ioctl path);
+  a loaded provider can still return `-ENOENT` for unavailable shard tuples.
+- `sources/qemu`: the seL4 accelerator now attempts to open an EL0 shard through
+  `SEL4_TRACE_OPEN_SHARD` after VM creation. Startup continues when the bridge,
+  provider, or DT shard is absent.
+- When a shard is present, QEMU validates `VIO_TRACE_GUEST_MAGIC`, version, and
+  capacity, then maps the raw buffer size derived from the shared trace
+  contract. QEMU does not emit records or introduce event IDs in this slice.
+
 ### 8. Direct MMIO and Backend Request Delegation
 
 The range adds an opt-in direct delegation mode where unhandled MMIO/backend
@@ -869,8 +889,8 @@ Rewrite note:
     - `kmod-vio-trace` shard provider;
     - CAmkES DT/reserved-memory shard wiring;
     - binary transfer and timeline tooling if independent of old event IDs.
-12. Add trace shard bridge UAPI only if the framework extraction needs explicit
-    `/dev/sel4`-mediated shard export.
+12. Add trace shard bridge UAPI and QEMU retained-shard consumption without
+    event IDs or old mailbox/direct-slot protocols.
 13. Add new event IDs only with concrete retained producers. Do not bulk replay
     old cache, mailbox, MMIO-slot, or queue-visibility phase IDs.
 14. Update Yocto image integration for retained contracts/modules/tools.

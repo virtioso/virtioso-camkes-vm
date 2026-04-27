@@ -175,7 +175,11 @@ Recovery note:
   the trace module recipe consumes local `sources/kmod-vio-trace` plus staged
   contracts, `vm-image-driver` installs `kernel-module-vio-trace`, and the
   local-source cleanliness guard includes both `virtioso-contracts` and
-  `kmod-vio-trace`.
+  `kmod-vio-trace`. The trace bridge/QEMU slice is now in progress:
+  `virtioso-contracts` owns the shard-open request shape,
+  `sources/kmod-sel4-virt` exposes `SEL4_TRACE_OPEN_SHARD` by delegating to
+  `kmod-vio-trace`, and `sources/qemu` opens/maps an EL0 shard when available
+  without adding event IDs.
 - Updated: 2026-04-27
 
 ### Cross-EL tracing implementation

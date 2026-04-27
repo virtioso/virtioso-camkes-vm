@@ -35,7 +35,7 @@ Entry fields:
   - [../plans/orinagx-next-vm-qemu-virtio-triage.md](../plans/orinagx-next-vm-qemu-virtio-triage.md)
   - [build-test-runbook.md](build-test-runbook.md#orin-agx-vm_qemu_virtio)
 - Last known state: cross-VM IRQ path is active; `irq=236` injects successfully. The focus has moved from IRQ delivery to virtio-console init/probe behavior. A branch triage pass now separates `orinagx-next` material into keep/replay items, obsolete cacheability/RAS hunting, and deferred debug aids.
-- Next action: compare current `virtioso-next` content against the Orin keep list, starting with `tools/seL4` elfloader Orin/MMU/memmap work, `kernel` Orin DTS completeness without SDEI/RAS/cacheability experiments, and `projects/vm` Orin platform header plus 8-bit-safe cross-VM IRQ/control-dataport support.
+- Next action: compare current `virtioso-next` content against the Orin keep list, starting with carefully sliced `tools/seL4` elfloader Orin/MMU/memmap work, `kernel` Orin DTS completeness without SDEI/RAS/cacheability experiments, and `projects/vm` Orin platform header plus 8-bit-safe cross-VM IRQ/control-dataport/DTB-dump support. First Orin validation should try without forced `clean_cache=1`; if that fails with cache/coherency-like symptoms, retry with it as a controlled comparison.
 - Updated: 2026-04-27
 
 ### Cross-arch console mux and stream routing
@@ -187,8 +187,11 @@ Recovery note:
   thread. Do not add old `SEL4_DELEG_*`, direct slots, mailbox, or generation
   fields.
 - Orin AGX branch triage is now recorded separately. Keep real Orin platform,
-  DTS, elfloader, cross-VM IRQ, and control-dataport support; do not replay the
-  old cacheability attempts, SDEI/RAS-hunting changes, or hyp-ftrace path.
+  DTS, carefully sliced elfloader work, cross-VM IRQ, control-dataport support,
+  the VM DTB dump hook, and the `sel4utils_elf_reserve()` NULL-vspace fix. Do
+  not replay the old cacheability attempts, SDEI/RAS-hunting changes, or
+  hyp-ftrace path. Try without forced `clean_cache=1` first, but retain it as a
+  fallback experiment if symptoms justify it.
 - Updated: 2026-04-27
 
 ### Cross-EL tracing implementation

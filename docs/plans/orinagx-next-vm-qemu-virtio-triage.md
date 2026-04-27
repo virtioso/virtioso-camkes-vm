@@ -76,6 +76,13 @@ This group is the likely home of the real Orin boot/cache/shareability fix. It
 should be replayed or re-derived before revisiting any old guest-side
 cacheability workaround.
 
+Handle this group carefully. Elfloader changes affect the physical/virtual
+execution environment before the kernel starts, so replaying them mechanically
+can easily hide whether the real dependency is platform bringup, UEFI memory-map
+handoff, MMU quiescing, or the shareability fix. Prefer small commits with a
+clear boot-stage rationale and validate each one against the Orin clean build
+path.
+
 ### VMM-Side Orin VM Glue
 
 Keep the Orin-specific VMM support that provides real `vm_qemu_virtio`
@@ -89,6 +96,8 @@ composition on the target board:
 - PMC/MAC address guest DTB customization if Ethernet passthrough remains part
   of the Orin validation target.
 - Reuse existing `/chosen` nodes rather than rebuilding them blindly.
+- Optional guest DTB dump support for debugging generated FDT contents during
+  Orin bringup.
 
 Evidence commits from `projects/vm/orinagx-next`:
 
@@ -99,6 +108,7 @@ Evidence commits from `projects/vm/orinagx-next`:
 - `cfce264 orinagx: Add PMC node and MAC address to guest DTB`
 - `b37080e orinagx: Move passthrough devices from vmlinux.h to devices.camkes`
 - `cdaeee1 Use existing chosen node if available`
+- `ec6d103 VM_Arm: Add DTB dump feature for debugging`
 
 Current `projects/virtioso-camkes-vm/virtioso-next` already has a substantial
 Orin `apps/Arm/vm_qemu_virtio/orinagx/devices.camkes`, including VM0/VM1 memory
@@ -119,6 +129,13 @@ Evidence commits from `virtioso-build` history:
 - `5781024 orinagx: Add Orin AGX platform defconfig`
 - `36f212e orinagx: Add Yocto layer config for NVIDIA Tegra`
 
+### seL4 Library Safety Fixes
+
+Keep the small support fix that makes ELF reservation tolerant of a `NULL`
+vspace during this bringup path:
+
+- `projects/seL4_libs` `c8a90b0 libsel4utils: Handle NULL vspace in sel4utils_elf_reserve`
+
 ## Drop Or Do Not Replay
 
 ### Cacheability and Manual Cache-Maintenance Attempts
@@ -137,8 +154,11 @@ Rejected examples:
 - `kernel` `a8de5828a OK: arm64: Improve Tegra cache operations and disable benchmark flush`
 - `kernel` `3c4a8156b untyped: Add cache flush before clearMemory in resetUntypedCap`
 
-Also do not add new `clean_cache` defaults as part of the Orin replay. Existing
-configuration values should be revisited only with current runtime evidence.
+The first validation attempt should run without forcing `clean_cache=1`. If the
+Orin boot path still fails, especially in a way that resembles the old NVIDIA
+board cache/coherency symptoms, retry with `clean_cache=1` as a bounded
+experiment. Historically NVIDIA boards have needed this, and the current
+shareability fixes may or may not have removed that requirement.
 
 ### RAS Error Hunting and SDEI Debugging
 
@@ -172,9 +192,7 @@ them only after checking the active templates and generated code path.
 
 These may be useful but should not be replayed in the first Orin slice:
 
-- `projects/vm` `ec6d103 VM_Arm: Add DTB dump feature for debugging`
 - `projects/vm` `ea92098 orinagx: Fix MGBE conditionally`
-- `projects/seL4_libs` `c8a90b0 libsel4utils: Handle NULL vspace in sel4utils_elf_reserve`
 - `projects/seL4_libs` `cc2fc4c libsel4bench: add cortex-a78 arch include`
 - `virtioso-build` `5e9aa15 orinagx: Limit max CPUs to 1`
 - kernel safe-invalid-PTE commits, unless they are confirmed to be the real
@@ -190,11 +208,14 @@ These may be useful but should not be replayed in the first Orin slice:
 3. Replay missing `kernel` Orin platform/DTS completeness without SDEI/RAS and
    without cacheability experiments.
 4. Replay missing `projects/vm` Orin platform header, 8-bit IRQ reserve, and
-   optional control dataport support.
-5. Preserve the current `projects/virtioso-camkes-vm` `virtioso-next` app and
+   optional control dataport support, including the DTB dump hook for debugging
+   generated guest FDT contents.
+5. Replay the `projects/seL4_libs` `sel4utils_elf_reserve()` NULL-vspace fix if
+   it is not already present on the target branch.
+6. Preserve the current `projects/virtioso-camkes-vm` `virtioso-next` app and
    template direction; do not overwrite newer shared-contract DT generation
    with older `orinagx-next` template code.
-6. Validate with the canonical clean Orin flow:
+7. Validate first without forcing `clean_cache=1`:
 
 ```sh
 make mrproper
@@ -203,6 +224,9 @@ make vm_qemu_virtio
 ```
 
 Then run Autopilot `test_sel4_efi` with chain `vm-qemu-virtio`.
+
+If that fails with cache/coherency-like symptoms, run the same validation with
+`clean_cache=1` as the next controlled comparison.
 
 ## Open Checks
 
@@ -214,6 +238,6 @@ Then run Autopilot `test_sel4_efi` with chain `vm-qemu-virtio`.
 - Confirm whether Orin Ethernet passthrough is required for the first
   `vm_qemu_virtio` validation, or whether console plus cross-VM virtio is enough.
 - Confirm whether existing `clean_cache=true` values in
-  `apps/Arm/vm_qemu_virtio/orinagx/devices.camkes` are still active and whether
-  they are merely inherited configuration or an obsolete workaround that should
-  be removed in a separate evidence-backed slice.
+  `apps/Arm/vm_qemu_virtio/orinagx/devices.camkes` are still active. The target
+  first trial is without forced clean-cache behavior, with a fallback trial that
+  enables it if the clean run fails.

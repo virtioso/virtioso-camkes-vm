@@ -171,11 +171,14 @@ Primary triage note:
 
 Rewrite implication:
 
-- Keep real Orin platform/DTS completeness, elfloader boot/memory-map work,
-  `projects/vm` Orin platform support, 8-bit-safe cross-VM IRQ selection, and
-  optional control-dataport plumbing.
+- Keep real Orin platform/DTS completeness, carefully sliced elfloader
+  boot/memory-map work, `projects/vm` Orin platform support, 8-bit-safe
+  cross-VM IRQ selection, optional control-dataport plumbing, the VM DTB dump
+  hook, and the `sel4utils_elf_reserve()` NULL-vspace fix.
 - Do not replay old cacheability/cache-maintenance attempts, SDEI/RAS debug
   handling, `hyp_ftrace`, or phase-ID-heavy trace paths as Orin enablement.
+- Try first without forcing `clean_cache=1`; keep it as a fallback validation
+  comparison if the clean run still fails with cache/coherency-like symptoms.
 - Do not overwrite current `projects/virtioso-camkes-vm` `virtioso-next`
   contract-based template work with older `orinagx-next` template code.
 - Validate missing Orin pieces with the canonical clean Orin flow after each

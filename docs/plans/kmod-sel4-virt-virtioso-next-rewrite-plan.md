@@ -253,8 +253,18 @@ Rewrite note:
 - Treat backend selection as a compatibility boundary: userspace should keep
   using the same `/dev/sel4` VM API unless a later topic intentionally extends
   it.
-- Keep cacheability, event-BAR sizing, and transport ordering fixes as later
-  slices unless validation proves they are required by this DT discovery slice.
+- Do not replay the old event-BAR cacheability change. That was part of a
+  futile attempt to fix an Orin AGX issue whose actual cause was improper
+  shareability attributes.
+
+DT correctness follow-up status, 2026-04-27:
+
+- `projects/virtioso-camkes-vm`: the FDT node generation loop now continues
+  after generating one matching `_fdt_node` entry. This is required once the
+  VMM template can register one DT RPC endpoint per VM virtio channel.
+- The old kmod commit `3474045 sel4: make event bar uncached and DT-sized` is
+  intentionally not replayed because its functional change is cacheability
+  plumbing.
 
 ### 3. Shared RPC and Trace Contract Headers
 

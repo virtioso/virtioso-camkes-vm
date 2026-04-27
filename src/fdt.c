@@ -400,10 +400,10 @@ static int fdt_node_generate_filter(int (*filter_fn)(fdt_node_t *node, void *coo
 {
     fdt_node_t **start = __start__fdt_node;
     fdt_node_t **stop = __stop__fdt_node;
-    int rc = 0;
 
-    for (fdt_node_t **ptr = start; !rc && ptr < stop; ptr++) {
+    for (fdt_node_t **ptr = start; ptr < stop; ptr++) {
         fdt_node_t *node = (*ptr);
+        int rc;
 
         if (!node) {
             continue;
@@ -411,13 +411,12 @@ static int fdt_node_generate_filter(int (*filter_fn)(fdt_node_t *node, void *coo
 
         if (filter_fn) {
             rc = filter_fn(node, cookie);
-            if (rc == -1) {
+            if (rc < 0) {
                 return -1;
             }
-        }
-
-        if (rc == 0) {
-            continue;
+            if (rc == 0) {
+                continue;
+            }
         }
 
         rc = fdt_node_generate(node, fdt);

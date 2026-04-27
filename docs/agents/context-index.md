@@ -152,7 +152,10 @@ Recovery note:
   `sources/kmod-sel4-virt` commit `cb128e9`. The DT discovery/backend-choice
   slice has contracts commit `f91ac6e` and kmod commit `70ebe5a`; the VMM
   template emits `virtioso,sel4-camkes-rpc` DT nodes from the shared contracts.
-  No current QEMU source change has been found for either slice. Continue with
+  A VMM FDT-generation correctness follow-up now keeps walking `_fdt_node`
+  entries after one generated node; do not replay the old event-BAR cacheability
+  change because the Orin AGX issue was shareability, not event-BAR caching.
+  No current QEMU source change has been found for these slices. Continue with
   the next narrow feature slice: RPC/cache fixes, tracing hooks, direct
   delegation, backend mailbox, trace shard bridge, QEMU consumers, and image
   integration. Keep broad platform/debug history out unless a commit is

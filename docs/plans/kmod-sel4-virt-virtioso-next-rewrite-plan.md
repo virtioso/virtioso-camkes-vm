@@ -145,6 +145,11 @@ Rewrite implication:
 - Treat contract commits as ABI changes: each one needs at least one compile
   consumer and, when it changes shared-memory layout or ordering, one runtime
   validation consumer.
+- Do not replay the old RPC/cache-sync workaround family unless a separate
+  non-shareability correctness bug is proven. The Orin AGX coherency failure
+  that motivated those commits was improper shareability attributes, later fixed
+  in the elfloader/seL4 mapping path, so explicit cache maintenance would now
+  add complexity and could mask future mapping regressions.
 
 ## Topic Inventory
 
@@ -300,7 +305,108 @@ Rewrite note:
   before adding tracing-heavy changes, otherwise feature failures can hide
   contract import mistakes.
 
-### 4. Tracing Instrumentation in Existing Paths
+### 4. Backend Mailbox ABI and Control Mailbox
+
+This topic adds a fixed shared-memory mailbox in the control window so the
+seL4-side device VMM can publish backend MMIO/config-space requests to the
+driver VM, and the kmod can claim, execute, and complete them.
+
+The ABI is not just a new queue name. It changes the control window layout:
+
+```c
+rpcmsg_iobuf_t rpc_iobuf;
+virtioso_backend_mailbox_t backend_mailbox;
+virtioso_control_mailbox_t control_mailbox;
+```
+
+The first mailbox is request/response oriented. The VMM publishes backend work
+into fixed slots:
+
+```c
+typedef struct virtioso_backend_request {
+    virtioso_backend_word_t addr;
+    virtioso_backend_word_t value;
+    uint64_t generation;
+    uint32_t addr_space;
+    uint16_t width;
+    uint8_t direction;
+    uint8_t reserved0;
+} virtioso_backend_request_t;
+
+typedef struct virtioso_backend_slot {
+    volatile uint32_t state;
+    uint32_t reserved0;
+    virtioso_backend_request_t request;
+    virtioso_backend_completion_t completion;
+} virtioso_backend_slot_t;
+```
+
+Slot state is a four-state handshake:
+
+```c
+IDLE -> PENDING -> CLAIMED -> COMPLETE -> IDLE
+```
+
+The second mailbox is one-way control/event publication. It replaces the older
+device-event queue path for DT control operations:
+
+```c
+typedef struct virtioso_control_event {
+    uint32_t op;
+    uint32_t reserved0;
+    virtioso_backend_word_t mr1;
+    virtioso_backend_word_t mr2;
+    virtioso_backend_word_t mr3;
+} virtioso_control_event_t;
+```
+
+Evidence in old source history:
+
+- `sources/virtioso-contracts`:
+  - `9eb8025 contracts: define backend mailbox slots`
+  - `b3f54f1 contracts: keep backend mailbox word layout compatible`
+  - `baf6bb0 contracts: add mailbox slot helpers`
+  - `77e19e7 rpc: add fixed-slot control mailbox`
+- `sources/kmod-sel4-virt`:
+  - `05265bc dt: validate backend mailbox control window`
+  - `878d176 dt: fix backend mailbox probe format`
+  - `b612bbd dt: process async requests from backend mailbox`
+  - `a5f1eb8 backend: ring existing dt doorbell on completion`
+  - `8605fe9 rpc: publish dt control ops via mailbox`
+- `projects/virtioso-camkes-vm`:
+  - `5a551fa rpc: publish async requests through backend mailbox`
+  - `74a0d35 rpc: bridge backend completions in device vmm`
+  - `ee1527f rpc: bridge blocking emulation through backend mailbox`
+  - `e893020 trace: add vmm backend mmio bridge events`
+
+Architectural role:
+
+- Separates backend MMIO/config request transport from the legacy RPC queue
+  semantics.
+- Lets the kmod process backend requests found in the DT control window without
+  requiring userspace API changes.
+- Preserves request identity with a `generation` field so completions can be
+  matched to async or blocking VMM-side bridge entries.
+- Keeps DT completion notification on the existing DT doorbell path:
+  `vm->vmm->rpc.doorbell(vm->vmm->rpc.doorbell_cookie)`.
+
+Rewrite note:
+
+- Replay this topic contracts-first, but only the mailbox ABI and its first
+  consumers. Do not bring tracing phase IDs, direct delegation, or cache-sync
+  work along for the ride.
+- Split the topic into at least:
+  1. backend mailbox contract and DT control-window size validation;
+  2. VMM async publish plus mailbox initialization;
+  3. kmod claim/complete loop and DT doorbell completion;
+  4. blocking/config-space bridge only if required by the next consumer;
+  5. control mailbox cutover for DT control events.
+- The validation boundary is layout-sensitive: the DT backend must reject a
+  control region smaller than
+  `sizeof(rpcmsg_iobuf_t) + sizeof(virtioso_backend_mailbox_t)` and later
+  `+ sizeof(virtioso_control_mailbox_t)` when control mailbox support lands.
+
+### 5. Tracing Instrumentation in Existing Paths
 
 The range adds structured tracing for RPC forwarding, doorbells, MMIO lifecycle,
 mailbox scanning, shared-memory mappings, queue pressure, and cache-sync

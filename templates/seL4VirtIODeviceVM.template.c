@@ -8,8 +8,12 @@
 #include <camkes.h>
 #include <vmlinux.h>
 #include <sel4vm/guest_vm.h>
+#include <inttypes.h>
+#include <libfdt.h>
 
 #include <sel4vmmplatsupport/drivers/cross_vm_connection.h>
+#include <virtioso/backend/dt.h>
+#include <virtioso/fdt.h>
 
 #ifdef CONFIG_PLAT_QEMU_ARM_VIRT
 #define CONNECTION_BASE_ADDRESS 0xC0000000
@@ -43,6 +47,98 @@ static struct camkes_crossvm_connection connections[] = {
     },
 /*- endfor -*/
 };
+
+typedef struct fdt_sel4_camkes_rpc {
+    fdt_node_t node;
+    uintptr_t event_base;
+    uintptr_t data_base;
+    uintptr_t ctrl_base;
+    size_t bar_size;
+    uint32_t irq_spi;
+    uint32_t driver_vmid;
+} fdt_sel4_camkes_rpc_t;
+
+static int fdt_node_generate_sel4_camkes_rpc(fdt_node_t *node, void *fdt)
+{
+    fdt_sel4_camkes_rpc_t *rpc = (fdt_sel4_camkes_rpc_t *)node;
+    int root = fdt_path_offset(fdt, "/");
+    if (root < 0) {
+        ZF_LOGE("fdt_path_offset(/) failed (%d)", root);
+        return root;
+    }
+
+    char name[64];
+    int n = snprintf(name, sizeof(name), "%s@%" PRIxPTR,
+                     VIRTIOSO_DT_RPC_NODE_PREFIX, rpc->event_base);
+    if (n < 0 || n >= (int)sizeof(name)) {
+        return -FDT_ERR_INTERNAL;
+    }
+
+    int off = fdt_add_subnode(fdt, root, name);
+    if (off == -FDT_ERR_EXISTS) {
+        return 0;
+    }
+    if (off < 0) {
+        ZF_LOGE("fdt_add_subnode(%s) failed (%d)", name, off);
+        return off;
+    }
+
+    int err = fdt_setprop_string(fdt, off, "compatible", VIRTIOSO_DT_RPC_COMPATIBLE);
+    if (err) {
+        return err;
+    }
+
+    uint64_t reg[] = {
+        cpu_to_fdt64(rpc->event_base), cpu_to_fdt64(rpc->bar_size),
+        cpu_to_fdt64(rpc->data_base),  cpu_to_fdt64(rpc->bar_size),
+        cpu_to_fdt64(rpc->ctrl_base),  cpu_to_fdt64(rpc->bar_size),
+    };
+    err = fdt_setprop(fdt, off, "reg", reg, sizeof(reg));
+    if (err) {
+        return err;
+    }
+
+    uint32_t interrupts[] = {
+        cpu_to_fdt32(0), /* GIC_SPI */
+        cpu_to_fdt32(rpc->irq_spi),
+        cpu_to_fdt32(4), /* IRQ_TYPE_LEVEL_HIGH */
+    };
+    err = fdt_setprop(fdt, off, "interrupts", interrupts, sizeof(interrupts));
+    if (err) {
+        return err;
+    }
+
+    err = fdt_setprop_u32(fdt, off, VIRTIOSO_DT_DRIVER_VM_ID_PROPERTY, rpc->driver_vmid);
+    if (err) {
+        return err;
+    }
+
+    err = fdt_setprop_string(fdt, off, "status", "okay");
+    if (err) {
+        return err;
+    }
+
+    node->generated = true;
+    return 0;
+}
+
+/*- for drv in vm_virtio_device_channels -*/
+static fdt_sel4_camkes_rpc_t fdt_sel4_camkes_rpc_vm/*? drv.id ?*/ = {
+    .node = {
+        .name = VIRTIOSO_DT_RPC_NODE_PREFIX,
+        .compatible = VIRTIOSO_DT_RPC_COMPATIBLE,
+        .generate = fdt_node_generate_sel4_camkes_rpc,
+    },
+    .event_base = CONNECTION_BASE_ADDRESS + ((/*? loop.index0 ?*/) * (3ULL * (/*? drv.data_size ?*/))),
+    .data_base = CONNECTION_BASE_ADDRESS + ((/*? loop.index0 ?*/) * (3ULL * (/*? drv.data_size ?*/))) + (/*? drv.data_size ?*/),
+    .ctrl_base = CONNECTION_BASE_ADDRESS + ((/*? loop.index0 ?*/) * (3ULL * (/*? drv.data_size ?*/))) + (2ULL * (/*? drv.data_size ?*/)),
+    .bar_size = /*? drv.data_size ?*/,
+    .irq_spi = free_plat_interrupts[0] - IRQ_SPI_OFFSET,
+    .driver_vmid = /*? drv.id ?*/,
+};
+
+DEFINE_FDT_NODE(fdt_sel4_camkes_rpc_vm/*? drv.id ?*/, &fdt_sel4_camkes_rpc_vm/*? drv.id ?*/.node)
+/*- endfor -*/
 
 static int consume_callback(vm_t *vm, void *cookie)
 {

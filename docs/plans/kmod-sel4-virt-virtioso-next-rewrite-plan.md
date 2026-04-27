@@ -209,15 +209,36 @@ In `auto` mode, the current post-range implementation prefers DT when
 `CONFIG_OF` is available and falls back to PCI when only `CONFIG_PCI` is
 available.
 
+Rewrite status, 2026-04-27:
+
+- `sources/virtioso-contracts`: `f91ac6e backend: define dt rpc endpoint
+  binding` defines the shared DT node prefix, compatible string, and driver VM
+  ID property used by producers and consumers.
+- `sources/kmod-sel4-virt`: `70ebe5a transport: add dt backend selector`
+  adds the OF platform backend, keeps PCI as a selectable backend, and defaults
+  `backend=auto` to DT when `CONFIG_OF` is enabled.
+- `projects/virtioso-camkes-vm`: the active
+  `templates/seL4VirtIODeviceVM.template.c` now emits one
+  `virtioso,sel4-camkes-rpc` node per VM virtio channel, with event/data/control
+  regions ordered to match the shared BAR contract.
+- `sources/qemu`: no current source change has been identified for this slice.
+  QEMU remains outside the DT discovery path unless a later topic changes how
+  backend endpoints are surfaced to userspace.
+  Older QEMU history has `7304e371fa Do not load DTB on seL4 guest`; that is an
+  adjacent guest boot-DTB suppression for SWIOTLB behavior, not the DT endpoint
+  discovery/backend-selection rewrite itself.
+
 Evidence:
 
 - `sources/kmod-sel4-virt/transport/sel4_dt.c`
 - `sources/kmod-sel4-virt/transport/sel4_transport_select.c`
+- `projects/virtioso-camkes-vm/templates/seL4VirtIODeviceVM.template.c`
 - commits:
   - `67b876e sel4-virt: add DT-default transport backend selector`
   - `b564746 sel4-virt: fix DT backend kernel compatibility`
   - `1937890 kmod: skip OF/PCI transport guard during clean goals`
   - `ff5561a kmod: drop OF/PCI configure-time Makefile guard`
+  - `b013ac5 camkes: emit sel4-camkes-rpc DT endpoint from device template`
 
 Architectural role:
 
@@ -232,6 +253,8 @@ Rewrite note:
 - Treat backend selection as a compatibility boundary: userspace should keep
   using the same `/dev/sel4` VM API unless a later topic intentionally extends
   it.
+- Keep cacheability, event-BAR sizing, and transport ordering fixes as later
+  slices unless validation proves they are required by this DT discovery slice.
 
 ### 3. Shared RPC and Trace Contract Headers
 

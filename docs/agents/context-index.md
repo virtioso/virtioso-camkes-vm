@@ -149,12 +149,14 @@ Recovery note:
 - Last known state: `sources/kmod-sel4-virt` post-`virtioso-next` work was grouped into replay topics, then expanded into a manifest-level rewrite. Connected repos include `sources/qemu`, `sources/virtioso-contracts`, `sources/kmod-vio-trace`, `projects/virtioso-camkes-vm`, `vm-images/virtioso-yocto-layers`, `sources/sel4-linux-kernel-support`, and selected `projects/sel4_projects_libs` support. Current direction: first extract headers/protocol definitions already common to kmod, QEMU, and the seL4 VMM into `sources/virtioso-contracts` so separate copies are eliminated before feature replay. `sources/virtioso-contracts` now starts with `6985775 rpc: bootstrap shared contract headers`; use `backup-virtioso-next-before-contracts-first-rewrite` as the local source branch for later contract replay. `sources/kmod-sel4-virt` has been switched to `virtioso-next` for the wrapper/include-path slice. Important correction remains: later `virtioso-contracts` commits must not be landed as one blob; direct MMIO slots, backend/control mailbox, RPC ordering/cache helpers, and trace phase IDs travel with their consuming topic.
 - Next action: the single-device event/data/control BAR slice has been replayed
   with `sources/virtioso-contracts` commit `eeb8a36` and
-  `sources/kmod-sel4-virt` commit `cb128e9`; the active VMM template already
-  emits `guest-device-<id>` single connector entries, and no current QEMU
-  source change was found for this slice. Continue with the next narrow feature
-  slice: DT backend, RPC/cache fixes, tracing hooks, direct delegation, backend
-  mailbox, trace shard bridge, QEMU consumers, and image integration. Keep
-  broad platform/debug history out unless a commit is contract-critical.
+  `sources/kmod-sel4-virt` commit `cb128e9`. The DT discovery/backend-choice
+  slice has contracts commit `f91ac6e` and kmod commit `70ebe5a`; the VMM
+  template emits `virtioso,sel4-camkes-rpc` DT nodes from the shared contracts.
+  No current QEMU source change has been found for either slice. Continue with
+  the next narrow feature slice: RPC/cache fixes, tracing hooks, direct
+  delegation, backend mailbox, trace shard bridge, QEMU consumers, and image
+  integration. Keep broad platform/debug history out unless a commit is
+  contract-critical.
 - Updated: 2026-04-27
 
 ### Cross-EL tracing implementation

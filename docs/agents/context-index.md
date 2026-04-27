@@ -32,9 +32,10 @@ Entry fields:
 - Primary note: [../integration/orinagx-vm-qemu-virtio-crossvm-irq-analysis-2026-02-09.md](../integration/orinagx-vm-qemu-virtio-crossvm-irq-analysis-2026-02-09.md)
 - Related notes:
   - [../platforms/orin-agx/investigations/vm-qemu-virtio-boot-investigation.md](../platforms/orin-agx/investigations/vm-qemu-virtio-boot-investigation.md)
+  - [../plans/orinagx-next-vm-qemu-virtio-triage.md](../plans/orinagx-next-vm-qemu-virtio-triage.md)
   - [build-test-runbook.md](build-test-runbook.md#orin-agx-vm_qemu_virtio)
-- Last known state: cross-VM IRQ path is active; `irq=236` injects successfully. The focus has moved from IRQ delivery to virtio-console init/probe behavior.
-- Next action: reproduce with the canonical clean Orin flow, then inspect the VM1 `virtio_console_init`/probe boundary and logs before changing IRQ reserves.
+- Last known state: cross-VM IRQ path is active; `irq=236` injects successfully. The focus has moved from IRQ delivery to virtio-console init/probe behavior. A branch triage pass now separates `orinagx-next` material into keep/replay items, obsolete cacheability/RAS hunting, and deferred debug aids.
+- Next action: compare current `virtioso-next` content against the Orin keep list, starting with `tools/seL4` elfloader Orin/MMU/memmap work, `kernel` Orin DTS completeness without SDEI/RAS/cacheability experiments, and `projects/vm` Orin platform header plus 8-bit-safe cross-VM IRQ/control-dataport support.
 - Updated: 2026-04-27
 
 ### Cross-arch console mux and stream routing
@@ -144,6 +145,7 @@ Recovery note:
 - Related notes:
   - [../integration/kmod-sel4-virt-backend-analysis.md](../integration/kmod-sel4-virt-backend-analysis.md)
   - [../architecture/cross-el-tracing-feasibility.md](../architecture/cross-el-tracing-feasibility.md)
+  - [../plans/orinagx-next-vm-qemu-virtio-triage.md](../plans/orinagx-next-vm-qemu-virtio-triage.md)
   - [../plans/ftrace-upstream-integration-plan.md](../plans/ftrace-upstream-integration-plan.md)
   - [build-test-runbook.md#orin-agx-kmod-sel4-virt-yocto-module-recipe](build-test-runbook.md#orin-agx-kmod-sel4-virt-yocto-module-recipe)
 - Last known state: `sources/kmod-sel4-virt` post-`virtioso-next` work was grouped into replay topics, then expanded into a manifest-level rewrite. Connected repos include `sources/qemu`, `sources/virtioso-contracts`, `sources/kmod-vio-trace`, `projects/virtioso-camkes-vm`, `vm-images/virtioso-yocto-layers`, `sources/sel4-linux-kernel-support`, and selected `projects/sel4_projects_libs` support. Current direction: first extract headers/protocol definitions already common to kmod, QEMU, and the seL4 VMM into `sources/virtioso-contracts` so separate copies are eliminated before feature replay. `sources/virtioso-contracts` now starts with `6985775 rpc: bootstrap shared contract headers`; use `backup-virtioso-next-before-contracts-first-rewrite` as the local source branch for later contract replay. `sources/kmod-sel4-virt` has been switched to `virtioso-next` for the wrapper/include-path slice. Important correction remains: later `virtioso-contracts` commits must not be landed as one blob; direct MMIO slots, backend/control mailbox, RPC ordering/cache helpers, and trace phase IDs travel with their consuming topic.
@@ -184,6 +186,9 @@ Recovery note:
   drains that existing queue from `qemu_set_fd_handler()` instead of a wait
   thread. Do not add old `SEL4_DELEG_*`, direct slots, mailbox, or generation
   fields.
+- Orin AGX branch triage is now recorded separately. Keep real Orin platform,
+  DTS, elfloader, cross-VM IRQ, and control-dataport support; do not replay the
+  old cacheability attempts, SDEI/RAS-hunting changes, or hyp-ftrace path.
 - Updated: 2026-04-27
 
 ### Cross-EL tracing implementation

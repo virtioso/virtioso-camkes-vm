@@ -157,6 +157,30 @@ Rewrite implication:
 
 ## Topic Inventory
 
+### Orin AGX Branch Triage
+
+The Orin AGX runtime path is not only a kmod/QEMU/contracts issue. Local
+`orinagx-next` branches in `kernel`, `tools/seL4`, `projects/vm`, and
+`projects/virtioso-camkes-vm` contain material needed to run
+`vm_qemu_virtio` on the target board, but they also contain obsolete
+cacheability attempts, SDEI/RAS hunting, and debug tracing paths.
+
+Primary triage note:
+
+- [orinagx-next-vm-qemu-virtio-triage.md](orinagx-next-vm-qemu-virtio-triage.md)
+
+Rewrite implication:
+
+- Keep real Orin platform/DTS completeness, elfloader boot/memory-map work,
+  `projects/vm` Orin platform support, 8-bit-safe cross-VM IRQ selection, and
+  optional control-dataport plumbing.
+- Do not replay old cacheability/cache-maintenance attempts, SDEI/RAS debug
+  handling, `hyp_ftrace`, or phase-ID-heavy trace paths as Orin enablement.
+- Do not overwrite current `projects/virtioso-camkes-vm` `virtioso-next`
+  contract-based template work with older `orinagx-next` template code.
+- Validate missing Orin pieces with the canonical clean Orin flow after each
+  replay slice.
+
 ### 1. Single PCI Device With Event/Data/Control BARs
 
 Current post-`virtioso-next` work replaces the older two-device PCI discovery

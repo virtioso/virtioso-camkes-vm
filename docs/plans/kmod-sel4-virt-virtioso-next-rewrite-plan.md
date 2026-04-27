@@ -150,6 +150,10 @@ Rewrite implication:
   that motivated those commits was improper shareability attributes, later fixed
   in the elfloader/seL4 mapping path, so explicit cache maintenance would now
   add complexity and could mask future mapping regressions.
+- Do not replay fixed-slot transports that carry `generation` fields. The
+  old direct-MMIO-slot and backend-mailbox designs both grew during the same
+  cache/shareability debugging period and both added generation-based lifetime
+  tracking that is not wanted in the current rewrite.
 
 ## Topic Inventory
 
@@ -390,23 +394,87 @@ Architectural role:
 - Keeps DT completion notification on the existing DT doorbell path:
   `vm->vmm->rpc.doorbell(vm->vmm->rpc.doorbell_cookie)`.
 
-Rewrite note:
+Rewrite decision, 2026-04-27:
 
-- Replay this topic contracts-first, but only the mailbox ABI and its first
-  consumers. Do not bring tracing phase IDs, direct delegation, or cache-sync
-  work along for the ride.
-- Split the topic into at least:
-  1. backend mailbox contract and DT control-window size validation;
-  2. VMM async publish plus mailbox initialization;
-  3. kmod claim/complete loop and DT doorbell completion;
-  4. blocking/config-space bridge only if required by the next consumer;
-  5. control mailbox cutover for DT control events.
-- The validation boundary is layout-sensitive: the DT backend must reject a
-  control region smaller than
-  `sizeof(rpcmsg_iobuf_t) + sizeof(virtioso_backend_mailbox_t)` and later
-  `+ sizeof(virtioso_control_mailbox_t)` when control mailbox support lands.
+- Do not replay the old backend mailbox ABI as-is.
+- The `generation` field is explicitly rejected for the current rewrite.
+- The useful historical idea is only the async ownership shape: a producer can
+  publish a request into an owned slot and a consumer can complete it later.
+  That does not require a separate generation counter if slot ownership remains
+  strict and the existing async token or slot index is enough to identify the
+  response.
+- Treat the old mailbox commits as source evidence, not as implementation to
+  cherry-pick. If a later feature proves it needs async backend decoupling,
+  design a smaller slot transport with no generation field and no cache/debug
+  baggage.
 
-### 5. Tracing Instrumentation in Existing Paths
+### 5. Direct MMIO Slot Transport
+
+The old direct MMIO slot topic moved guest MMIO requests out of queued
+`QEMU_OP_MMIO` messages and into fixed records embedded in `rpcmsg_iobuf_t`:
+
+```c
+typedef struct vso_mmio_request {
+    seL4_Word addr;
+    seL4_Word value;
+    uint64_t generation;
+    uint32_t addr_space;
+    uint16_t width;
+    uint8_t direction;
+    uint8_t reserved0;
+} vso_mmio_request_t;
+
+typedef struct vso_mmio_slot {
+    volatile uint32_t state;
+    uint32_t reserved0;
+    vso_mmio_request_t request;
+    vso_mmio_completion_t completion;
+} vso_mmio_slot_t;
+```
+
+Its state machine is the same family as the backend mailbox:
+
+```c
+IDLE -> PENDING -> CLAIMED -> COMPLETE -> IDLE
+```
+
+Evidence in old source history:
+
+- `sources/virtioso-contracts`:
+  - `7c50bed rpc: add direct mmio slot transport`
+  - `a204426 rpc: use kernel-safe cas for mmio slot claim`
+  - `eb04ddf trace: add mmio slot lifecycle event`
+- `sources/kmod-sel4-virt`:
+  - `268697f sel4-virt: add opt-in direct mmio delegation path`
+  - `6c5b1cc trace: emit kernel mmio slot lifecycle`
+- `projects/virtioso-camkes-vm`:
+  - `8d06d73 trace: record mmio slot cutover and fix ioack handoff race`
+  - related planning history records the slot cutover as removing queue-backed
+    MMIO request/reply traffic from the active path.
+
+Objective assessment:
+
+- The real architectural benefit would be bypassing the generic RPC queue for
+  MMIO hot-path requests and allowing multiple independently owned in-flight
+  MMIO records.
+- The immediate cost is another shared-memory ABI, another slot lifecycle, and
+  the same unwanted `generation` lifetime scheme as the backend mailbox.
+- The surrounding history is tightly coupled to trace and cache/shareability
+  investigation work, so it is risky to replay as a functional improvement
+  without a fresh performance or correctness requirement.
+
+Rewrite decision, 2026-04-27:
+
+- Do not replay the old direct MMIO slot transport as-is.
+- Do not carry `generation` into the current ABI.
+- Do not import MMIO slot lifecycle tracing; it was diagnostic scaffolding for
+  the old slot design.
+- Reconsider this topic only if a current benchmark or required feature proves
+  that queued MMIO is a real bottleneck or semantic blocker. In that case, start
+  from a minimal no-generation async ownership design rather than the old commit
+  series.
+
+### 6. Tracing Instrumentation in Existing Paths
 
 The range adds structured tracing for RPC forwarding, doorbells, MMIO lifecycle,
 mailbox scanning, shared-memory mappings, queue pressure, and cache-sync

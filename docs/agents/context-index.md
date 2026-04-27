@@ -155,11 +155,13 @@ Recovery note:
   A VMM FDT-generation correctness follow-up now keeps walking `_fdt_node`
   entries after one generated node; do not replay the old event-BAR cacheability
   change because the Orin AGX issue was shareability, not event-BAR caching.
-  No current QEMU source change has been found for these slices. Continue with
-  the next narrow feature slice: RPC/cache fixes, tracing hooks, direct
-  delegation, backend mailbox, trace shard bridge, QEMU consumers, and image
-  integration. Keep broad platform/debug history out unless a commit is
-  contract-critical.
+  No current QEMU source change has been found for these slices. RPC/cache-sync
+  workarounds are dropped unless a new non-shareability bug is proven.
+  Generation-based backend mailbox and direct-MMIO-slot rewrites are rejected.
+  The next retained topic is trace framework extraction: minimal trace
+  record/source/shard contracts, `kmod-vio-trace`, DT shard wiring, and tooling,
+  without bulk replay of old cache/mailbox/MMIO-slot phase IDs. Keep broad
+  platform/debug history out unless a commit is contract-critical.
 - Updated: 2026-04-27
 
 ### Cross-EL tracing implementation

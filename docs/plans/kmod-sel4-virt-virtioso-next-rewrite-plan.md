@@ -474,50 +474,65 @@ Rewrite decision, 2026-04-27:
   from a minimal no-generation async ownership design rather than the old commit
   series.
 
-### 6. Tracing Instrumentation in Existing Paths
+### 6. Trace Framework Extraction
 
-The range adds structured tracing for RPC forwarding, doorbells, MMIO lifecycle,
-mailbox scanning, shared-memory mappings, queue pressure, and cache-sync
-debugging.
+The trace framework can still be useful, but it must be separated from the old
+event taxonomy. The old trace phase IDs describe cache/shareability,
+generation-based slots, backend mailbox scans, and stale visibility hypotheses.
+Those hypotheses are no longer the target architecture.
 
-Evidence:
+Framework pieces worth preserving or re-extracting:
 
-- `sources/kmod-sel4-virt/sel4_core.c`
-- `sources/kmod-sel4-virt/pci/sel4_pci.c`
-- commits include:
-  - `9d5570a kmod-sel4-virt: add guarded RPC/doorbell debug instrumentation`
-  - `03422b3 kmod-sel4-virt: add structured VM0 EL1 tracing markers`
-  - `fec1dad kmod-sel4-virt: emit VM0 EL1 events via vio-trace API`
-  - `dc5a344 trace: emit EV_RING_DOORBELL in kmod rpc helpers`
-  - `5f7f873 trace: add rpc forward tracepoint for kmod path`
-  - `6c5b1cc trace: emit kernel mmio slot lifecycle`
-  - `c9525ed tracing: log backend mailbox slot scan state`
-  - `02d79d8 trace: log raw backend slot scan state`
-- matching QEMU history:
-  - `sources/qemu`: `1fd43cd879 trace(mmio): route qemu mmio events through shared helpers`
-  - `sources/qemu`: `6ae82de160 sel4/virtio: trace ioeventfd queue progress`
-  - `sources/qemu`: `0521cbc52c sel4/virtio: trace vring visibility state`
-  - `sources/qemu`: `eb91b3c84f sel4/virtio: trace RAM and vring cache mappings`
-  - `sources/qemu`: `df6642948b physmem: trace cached slow-path translations`
-- matching VMM-side history:
-  - `projects/virtioso-camkes-vm`: `e893020 trace: add vmm backend mmio bridge events`
-  - `projects/virtioso-camkes-vm`: `cc1233f vm_qemu_virtio: trace backend drain cache sync`
-  - `projects/virtioso-camkes-vm`: `54ea4d5 trace: log vmm mailbox mapping`
+- shared trace record and buffer layout;
+- trace shard identity: VM id, execution domain, driver VM id, flags;
+- DT-described shard discovery for guest-visible trace memory;
+- `kmod-vio-trace` as the Linux-side trace shard provider and debugfs fallback;
+- anonymous-fd shard export for userspace tools when explicitly requested;
+- binary transfer framing and timeline tooling if independent of old event IDs.
 
-Architectural role:
+Framework evidence in current or old history:
 
-- Adds observability without changing the core `/dev/sel4` user contract.
-- Makes cross-EL event correlation possible for VM0 EL1 behavior.
-- Supports debugging of backend mailbox state and cache coherency.
+- `sources/kmod-vio-trace` is already a focused framework repo on
+  `virtioso-next`:
+  - `c8d345f vio-trace(ws-k2): drive shard identity from DT properties`
+  - `011e028 vio-trace: support multi-node shard matching by tuple`
+  - `f5633cd vio-trace: initialize guest header for explicit shard tuples`
+  - `6ce10f4 vio-trace: gate shard fd export on mmap readiness`
+  - `48a16a8 vio-trace: cap guest shard header capacity at canonical 32768`
+- `projects/virtioso-camkes-vm` has framework-level VMM/export pieces:
+  - `9a1298b camkes: add generic vio trace sink/source macros`
+  - `15a78cd trace: support anon source GPA mapping and DT export module`
+  - `fe7b751 trace(camlkes): advertise canonical vio_trace DT compatible`
+  - `cbd2e36 vio-trace(tooling): add canonical package and CLI scaffold`
+  - `e6524fd trace(vio): cut over non-kernel producers to
+    VIO_TRACE_STREAM binary transport`
+- `sources/virtioso-contracts` currently has no trace headers on the rewritten
+  `virtioso-next` tip. That is intentional: trace contracts can be reintroduced
+  as a minimal framework ABI instead of replaying the old event/phase list.
 
-Rewrite note:
+Old trace content to reject by default:
 
-- Keep the first tracing rewrite minimal and compile-clean.
-- Separate stable tracepoints from temporary proof markers.
-- Avoid letting trace-only commits carry behavior changes such as cache policy,
-  request forwarding, or mailbox layout changes.
+- cache/shareability trace phases;
+- mailbox mapping/sync phases;
+- backend mailbox slot scan phases;
+- direct MMIO slot lifecycle phases;
+- queue visibility phases whose purpose was proving stale cache behavior;
+- QEMU/VMM/kmod producers tied only to rejected mailbox or direct-slot paths.
 
-### 5. Trace Shard Bridge and EL0 Trace Export
+Rewrite decision, 2026-04-27:
+
+- Keep tracing as an observability framework, not as a replay of old
+  cache-debug event IDs.
+- First trace slice should define only stable framework contracts:
+  record/header format, source identity, domain constants, and shard discovery
+  properties.
+- Event IDs are added later only when a retained runtime path needs a concrete
+  tracepoint. No bulk import of `virtioso-contracts` phase IDs.
+- `kmod-vio-trace` may be retained mostly as-is if its DT tuple matching,
+  header initialization, debugfs exposure, and shard-fd export build cleanly
+  against the minimal contract.
+
+### 7. Trace Shard Bridge and EL0 Trace Export
 
 This is related to tracing, but it is a distinct UAPI and memory-export topic.
 The range adds a `/dev/sel4` trace-shard open path and a bridge provider that
@@ -556,12 +571,14 @@ Architectural role:
 
 Rewrite note:
 
-- Rebase this after the basic tracing and DT transport topics.
+- Rebase this only after the trace framework contract is minimal and stable.
 - Keep the UAPI small and deterministic.
 - Preserve clear rejection behavior for unsupported execution domains and
   mismatched VM ids.
+- Do not make the bridge depend on rejected mailbox, direct-MMIO-slot, or
+  generation-based protocols.
 
-### 6. Direct MMIO and Backend Request Delegation
+### 8. Direct MMIO and Backend Request Delegation
 
 The range adds an opt-in direct delegation mode where unhandled MMIO/backend
 requests can be exposed through the VM fd rather than only through the older
@@ -599,13 +616,13 @@ Architectural role:
 
 Rewrite note:
 
-- Keep this opt-in until the behavior is proven on both DT and PCI backends.
-- Land the scaffolding and `poll()` behavior before wiring direct handling into
-  MMIO paths.
-- Tests should cover idle poll, queued request readability, completion, and
-  compatibility when direct delegation is disabled.
+- Defer this topic. The old direct-delegation history is entangled with direct
+  MMIO slots, backend mailbox work, and QEMU queue removal.
+- Reconsider only if a current QEMU/backend requirement needs VM-fd delegated
+  work. If so, design the UAPI from that requirement and keep it independent of
+  generation-based shared-memory slots.
 
-### 7. Backend Mailbox and Generic Backend Request Channel
+### 9. Backend Mailbox and Generic Backend Request Channel
 
 The range adds a generic backend mailbox inside the control window, after the
 normal RPC iobuf. DT validation explicitly sizes the control region for:
@@ -647,13 +664,12 @@ Architectural role:
 
 Rewrite note:
 
-- This should come after the three-BAR control-window layout and the direct
-  delegation scaffold.
-- Keep mailbox layout validation close to backend probe.
-- Keep cache synchronization changes in narrowly reviewed commits because this
-  path is sensitive to cacheable control memory.
+- This historical topic is rejected for replay as-is. See the backend mailbox
+  decision above.
+- Do not reintroduce `generation`, mailbox sync/cache tracing, or the old
+  control-window mailbox layout without a fresh requirement.
 
-### 8. Compatibility, Cache, and Correctness Fixes
+### 10. Compatibility, Cache, and Correctness Fixes
 
 The range includes smaller but important compatibility/correctness changes:
 
@@ -686,9 +702,11 @@ Rewrite note:
 - Do not batch all of these at the end.
 - Pull each fix next to the topic that needs it, unless it is independently
   useful and testable.
-- Keep cache behavior changes especially small and evidence-backed.
+- Drop cache/shareability workaround commits by default. The old event-BAR and
+  RPC/cache-sync changes belong to the resolved Orin AGX shareability bug
+  investigation unless a new, separate correctness issue is proven.
 
-### 9. QEMU seL4 Accelerator Consumers
+### 11. QEMU seL4 Accelerator Consumers
 
 The QEMU branch is not just a test consumer. It owns the userspace side of the
 new VM-fd behavior, trace shard initialization, seL4 accelerator MMIO handling,
@@ -708,12 +726,13 @@ Evidence:
 
 Rewrite note:
 
-- QEMU direct-delegation commits must be replayed with the kmod UAPI commits,
-  not afterward as a separate cleanup.
-- Keep legacy RPC compatibility until the kmod and QEMU sides both support the
-  direct path and the image integration can select it deterministically.
+- Do not replay QEMU consumers for rejected mailbox/direct-slot protocols.
+- Retain QEMU trace tooling only where it consumes the trace framework, not old
+  event taxonomies or cache probes.
+- Any future QEMU VM-fd/direct-delegation work needs its own fresh UAPI design
+  and validation plan.
 
-### 10. Yocto and Image Integration
+### 12. Yocto and Image Integration
 
 The runtime path depends on image recipes installing the right modules,
 contracts, helpers, and QEMU build. The layer history contains local-source
@@ -738,8 +757,10 @@ Rewrite note:
   not enough if the VM images still package old headers/modules.
 - Keep local-source cleanliness guards in place because this workflow consumes
   `sources/qemu`, `sources/kmod-sel4-virt`, and `sources/virtioso-contracts`.
+- For trace framework extraction, package only the minimal trace contract,
+  `kmod-vio-trace`, and tools that consume the retained binary/shard format.
 
-### 11. seL4-Side VMM and Platform Support
+### 13. seL4-Side VMM and Platform Support
 
 The CAmkES and `sel4_projects_libs` histories contain pieces that are not Linux
 kmod features but are required for end-to-end behavior:
@@ -761,8 +782,8 @@ Evidence:
 
 Rewrite note:
 
-- Do not replay VMM-side mailbox or single-connector CAmkES changes as docs-only
-  follow-up. They define the actual producer side of the shared control window.
+- Do not replay VMM-side mailbox changes unless a new no-generation async design
+  is explicitly chosen.
 - Keep broad platform/debug history out of the minimal rewrite unless a commit
   directly supports the kmod/QEMU contract under test.
 
@@ -784,23 +805,23 @@ Rewrite note:
 7. Land transport selection skeleton in kmod with PCI still working.
 8. Add DT backend discovery using the same three-region model and matching
    CAmkES generated DT/reserved-memory output.
-9. Add the required RPC ordering/cache-helper contract commits with the
-   compatibility fixes that consume them.
-10. Add minimal MMIO/RPC trace helper contracts and tracing hooks for existing
-   PCI/DT paths across kmod, VMM, and QEMU.
-11. Add the direct-MMIO-slot contract slice, then kmod direct delegation scaffold
-   and VM-fd `poll()` behavior.
-12. Add QEMU direct-delegation consumers while retaining fallback compatibility.
-13. Add the backend/control mailbox contract slice plus kmod mailbox layout
-   validation.
-14. Publish/process backend mailbox requests and completions from the VMM side.
-15. Switch QEMU to generic backend request ioctls.
-16. Add `kmod-vio-trace` shard-provider support and kmod trace bridge UAPI.
-17. Switch QEMU trace initialization to the VM-fd trace bridge.
-18. Add detailed backend/QEMU/VMM trace phase-ID contracts together with their
-   consuming tracepoints.
-19. Update Yocto image integration and validate packaged headers/modules/QEMU.
-20. Remove temporary proof/debug markers or gate them clearly.
+9. Explicitly drop the old RPC/cache-sync workaround family unless a fresh
+   non-shareability bug is proven.
+10. Explicitly reject old generation-based slot transports: backend mailbox and
+    direct MMIO slots.
+11. Extract the trace framework only:
+    - minimal trace record/header/source identity contract;
+    - `kmod-vio-trace` shard provider;
+    - CAmkES DT/reserved-memory shard wiring;
+    - binary transfer and timeline tooling if independent of old event IDs.
+12. Add trace shard bridge UAPI only if the framework extraction needs explicit
+    `/dev/sel4`-mediated shard export.
+13. Add new event IDs only with concrete retained producers. Do not bulk replay
+    old cache, mailbox, MMIO-slot, or queue-visibility phase IDs.
+14. Update Yocto image integration for retained contracts/modules/tools.
+15. Revisit QEMU VM-fd/direct-delegation work only if a current feature or
+    benchmark proves the need; design it without generation-based shared slots.
+16. Remove temporary proof/debug markers or gate them clearly.
 
 ## Validation Slices
 
@@ -824,25 +845,23 @@ Each topic should have a small validation target before the next topic lands.
   - DT probe rejects undersized control windows.
   - DT probe creates the same logical memory maps as PCI.
 
-- Direct delegation validation:
+- Trace framework validation:
+  - minimal trace contracts compile in kernel and non-kernel consumers.
+  - `kmod-vio-trace` probes DT-described shards by explicit tuple: VM id,
+    execution domain, driver VM id, flags.
+  - shard mmap rejects invalid offsets and unaligned memory.
+  - debugfs fallback exposes the selected shard without requiring old event IDs.
+  - binary transfer tooling can parse retained VMM/guest trace buffers without
+    mailbox, MMIO-slot, or cache phase IDs.
+  - merged trace output preserves ordering/source identity for retained
+    producers, even if the event taxonomy is initially small.
+
+- Deferred direct-delegation validation, only if revived:
   - disabled mode preserves legacy forwarding.
   - enabled mode makes VM fd readable for delegated requests.
-  - completion wakes the backend and does not lose request generation identity.
-  - QEMU can consume VM-fd delegated requests without the old wait-thread path.
-
-- Mailbox validation:
-  - mailbox magic/version mismatch is ignored safely.
-  - valid mailbox slots can be claimed, completed, and requeued.
-  - cache synchronization around the mailbox is observable and bounded.
-
-- Trace validation:
-  - tracepoints compile with shared contracts.
-  - source IDs are guest-agnostic where intended.
-  - trace shard open rejects invalid VM/domain combinations.
-  - trace shard mmap rejects invalid offsets and unaligned memory.
-  - QEMU initializes trace through the bridge path.
-  - `kmod-vio-trace` provides the expected shard fd for explicit DT tuples.
-  - merged trace output correlates kmod, QEMU, and VMM backend phases.
+  - completion is matched without `generation`.
+  - QEMU can consume VM-fd delegated requests without depending on old shared
+    slot protocols.
 
 ## Risks and Open Questions
 
@@ -852,14 +871,15 @@ Each topic should have a small validation target before the next topic lands.
 - DT and PCI should share the logical transport contract, but not necessarily
   identical probe code. The shared boundary should be the `sel4_vmm` maps and
   doorbell operations.
-- The backend mailbox location inside the control window is an ABI. Once
-  replayed, both seL4-side producers and Linux kmod consumers must agree on the
-  exact layout and cacheability.
+- Backend mailbox and direct MMIO slots are rejected for replay as-is. The risk
+  is accidental reintroduction through dependent trace/QEMU commits.
 - Direct delegation changes userspace readiness semantics through VM-fd
-  `poll()`. Existing users must keep working when direct delegation is disabled.
+  `poll()`. Existing users must keep working if this topic is ever revived.
 - Trace shard export exposes physical shared memory to userspace. The rewrite
   should preserve strict validation of VM id, execution domain, driver VM id,
   offset, size, and page alignment.
+- Old trace event IDs encode old hypotheses. Replaying them without current
+  producers would create a misleading observability contract.
 - Some supporting branches contain broad platform/debug history. The rewrite
   should cherry-pick only contract-critical slices and avoid absorbing unrelated
   GIC, x86, elfloader, or cache-debug experiments unless validation shows they

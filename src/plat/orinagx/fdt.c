@@ -22,7 +22,10 @@
 
 /* Device paths in Tegra234 device tree */
 #define GIC_PATH            "/bus@0/interrupt-controller@f400000"
+#define HSP_TOP0_PATH       "/bus@0/hsp@3c00000"
+#define HSP_AON_PATH        "/bus@0/hsp@c150000"
 #define BUS_PATH            "/bus@0"
+#define SERIAL_NODE_NAME    "serial"
 
 #define MGBE0_MAC_ADDR      "48:B0:2D:7F:0C:2A"
 
@@ -35,6 +38,12 @@
  * doesn't matter. We put it in /bus@0/ alongside other tegra devices.
  */
 #define PMC_NODE_NAME       "pmc"
+
+/* TCU mailbox parameters. The guest-visible TCU node needs RX from HSP Top0
+ * shared mailbox 0 and TX to HSP AON shared mailbox 1. */
+#define TCU_MBOX_TYPE_SM    0x1
+#define TCU_RX_PARAM        0x00000000
+#define TCU_TX_PARAM        0x80000001
 
 /**
  * Set interrupt-parent at root level to enable child interrupt routing.
@@ -108,6 +117,77 @@ static uint32_t fdt_ensure_phandle(void *fdt, int node_off, const char *name)
         ZF_LOGI("%s has phandle 0x%x", name, phandle);
     }
     return phandle;
+}
+
+static int fdt_generate_tcu_node(void *fdt)
+{
+    int hsp_top0_off = fdt_path_offset(fdt, HSP_TOP0_PATH);
+    int hsp_aon_off = fdt_path_offset(fdt, HSP_AON_PATH);
+
+    if (hsp_top0_off < 0 || hsp_aon_off < 0) {
+        ZF_LOGI("HSP nodes not present, skipping TCU generation");
+        return 0;
+    }
+
+    uint32_t hsp_top0_phandle = fdt_ensure_phandle(fdt, hsp_top0_off, "HSP Top0");
+    uint32_t hsp_aon_phandle = fdt_ensure_phandle(fdt, hsp_aon_off, "HSP AON");
+    if (!hsp_top0_phandle || !hsp_aon_phandle) {
+        return -1;
+    }
+
+    int root = fdt_path_offset(fdt, "/");
+    if (root < 0) {
+        ZF_LOGE("Root node not found: %d", root);
+        return root;
+    }
+
+    int tcu_off = fdt_add_subnode(fdt, root, SERIAL_NODE_NAME);
+    if (tcu_off < 0) {
+        if (tcu_off == -FDT_ERR_EXISTS) {
+            ZF_LOGI("/%s node already exists, skipping", SERIAL_NODE_NAME);
+            return 0;
+        }
+        ZF_LOGE("Failed to add /%s node: %d", SERIAL_NODE_NAME, tcu_off);
+        return tcu_off;
+    }
+
+    const char compatible[] = "nvidia,tegra234-tcu\0nvidia,tegra194-tcu";
+    int err = fdt_setprop(fdt, tcu_off, "compatible", compatible, sizeof(compatible));
+    if (err) {
+        ZF_LOGE("Failed to set TCU compatible: %d", err);
+        return err;
+    }
+
+    uint32_t mboxes[6] = {
+        cpu_to_fdt32(hsp_top0_phandle),
+        cpu_to_fdt32(TCU_MBOX_TYPE_SM),
+        cpu_to_fdt32(TCU_RX_PARAM),
+        cpu_to_fdt32(hsp_aon_phandle),
+        cpu_to_fdt32(TCU_MBOX_TYPE_SM),
+        cpu_to_fdt32(TCU_TX_PARAM),
+    };
+    err = fdt_setprop(fdt, tcu_off, "mboxes", mboxes, sizeof(mboxes));
+    if (err) {
+        ZF_LOGE("Failed to set TCU mboxes: %d", err);
+        return err;
+    }
+
+    const char mbox_names[] = "rx\0tx";
+    err = fdt_setprop(fdt, tcu_off, "mbox-names", mbox_names, sizeof(mbox_names));
+    if (err) {
+        ZF_LOGE("Failed to set TCU mbox-names: %d", err);
+        return err;
+    }
+
+    err = fdt_setprop_string(fdt, tcu_off, "status", "okay");
+    if (err) {
+        ZF_LOGE("Failed to set TCU status: %d", err);
+        return err;
+    }
+
+    ZF_LOGI("Added /%s node with RX(HSP Top0 0x%x) TX(HSP AON 0x%x)",
+            SERIAL_NODE_NAME, hsp_top0_phandle, hsp_aon_phandle);
+    return 0;
 }
 
 /**
@@ -338,6 +418,12 @@ int fdt_plat_customize(vm_t *vm, void *dtb_buf)
         }
     } else {
         ZF_LOGI("GPIO node not present, skipping PMC generation");
+    }
+
+    err = fdt_generate_tcu_node(dtb_buf);
+    if (err) {
+        ZF_LOGE("Cannot generate TCU serial node (%d)", err);
+        return -1;
     }
 
     /*

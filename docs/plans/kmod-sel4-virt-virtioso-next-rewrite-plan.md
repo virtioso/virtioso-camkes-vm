@@ -663,11 +663,22 @@ Architectural role:
 
 Rewrite note:
 
-- Defer this topic. The old direct-delegation history is entangled with direct
-  MMIO slots, backend mailbox work, and QEMU queue removal.
-- Reconsider only if a current QEMU/backend requirement needs VM-fd delegated
-  work. If so, design the UAPI from that requirement and keep it independent of
-  generation-based shared-memory slots.
+- Split the useful readiness mechanism from the rejected direct-delegation
+  protocol.
+- Keep only VM-fd pollability and QEMU main-loop integration for the existing
+  forwarded RPC queue.
+- Do not add `SEL4_DELEG_*` ioctls, direct MMIO slots, backend mailbox paths,
+  generation fields, or queue removal.
+
+Rewrite status, 2026-04-27:
+
+- `sources/kmod-sel4-virt`: the VM fd now implements `poll()` by waiting on the
+  existing `ioreq_wait` queue and reporting `EPOLLIN|EPOLLRDNORM` when the
+  existing forwarded userspace RPC queue is ready.
+- `sources/qemu`: the seL4 accelerator now registers the VM fd with
+  `qemu_set_fd_handler()` and drains the same RPC queue from the main loop.
+- This slice removes the dedicated seL4 virtio wait thread from QEMU without
+  changing the request ABI or adding any direct-delegation protocol.
 
 ### 9. Backend Mailbox and Generic Backend Request Channel
 

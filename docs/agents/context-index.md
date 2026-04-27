@@ -179,7 +179,11 @@ Recovery note:
   `virtioso-contracts` owns the shard-open request shape,
   `sources/kmod-sel4-virt` exposes `SEL4_TRACE_OPEN_SHARD` by delegating to
   `kmod-vio-trace`, and `sources/qemu` opens/maps an EL0 shard when available
-  without adding event IDs.
+  without adding event IDs. A narrow VM-fd poll slice follows this: kmod makes
+  the existing VM fd readable when the forwarded RPC queue has work, and QEMU
+  drains that existing queue from `qemu_set_fd_handler()` instead of a wait
+  thread. Do not add old `SEL4_DELEG_*`, direct slots, mailbox, or generation
+  fields.
 - Updated: 2026-04-27
 
 ### Cross-EL tracing implementation

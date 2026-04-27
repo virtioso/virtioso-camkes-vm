@@ -34,8 +34,8 @@ Entry fields:
   - [../platforms/orin-agx/investigations/vm-qemu-virtio-boot-investigation.md](../platforms/orin-agx/investigations/vm-qemu-virtio-boot-investigation.md)
   - [../plans/orinagx-next-vm-qemu-virtio-triage.md](../plans/orinagx-next-vm-qemu-virtio-triage.md)
   - [build-test-runbook.md](build-test-runbook.md#orin-agx-vm_qemu_virtio)
-- Last known state: cross-VM IRQ path is active; `irq=236` injects successfully. The focus has moved from IRQ delivery to virtio-console init/probe behavior. A branch triage pass now separates `orinagx-next` material into keep/replay items, obsolete cacheability/RAS hunting, and deferred debug aids.
-- Next action: compare current `virtioso-next` content against the Orin keep list, starting with carefully sliced `tools/seL4` elfloader Orin/MMU/memmap work, `kernel` Orin DTS completeness without SDEI/RAS/cacheability experiments, and `projects/vm` Orin platform header plus 8-bit-safe cross-VM IRQ/control-dataport/DTB-dump support. First Orin validation should try without forced `clean_cache=1`; if that fails with cache/coherency-like symptoms, retry with it as a controlled comparison.
+- Last known state: selected Orin material has been replayed on top of current `virtioso-next` in `kernel`, `projects/vm`, `projects/virtioso-camkes-vm`, and `virtioso-build`. `projects/seL4_libs` already had the NULL-vspace `sel4utils_elf_reserve()` fix. `tools/seL4` was left untouched because current `virtioso-next` already carries the newer elfloader Orin/MMU/memmap line. A clean `make mrproper`, `make orinagx_defconfig`, `make vm_qemu_virtio` now builds `orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx` with VM0/VM1 `clean_cache=false`.
+- Next action: run Orin AGX Autopilot validation with chain `vm-qemu-virtio`. If it fails with cache/coherency-like symptoms, retry with `clean_cache=1` as the controlled comparison.
 - Updated: 2026-04-27
 
 ### Cross-arch console mux and stream routing

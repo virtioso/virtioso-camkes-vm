@@ -15,12 +15,49 @@ underlying shareability bug was still misunderstood.
 
 | Repository | Current observation | Triage role |
 | --- | --- | --- |
-| `kernel` | local checkout is `orinagx-next`; `virtioso-next` already has a minimal Orin platform and DTS | compare platform/DTS and avoid RAS/cache experiments |
-| `tools/seL4` | `virtioso-next` exists and differs from `orinagx-next` in elfloader MMU/memmap code | likely contains the real boot/shareability fix boundary |
-| `projects/virtioso-camkes-vm` | current branch is `virtioso-next`; Orin app config is already mostly present | avoid replaying older template/code over newer contract-based DT generation |
-| `projects/vm` | `virtioso-next` lacks the Orin platform header; `orinagx-next` has cross-VM and Orin VM glue | likely source for missing VMM-side Orin pieces |
-| `projects/seL4_libs` | has an `orinagx` branch with small support fixes | inspect only if the Orin build exposes these needs |
-| `virtioso-build` | `virtioso-next` has `orinagx_defconfig`; local generated files are dirty | keep defconfig/layer facts, avoid SDEI/RAS auto-selection |
+| `kernel` | replayed selected Orin DTS/platform completeness on top of `virtioso-next` | keep platform/DTS, avoid SDEI/RAS/cache experiments |
+| `tools/seL4` | left untouched; current `virtioso-next` already carries the newer elfloader Orin/MMU/memmap line | treat as current shareability baseline unless runtime evidence says otherwise |
+| `projects/virtioso-camkes-vm` | current branch is `virtioso-next`; Orin app config is preserved and `clean_cache` is disabled for the first trial | avoid replaying older template/code over newer contract-based DT generation |
+| `projects/vm` | replayed Orin VM glue on top of `virtioso-next` | source for VMM-side Orin platform, cross-VM, TCU, and DTB-dump support |
+| `projects/seL4_libs` | `virtioso-next` already contains the NULL-vspace reservation fix as `5d68a4c` | no new replay needed |
+| `virtioso-build` | `orinagx_defconfig` now points at the Yocto sysroot dt-bindings path | keep defconfig/layer facts, avoid SDEI/RAS auto-selection |
+
+## Current Replay Status
+
+Status as of 2026-04-27:
+
+- `projects/vm/virtioso-next` now carries the selected Orin VMM glue, including
+  the DTB dump hook requested from `ec6d103`, the 8-bit-safe cross-VM IRQ, the
+  optional control dataport, TCU/PMC guest-FDT support, and ARM VM PCI module
+  enablement.
+- `kernel/virtioso-next` now carries the selected Orin DTS completeness commits
+  without the old SDEI/RAS debug handler line and without the manual
+  cache-maintenance experiments.
+- `projects/virtioso-camkes-vm/virtioso-next` keeps the existing Orin
+  `vm_qemu_virtio` composition, consolidates TCU DT generation into the
+  Virtioso-owned FDT hook, and sets VM0/VM1 `clean_cache` to `false` for the
+  first validation trial.
+- `virtioso-build/virtioso-next` uses the existing Yocto sysroot
+  `dt-bindings` directory. A fresh `make linux-image` was not required for this
+  build because the required headers already existed under
+  `vm-images/build/tmp/sysroots-components/`.
+- `projects/seL4_libs/virtioso-next` already contains the NULL-vspace
+  `sel4utils_elf_reserve()` fix, so the historical `c8a90b0` cherry-pick was
+  empty.
+- Clean build validation now passes:
+
+```sh
+make mrproper
+make orinagx_defconfig
+make vm_qemu_virtio
+```
+
+The produced image is
+`orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx`.
+
+The next proof step is Autopilot runtime validation with chain
+`vm-qemu-virtio`. If that fails with cache/coherency-like symptoms, retry with
+`clean_cache=1` as the controlled comparison.
 
 ## Keep Or Replay
 
@@ -230,14 +267,9 @@ If that fails with cache/coherency-like symptoms, run the same validation with
 
 ## Open Checks
 
-- Confirm whether current `tools/seL4/virtioso-next` already contains the exact
-  elfloader fix semantics despite differing from `orinagx-next`.
-- Confirm whether `kernel/virtioso-next` should keep `KernelAArch64SErrorIgnore`
-  default behavior or whether the current `orinagx-next` debug setting leaked
-  into the branch.
+- Runtime-test the clean build on Orin AGX with Autopilot chain
+  `vm-qemu-virtio`.
 - Confirm whether Orin Ethernet passthrough is required for the first
   `vm_qemu_virtio` validation, or whether console plus cross-VM virtio is enough.
-- Confirm whether existing `clean_cache=true` values in
-  `apps/Arm/vm_qemu_virtio/orinagx/devices.camkes` are still active. The target
-  first trial is without forced clean-cache behavior, with a fallback trial that
-  enables it if the clean run fails.
+- If runtime validation fails in a cache/coherency-like way, repeat with
+  `clean_cache=1` as the next controlled comparison.

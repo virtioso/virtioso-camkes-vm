@@ -136,6 +136,13 @@ Recommended split:
 
 ## Concrete Autopilot Fix Plan
 
+Implementation status: code landed in `/home/hlyytine/autopilot`:
+
+- `f3bcb07 autopilot: harden cli status and evidence`
+- `afdf5ee autopilot: structure analysis hook failures`
+- `58d9d7e autopilot: return structured cli errors`
+- `59e558b docs: document autopilot evidence workflow`
+
 This backlog is based on the first Orin AGX `vm_qemu_virtio` run through the
 new command API:
 
@@ -146,6 +153,8 @@ new command API:
   and the user VM log contained `ERROR: vio_trace not ready`
 
 ### Slice 1: Make Daemon And Queue State Non-Contradictory
+
+Status: implemented; needs fresh active-run verification.
 
 Problem observed:
 
@@ -176,6 +185,9 @@ Acceptance criteria:
 
 ### Slice 2: Make Final Results Self-Contained
 
+Status: implemented for new runs and partially backfilled for existing
+`analysis_hooks.json` results by `autopilot get`.
+
 Problem observed:
 
 - The terminal result only exposed `ANALYSIS_HOOKS_FAILED`.
@@ -204,6 +216,8 @@ Acceptance criteria:
   failure with `ERROR: vio_trace not ready` as evidence.
 
 ### Slice 3: Add Focused Evidence Commands
+
+Status: implemented.
 
 Problem observed:
 
@@ -234,6 +248,8 @@ Acceptance criteria:
 
 ### Slice 4: Make `get` And `status` Agree On Result Paths
 
+Status: implemented.
+
 Problem observed:
 
 - While the request was processing, `autopilot status --json` exposed
@@ -251,6 +267,8 @@ Acceptance criteria:
 - Agents can discover available logs from `get` without calling `logs` first.
 
 ### Slice 5: Make CLI Help And Errors Robust
+
+Status: implemented.
 
 Problem observed:
 
@@ -279,6 +297,11 @@ Acceptance criteria:
   without repeating `--tty0 /dev/ttyACM0 --tty1 /dev/ttyACM1`.
 
 ### Slice 6: Clarify Required Hook Policy
+
+Status: implemented for current required/optional hook policy:
+`required_for_pass` for required hooks and `diagnostic_only` for optional hooks.
+For `vm-qemu-virtio`, `vio_trace_validate_strict` and
+`vio_trace_marker_contract` remain required pass criteria.
 
 Problem observed:
 
@@ -338,9 +361,11 @@ Completed implementation slices:
 
 Remaining work:
 
-1. Decide whether to create an optional `ci-tester` skill for result
+1. Exercise a fresh Orin AGX `vm_qemu_virtio` run and require that final
+   reporting can be produced from `autopilot get` plus, at most,
+   `autopilot evidence`.
+2. Exercise the QEMU submit/status/get/logs path through the new command API.
+3. Decide whether to create an optional `ci-tester` skill for result
    interpretation.
-2. Exercise the full Orin AGX and QEMU submit/status/get/logs path through the
-   new command API.
-3. Remove or clearly mark any remaining legacy MCP guidance outside active
+4. Remove or clearly mark any remaining legacy MCP guidance outside active
    runbooks as historical.

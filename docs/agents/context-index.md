@@ -35,8 +35,8 @@ Entry fields:
   - [build-test-runbook.md](build-test-runbook.md)
   - [repo-topology-policy.md](repo-topology-policy.md)
   - `/home/hlyytine/autopilot`
-- Last known state: Autopilot policy has switched to a single agent-facing `autopilot` command in `PATH` that returns JSON. Autopilot startup now clears pending and processing requests and reports startup cleanup. Active workspace docs now require `autopilot ... --json` and forbid MCP/direct queue/Python-internals fallback paths. Critical policy requirement: if the chosen API cannot express the operation, fails, returns invalid/ambiguous output, or appears to need interface changes, the agent must stop and notify the human owner instead of debugging or modifying Autopilot internals.
-- Next action: exercise the full Orin AGX and QEMU submit/status/get/logs path through the new command API, then decide whether to add an optional `ci-tester` skill for result interpretation.
+- Last known state: Autopilot policy has switched to a single agent-facing `autopilot` command in `PATH` that returns JSON. Autopilot startup clears pending and processing requests and reports startup cleanup. The command API now has structured daemon/tmux/worker status, bounded `logs --tail/--grep/--file`, `evidence`, structured required-hook failures in `get`, Orin AGX UART defaults, help without `WORKSPACE`, and JSON validation errors. Active workspace docs require `autopilot ... --json` and forbid MCP/direct queue/Python-internals fallback paths.
+- Next action: exercise a fresh Orin AGX `vm_qemu_virtio` run and require final reporting from `autopilot get` plus, at most, `autopilot evidence`; then exercise the QEMU path and decide whether to add an optional `ci-tester` skill.
 - Updated: 2026-04-28
 
 ### Orin AGX `vm_qemu_virtio` VM1 virtio-console stall

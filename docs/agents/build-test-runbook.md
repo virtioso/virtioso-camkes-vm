@@ -13,13 +13,13 @@ This file is the canonical source for build and test command sequences.
 4. Verify binary exists:
    `/home/hlyytine/tii-sel4/orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx`
 5. Ensure Autopilot daemon is running in tmux:
-   `mcp__sel4-autopilot__autopilot_restart(autopilot_dir="/home/hlyytine/tii-sel4/autopilot", use_tmux=true)`
+   `autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot restart --platform orin-agx-uefi-netboot --tmux --tty0 /dev/ttyACM0 --tty1 /dev/ttyACM1 --json`
 6. Submit EFI test:
-   `mcp__sel4-autopilot__test_sel4_efi(autopilot_dir="/home/hlyytine/tii-sel4/autopilot", binary_path="/home/hlyytine/tii-sel4/orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx", chain="vm-qemu-virtio")`
+   `autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot submit efi --chain vm-qemu-virtio --binary /home/hlyytine/tii-sel4/orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx --json`
 7. Poll status:
-   `mcp__sel4-autopilot__get_test_status(...)` or `mcp__sel4-autopilot__wait_for_test(...)`
+   `autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot status --json` or `autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot get <request-id> --json`
 8. Get logs:
-   `mcp__sel4-autopilot__get_logs(...)`
+   `autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot logs <request-id> --json`
 9. If behavior is unexpected, inspect:
    `results/<id>/device-trees/`
 
@@ -34,13 +34,13 @@ This file is the canonical source for build and test command sequences.
 4. Verify binary exists:
    `/home/hlyytine/tii-sel4/qemu_x86_64_vm_qemu_virtio/images/capdl-loader-image-x86_64-pc99`
 5. Ensure Autopilot daemon is running in tmux:
-   `mcp__sel4-autopilot__autopilot_restart(autopilot_dir="/home/hlyytine/tii-sel4/autopilot", use_tmux=true)`
+   `autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot restart --platform qemu-generic --tmux --json`
 6. Submit QEMU-backed test:
-   `mcp__sel4-autopilot__test_sel4_efi(autopilot_dir="/home/hlyytine/tii-sel4/autopilot", binary_path="/home/hlyytine/tii-sel4/qemu_x86_64_vm_qemu_virtio/images/capdl-loader-image-x86_64-pc99", chain="qemu_x86_64_defconfig")`
+   `autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot submit efi --chain qemu_x86_64_defconfig --binary /home/hlyytine/tii-sel4/qemu_x86_64_vm_qemu_virtio/images/capdl-loader-image-x86_64-pc99 --build-platform qemu_x86_64 --json`
 7. Poll status:
-   `mcp__sel4-autopilot__get_test_status(...)` or `mcp__sel4-autopilot__wait_for_test(...)`
+   `autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot status --json` or `autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot get <request-id> --json`
 8. Get logs:
-   `mcp__sel4-autopilot__get_logs(...)`
+   `autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot logs <request-id> --json`
 9. Use direct `tools/qemu_runner.py` only for backend debugging when the autopilot integration itself is suspect.
 10. For direct runner debugging, prefer a deployed or unpacked runtime artifact
     over the legacy `tmp/work/.../qemu-system-native` path.
@@ -56,13 +56,13 @@ This file is the canonical source for build and test command sequences.
 4. Verify binary exists:
    `/home/hlyytine/tii-sel4/qemu_x86_64_vm_qemu_virtio/images/capdl-loader-image-x86_64-pc99`
 5. Ensure Autopilot daemon is running in tmux:
-   `mcp__sel4-autopilot__autopilot_restart(autopilot_dir="/home/hlyytine/tii-sel4/autopilot", use_tmux=true)`
+   `autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot restart --platform qemu-generic --tmux --json`
 6. Submit the deeper VM1-launch validation:
-   `mcp__sel4-autopilot__test_sel4_efi(autopilot_dir="/home/hlyytine/tii-sel4/autopilot", binary_path="/home/hlyytine/tii-sel4/qemu_x86_64_vm_qemu_virtio/images/capdl-loader-image-x86_64-pc99", chain="qemu_x86_64_vm_qemu_virtio_uservm")`
+   `autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot submit efi --chain qemu_x86_64_vm_qemu_virtio_uservm --binary /home/hlyytine/tii-sel4/qemu_x86_64_vm_qemu_virtio/images/capdl-loader-image-x86_64-pc99 --build-platform qemu_x86_64 --json`
 7. Poll status:
-   `mcp__sel4-autopilot__get_test_status(...)` or `mcp__sel4-autopilot__wait_for_test(...)`
+   `autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot status --json` or `autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot get <request-id> --json`
 8. Get logs:
-   `mcp__sel4-autopilot__get_logs(...)`
+   `autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot logs <request-id> --json`
 9. Inspect managed-launch evidence under:
    `results/<id>/console/tty0.ansi.log`
 10. The `qemu_x86_64_defconfig` chain remains the boot-to-login smoke test;
@@ -76,7 +76,7 @@ This file is the canonical source for build and test command sequences.
 3. `make vm_minimal`
 4. Verify binary:
    `/home/hlyytine/tii-sel4/orinagx_vm_minimal/images/capdl-loader-image-arm-orinagx`
-5. Submit test with `test_sel4_efi` and chain `vm-minimal`.
+5. Submit test with `autopilot submit efi --chain vm-minimal --binary /home/hlyytine/tii-sel4/orinagx_vm_minimal/images/capdl-loader-image-arm-orinagx --json`.
 
 ## Orin AGX `sel4test`
 
@@ -85,7 +85,7 @@ This file is the canonical source for build and test command sequences.
 3. `make sel4test`
 4. Verify binary:
    `/home/hlyytine/tii-sel4/orinagx_sel4test/images/sel4test-driver-image-arm-orinagx`
-5. Submit test with `test_sel4_efi` and chain `sel4test`.
+5. Submit test with `autopilot submit efi --chain sel4test --binary /home/hlyytine/tii-sel4/orinagx_sel4test/images/sel4test-driver-image-arm-orinagx --json`.
 
 ## Orin AGX `kmod-sel4-virt` (Yocto Module Recipe)
 
@@ -125,11 +125,13 @@ This file is the canonical source for build and test command sequences.
 - Build commands are always `make` targets from workspace root.
 - Defconfig commands are serialized steps. Do not run `make <name>_defconfig`
   in parallel with any other command.
-- Testing is always `test_sel4_efi`.
+- Testing is always through the `autopilot` command-line API.
 - Use Autopilot chains, not legacy profiles.
 - For QEMU defconfig targets, the Autopilot chain name matches the build
   target name exactly.
-- For daemon start/restart operations, always set `use_tmux=true`.
+- For daemon start/restart operations, always use `--tmux`.
+- Do not mix Autopilot APIs. Do not use MCP tools, direct queue files, or Python
+  internals as fallback paths.
 - `qemu_x86_64_defconfig` uses the autopilot remote-QEMU backend with chain
   `qemu_x86_64_defconfig`.
 - For manual x86 QEMU runs, prefer the deployed runtime artifact under

@@ -34,7 +34,7 @@ check_absent 'mcp__sel4-autopilot__build_sel4test' "MCP build function is not al
 
 # Canonical hooks must exist.
 check_present 'docs/agents/task-router.md' AGENTS.md "AGENTS.md must link to task router"
-check_present 'test_sel4_efi' docs/agents/build-test-runbook.md "runbook must use test_sel4_efi"
+check_present 'autopilot --autopilot-dir' docs/agents/build-test-runbook.md "runbook must use autopilot CLI"
 check_present 'Use Autopilot chains, not legacy profiles' docs/agents/build-test-runbook.md "runbook must define chain-based autopilot rule"
 
 if [[ "$fail" -ne 0 ]]; then

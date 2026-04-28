@@ -26,6 +26,19 @@ Entry fields:
 
 ## Active Threads
 
+### Making Autopilot usable for agents
+
+- Status: active
+- Primary note: [../plans/autopilot-usable-agent-interface-plan.md](../plans/autopilot-usable-agent-interface-plan.md)
+- Related notes:
+  - [autopilot-testing-policy.md](autopilot-testing-policy.md)
+  - [build-test-runbook.md](build-test-runbook.md)
+  - [repo-topology-policy.md](repo-topology-policy.md)
+  - `/home/hlyytine/autopilot`
+- Last known state: Autopilot policy has switched toward a single agent-facing `autopilot` command in `PATH` that returns JSON. Critical policy requirements: if the chosen API cannot express the operation, fails, returns invalid/ambiguous output, or appears to need interface changes, the agent must stop and notify the human owner instead of debugging or modifying Autopilot internals; on daemon startup, Autopilot must clear all pending and processing requests because a restart means old queued work should not continue.
+- Next action: finish wiring the `autopilot` CLI contract through `autopilot-testing-policy.md`, `build-test-runbook.md`, and canonical `AGENTS.md`; then retire MCP/direct queue instructions from active workflow docs.
+- Updated: 2026-04-28
+
 ### Orin AGX `vm_qemu_virtio` VM1 virtio-console stall
 
 - Status: active
@@ -114,7 +127,7 @@ Recovery note:
 - Next action: for "continue Isengard" requests, start from the primary migration plan and keep new deployment-neutral contracts out of CAmkES IDL.
 - Updated: 2026-04-23
 
-### Autopilot MCP startup, status, and queue truth
+### Legacy Autopilot MCP startup, status, and queue truth
 
 - Status: paused
 - Primary note: [autopilot-testing-policy.md](autopilot-testing-policy.md)
@@ -124,7 +137,7 @@ Recovery note:
   - `/home/hlyytine/autopilot/sel4_mcp_server.py`
   - `/home/hlyytine/autopilot/sel4_mcp_server_wrapper.sh`
 - Last known state: `WORKSPACE=/home/hlyytine/tii-sel4` and `AUTOPILOT_DIR=/home/hlyytine/tii-sel4/autopilot` are required. Some failures were startup/env issues, some were Codex live-session binding issues, and one compatibility fix required newline-delimited JSON on stdout rather than `Content-Length` framing.
-- Next action: if MCP tools are missing or stale, check the active Codex registry and wrapper/server logs, then directly probe initialize/tools-list or queue status before speculating.
+- Next action: preserve this entry only as historical MCP troubleshooting context. Do not use MCP as the active test workflow unless the single-API policy is explicitly changed again.
 - Updated: 2026-04-23
 
 ### Yocto VM image and local-source workflow

@@ -29,6 +29,15 @@ Operational policy and command sequences are authoritative only in:
 6. `docs/agents/repo-topology-policy.md`
 7. `docs/agents/example-workflows-fastpath.md`
 
+## Continuity / Lost Context Recovery
+
+When context appears lost, or the user asks whether we were working on a topic,
+first check `docs/agents/context-index.md`.
+
+When creating or substantially updating a durable plan, investigation note, or
+long-running work item, update the context index with the primary file, current
+status, last known state, and next action.
+
 ## Fast Path
 
 For “build and test `vm_qemu_virtio` on Orin AGX”:
@@ -36,14 +45,14 @@ For “build and test `vm_qemu_virtio` on Orin AGX”:
 1. `make mrproper`
 2. `make orinagx_defconfig`
 3. `make vm_qemu_virtio`
-4. `mcp__sel4-autopilot__test_sel4_efi(..., chain="vm-qemu-virtio")`
+4. `autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot submit efi --chain vm-qemu-virtio --binary /home/hlyytine/tii-sel4/orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx --json`
 
 For `qemu_x86_64_defconfig` QEMU-backed x86 validation:
 
 1. `make mrproper`
 2. `make qemu_x86_64_defconfig`
 3. `make vm_qemu_virtio`
-4. `mcp__sel4-autopilot__test_sel4_efi(..., chain="qemu_x86_64_defconfig")`
+4. `autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot submit efi --chain qemu_x86_64_defconfig --binary /home/hlyytine/tii-sel4/qemu_x86_64_vm_qemu_virtio/images/capdl-loader-image-x86_64-pc99 --build-platform qemu_x86_64 --json`
 
 ## Build/Test Policy
 
@@ -60,12 +69,17 @@ For `qemu_x86_64_defconfig` QEMU-backed x86 validation:
 - For Yocto module-only rebuild of `kmod-sel4-virt`, use `make kmod-sel4-virt`.
   - Default is clean (`bitbake -c cleansstate kernel-module-sel4-virt` then build).
   - Use `YOCTO_INCREMENTAL=1 make kmod-sel4-virt` only when explicitly requested.
-- Use MCP for test submission/status/log retrieval, not for build commands in this workflow.
-- Canonical EFI test tool is `test_sel4_efi`.
+- Use only the `autopilot` command-line API for test submission/status/log
+  retrieval, not MCP, direct queue files, or Python Autopilot internals.
+- If `autopilot ... --json` fails, returns invalid JSON, lacks the needed
+  operation, or gives an ambiguous state, stop and report the exact command,
+  output, and requested operation to the human owner.
+- Canonical EFI test command is `autopilot submit efi`.
 - Use Autopilot chains, not legacy profiles.
 - For QEMU defconfig targets, use the same underscore form for the Autopilot
   chain as for the build target.
-- Always pass `autopilot_dir="/home/hlyytine/tii-sel4/autopilot"` to MCP tools.
+- Always pass `--autopilot-dir /home/hlyytine/tii-sel4/autopilot` to
+  `autopilot`.
 - `qemu_x86_64_defconfig` is an autopilot-backed remote QEMU target; prefer the
   autopilot path for test execution and only fall back to direct
   `tools/qemu_runner.py` debugging when the autopilot backend itself is the
@@ -108,52 +122,33 @@ Note: `AUTOPILOT_DIR` is the working directory (queues/results/runtime),
 not the code path. Autopilot chain definitions live in the Autopilot codebase
 and are the source of truth. Code lives in `/home/hlyytine/autopilot`.
 
-## MCP Server (Autopilot) Availability
+## Autopilot Command API
 
-This repo provides an MCP server definition at `~/tii-sel4/.mcp.json`:
+The only supported agent-facing Autopilot API in this workspace is the
+`autopilot` command in `PATH`.
 
-- Server name: `sel4-autopilot`
-- Command: `python3 /home/hlyytine/autopilot/sel4_mcp_server.py`
-- Default `AUTOPILOT_DIR`: `/home/hlyytine/tii-sel4/autopilot`
-
-Some clients auto-load MCP servers from `.mcp.json`; some do not.
-If MCP is unavailable, fall back to the request/result queues in `AUTOPILOT_DIR`.
-
-## Autopilot Daemon Control (MCP)
-
-You can start/stop/restart Autopilot via MCP tools:
-- `autopilot_start`
-- `autopilot_stop`
-- `autopilot_restart`
-- `autopilot_status`
-
-When starting or restarting Autopilot, always pass `use_tmux=true`:
-- `mcp__sel4-autopilot__autopilot_start(..., use_tmux=true)`
-- `mcp__sel4-autopilot__autopilot_restart(..., use_tmux=true)`
-
-When starting or restarting Autopilot from this workspace, always set
-`WORKSPACE=/home/hlyytine/tii-sel4` explicitly in the start command environment.
-Do not rely on inherited shell state for `WORKSPACE`.
-
-This guarantees an attachable tmux session and an attach hint
-(`tmux attach -t autopilot`) for TUI access.
-
-Submitting a test via MCP auto-starts Autopilot if it is not running.
-Auto-start may not provide an attachable tmux session, so explicitly start or
-restart with `use_tmux=true` when TUI attachability is required.
-
-Orin AGX note: MCP auto-start uses default UARTs `/dev/ttyACM0` and
-`/dev/ttyACM1`. Replace these for other platforms (e.g. Raspberry Pi 4 uses
-`/dev/ttyUSB*`).
-
-### Codex CLI MCP Setup (Manual)
-
-If you are using the Codex CLI and MCP servers are not auto-loaded, add the
-server explicitly:
+Required command pattern:
 
 ```bash
-codex mcp add sel4-autopilot -- python3 /home/hlyytine/autopilot/sel4_mcp_server.py
-codex mcp list
+autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot <command> --json
+```
+
+Do not use MCP tools, direct request/result queue manipulation, or Python
+Autopilot internals as fallback paths. If the command API cannot do the needed
+operation or its JSON is invalid/ambiguous, stop and ask the human owner.
+
+When starting or restarting Autopilot from this workspace, always set
+`WORKSPACE=/home/hlyytine/tii-sel4` explicitly in the command environment.
+Do not rely on inherited shell state for `WORKSPACE`.
+
+Use `--tmux` for daemon start/restart. Startup clears all pending and processing
+requests before accepting new work; old queue entries are not durable intent
+after restart.
+
+Orin AGX daemon start/restart:
+
+```bash
+WORKSPACE=/home/hlyytine/tii-sel4 autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot restart --platform orin-agx-uefi-netboot --tmux --tty0 /dev/ttyACM0 --tty1 /dev/ttyACM1 --json
 ```
 
 ## Yocto Local Source Policy

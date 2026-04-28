@@ -1,6 +1,6 @@
 # Making Autopilot Usable For Agents
 
-Status: draft
+Status: active implementation
 Updated: 2026-04-28
 
 ## Problem
@@ -136,14 +136,20 @@ Recommended split:
 
 ## Next Actions
 
-1. Decide whether MCP is retired for agent use or kept only as an internal/non-
-   default integration.
-2. Define the minimal `autopilot` CLI JSON schema for `status`, `submit`, and
-   `get`.
-3. Define startup cleanup semantics: clear `pending` and `processing` on daemon
-   start and report the cleared request IDs in JSON.
-4. Update `docs/agents/autopilot-testing-policy.md` to make the chosen API the
-   only allowed control surface.
-5. Update `projects/virtioso-camkes-vm/AGENTS.md` and runbooks to forbid mixed
-   MCP/CLI/queue usage.
-6. Only after the policy is accepted, implement or wire the `autopilot` command.
+Completed implementation slices:
+
+1. Autopilot daemon startup now clears `pending` and `processing` requests and
+   writes startup-cleanup JSON.
+2. `/home/hlyytine/autopilot/bin/autopilot` provides the agent command API.
+3. `/home/hlyytine/.local/bin/autopilot` points to the command wrapper.
+4. Active workspace policy docs now require `autopilot ... --json` and forbid
+   MCP/direct queue/Python-internals fallback paths.
+
+Remaining work:
+
+1. Decide whether to create an optional `ci-tester` skill for result
+   interpretation.
+2. Exercise the full Orin AGX and QEMU submit/status/get/logs path through the
+   new command API.
+3. Remove or clearly mark any remaining legacy MCP guidance outside active
+   runbooks as historical.

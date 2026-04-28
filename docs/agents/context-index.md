@@ -47,9 +47,9 @@ Entry fields:
   - [../platforms/orin-agx/investigations/vm-qemu-virtio-boot-investigation.md](../platforms/orin-agx/investigations/vm-qemu-virtio-boot-investigation.md)
   - [../plans/orinagx-next-vm-qemu-virtio-triage.md](../plans/orinagx-next-vm-qemu-virtio-triage.md)
   - [build-test-runbook.md](build-test-runbook.md#orin-agx-vm_qemu_virtio)
-- Last known state: selected Orin material has been replayed on top of current `virtioso-next` in `kernel`, `projects/vm`, `projects/virtioso-camkes-vm`, and `virtioso-build`. `projects/seL4_libs` already had the NULL-vspace `sel4utils_elf_reserve()` fix. `tools/seL4` was left untouched because current `virtioso-next` already carries the newer elfloader Orin/MMU/memmap line. A clean `make mrproper`, `make orinagx_defconfig`, `make vm_qemu_virtio` now builds `orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx` with VM0/VM1 `clean_cache=false`.
-- Next action: run Orin AGX Autopilot validation with chain `vm-qemu-virtio`. If it fails with cache/coherency-like symptoms, retry with `clean_cache=1` as the controlled comparison.
-- Updated: 2026-04-27
+- Last known state: selected Orin material has been replayed on top of current `virtioso-next` in `kernel`, `projects/vm`, `projects/virtioso-camkes-vm`, and `virtioso-build`. `projects/seL4_libs` already had the NULL-vspace `sel4utils_elf_reserve()` fix. `tools/seL4` was left untouched because current `virtioso-next` already carries the newer elfloader Orin/MMU/memmap line. A clean `make mrproper`, `make orinagx_defconfig`, `make vm_qemu_virtio` now builds `orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx` with VM0/VM1 `clean_cache=false`. ARM seL4-accelerated QEMU must not expose the normal QEMU `virt` GPEX/ECAM PCI host; ARM user VMs must use only the Virtioso/seL4-generated vPCI host.
+- Next action: run Orin AGX Autopilot validation with chain `vm-qemu-virtio` and confirm the VM1/user-VM log no longer shows QEMU `virt` PCI MMIO windows such as `0x10000000/0x2eff0000`, `0x3eff0000/0x10000`, high ECAM, or high MMIO. If it fails with cache/coherency-like symptoms, retry with `clean_cache=1` as the controlled comparison.
+- Updated: 2026-04-28
 
 ### Cross-arch console mux and stream routing
 

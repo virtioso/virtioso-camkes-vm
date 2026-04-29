@@ -684,6 +684,86 @@ Current classification:
 - seL4 IPI slow path: currently low priority for this app because generated
   VM/VMM/vCPU affinity is CPU 0 only.
 
+### VM1 RAM touch and cache-maintenance granularity: 2026-04-29
+
+Source review refined the pre-kernel VM1 image-load suspect from generic
+"allocator-pool RAM" to a concrete granularity effect.
+
+The ARM image loader path is:
+
+1. `VM_Arm/src/main.c`
+   - `load_vm_images()`
+   - `vm_load_guest_kernel(vm, ..., vm_config->ram.base, ...)`
+2. `libsel4vmmplatsupport/src/arch/arm/guest_image.c`
+   - `load_image()`
+   - `vm_ram_mark_allocated(vm, load_addr, ROUND_UP(file_size, PAGE_SIZE_4K))`
+   - `vm_ram_touch(vm, load_addr, file_size, guest_write_address, &fd)`
+3. `libsel4vm/src/guest_ram.c`
+   - `vm_ram_touch()` maps/accesses one reservation page at a time.
+   - The per-iteration page size is `vm_reservation_page_size_bits(reservation)`.
+   - The callback receives one chunk no larger than that page size.
+4. `guest_write_address()`
+   - `read(fd, vaddr, size)`
+   - when `vm->mem.clean_cache` is true:
+     `seL4_ARM_Page_CleanInvalidate_Data(cap, 0, PAGE_SIZE_4K)`
+
+The generated Orin configuration gives VM0 and VM1 different RAM backing
+granularity:
+
+- VM0:
+  - `vm0.vm_image_config.map_one_to_one = true`
+  - `vm0.untyped_mmios` contains two 256 MiB RAM regions with `page_bits = 21`
+  - generated `vm0/camkes.simple.c` records those fixed regions as
+    `.size_bits = 28, .page_bits = 21`
+  - runtime log: `Guest RAM mapped from untyped memory (unity stage-2 mapping)`
+- VM1:
+  - `vm1.vm_image_config.map_one_to_one = false`
+  - no `vm1.untyped_mmios` RAM region
+  - `VIRTIO_DRIVER_GUEST_RAM_CONFIGURATION_DEF(1)` expands to
+    `vm1.simple_untyped24_pool = 12 + (0x10000000 >> 24)`
+  - generated `vm1/camkes.simple.c` records allocator-pool untypeds with
+    `.size_bits = 24, .page_bits = 12`
+  - runtime log: `Guest RAM mapped from allocator pool (NO unity stage-2 mapping)`
+
+That difference predicts the measured kernel-load ratio:
+
+- VM1 loads the 44,352,000 byte kernel through 4 KiB chunks:
+  - about `ceil(44352000 / 4096) = 10829` touch/cache-maintenance iterations.
+- VM0 loads the same kernel through 2 MiB chunks:
+  - about `ceil(44352000 / 2097152) = 22` iterations.
+- Ratio:
+  - `10829 / 22 = 492x`.
+- Measured ratio in `20260429-145048`:
+  - VM0 kernel load `45.9 ms`
+  - VM1 kernel load `21.7 s`
+  - about `472x`.
+
+This is close enough to explain the pre-kernel load outlier without invoking
+QEMU, virtio, GICv3, IPI, or inter-VM RPC. It is also consistent with the
+smaller generated-DTB timing gap: 320 KiB is about 80 4 KiB chunks versus one
+2 MiB chunk, and the measured DTB load was about `159.6 ms` for VM1 versus
+`1.7 ms` for VM0.
+
+Important correctness caveat: the current cache-maintenance callback always
+passes `PAGE_SIZE_4K` as the clean/invalidate range. For VM1's 4 KiB frames
+that covers the whole touched frame. For VM0's 2 MiB frames it only covers the
+first 4 KiB of each 2 MiB touched chunk, so VM0 is fast partly because it is not
+performing equivalent cache maintenance over the whole loaded range. This makes
+VM0 versus VM1 timing a useful performance clue, but not proof that the VM0
+cache-maintenance behavior is the desired long-term behavior.
+
+Current pre-kernel conclusion:
+
+- VM1 is slow because the current RAM configuration makes the loader perform
+  thousands of per-4 KiB map/access/unmap/cache-maintenance operations.
+- VM0 is fast because its 2 MiB `untyped_mmios` RAM backing collapses the same
+  load into tens of operations.
+- A controlled VM1 A/B should therefore compare either:
+  - VM1 2 MiB fixed RAM backing with `map_one_to_one=true`, or
+  - a corrected/batched image-load cache-maintenance path,
+  before spending more time on IPI/GIC/QEMU explanations for the pre-kernel
+  `Loading Kernel` delay.
+
 ### UARTA/header run: `20260429-105435`
 
 Earlier clean Orin AGX rebuild and Autopilot run:

@@ -602,6 +602,48 @@ suspect. The stronger remaining suspects are the VM1 RAM/data/control mapping
 and cache-maintenance path, plus the exact high-volume operation class behind
 the forwarded requests during virtio PCI probing.
 
+### QEMU 8.2.7 vs 9.2.0 virtio-device delta: 2026-04-29
+
+The 2024 RPi4 work used the QEMU branch `virtioso/8.2.7`. Current Orin user-VM
+images use QEMU `virtioso/9.2.0`. A direct comparison shows that the seL4
+accelerator code did change around BQL/vmfd readiness, but the wait-thread A/B
+run above already ruled that out as the primary cause of the persistent VM1
+Linux boot delay.
+
+The stronger QEMU-facing delta is the VM1 QEMU command line produced by
+`qemu-rnd-helper`, not the QEMU RPC wait mechanism itself. The helper currently
+launches VM1 devices with:
+
+- `virtio-blk-pci,...,disable-legacy=on,iommu_platform=on`
+- `virtio-serial-pci,disable-legacy=on,iommu_platform=on`
+- `virtio-net-pci,...,disable-legacy=on,iommu_platform=on`
+
+Those flags were not in the helper immediately before the March 2026 changes:
+
+- `0e34ab8` / `1ddca25` added `disable-legacy=on`.
+- `84386d1` / `65bd47c` added `iommu_platform=on`.
+- The parent helper used plain `virtio-*-pci` devices without either flag.
+
+This is a plausible explanation for why the current Orin behavior differs from
+the 2024 RPi4 behavior even when the seL4 RPC service model is changed back to
+the old wait-thread shape. QEMU 8.2.7 and 9.2.0 both have the `iommu_platform`
+property and `VIRTIO_F_IOMMU_PLATFORM` support, so the important local change is
+that the feature is now advertised to VM1 by default.
+
+The VM1 logs line up with that: Linux assigns every virtio PCI device to the
+restricted DMA pool:
+
+- `virtio-pci 0000:00:01.0: assigned reserved memory node swiotlb@c0000000`
+- `virtio-pci 0000:00:02.0: assigned reserved memory node swiotlb@c0000000`
+- `virtio-pci 0000:00:03.0: assigned reserved memory node swiotlb@c0000000`
+- `virtio-pci 0000:00:04.0: assigned reserved memory node swiotlb@c0000000`
+
+That happens immediately before the long quiet VM1 Linux interval. The next
+useful A/B test is therefore not another QEMU wait-thread run; it is a QEMU
+device-model run that keeps QEMU 9.2.0 but disables `iommu_platform=on`, and
+then, if needed, also disables `disable-legacy=on`, to reproduce the older
+plain `virtio-*-pci` command-line shape.
+
 ### GICv3 and seL4 IPI candidate check: 2026-04-29
 
 Two additional source-level candidates were checked after the vmfd A/B result:

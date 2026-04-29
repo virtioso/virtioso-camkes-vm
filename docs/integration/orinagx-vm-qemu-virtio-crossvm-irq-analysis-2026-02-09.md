@@ -646,6 +646,49 @@ split is to verify that the zero-copy SWIOTLB path is actually being used as
 intended, and to classify which QEMU/virtio PCI operations dominate the real
 forwarded request stream while VM1 is quiet.
 
+### Zero-copy SWIOTLB boundary check: 2026-04-29
+
+The current Orin VM1 configuration is still the intended restricted-DMA
+zero-copy design, not a legacy whole-RAM sharing setup:
+
+- `apps/Arm/vm_qemu_virtio/orinagx/devices.camkes`
+  - `VM0_VM1_VIRTIO_DATA_BASE = 0xC0000000`
+  - `VM0_VM1_VIRTIO_DATA_SIZE = 0x800000`
+  - `VM0_VM1_VIRTIO_CTRL_BASE = 0xC1000000`
+- generated `orinagx_vm_qemu_virtio/vm1/seL4VirtIODriverVM.template.c`
+  - emits `fdt_swiotlb_vm0` as `compatible = "restricted-dma-pool"`
+  - uses `.gpa = 0xC0000000`, `.size = 0x800000`
+  - sets the VM0/VM1 data window to the same base and size
+- `src/guest_linux.c` assigns that reserved memory node to every generated
+  virtio PCI node with `fdt_assign_reserved_memory(..., "swiotlb", data_base)`.
+
+This matches the VM1 Linux log lines showing all virtio PCI functions assigned
+to `swiotlb@c0000000`. Therefore the current test must keep
+`iommu_platform=on`: with modern virtio this is what makes Linux use the
+restricted DMA pool for these devices. Disabling it would bypass the design
+being validated and would not be a valid performance comparison for the
+zero-copy SWIOTLB architecture.
+
+The useful diagnostic split is now in `sources/kmod-sel4-virt` commit
+`bd7308c` (`sel4_virt: classify forwarded MMIO stats`). It extends the
+default-off `CONFIG_KMOD_SEL4_VIRT_STATS` output to classify forwarded MMIO
+requests by:
+
+- global MMIO reads/writes
+- PCI config reads/writes
+- low PCI address-space slots `pci0`..`pci3`
+- other PCI address-space slots
+
+This keeps the log volume bounded to the existing once-per-second
+`sel4_virt_stats` cadence while showing whether the quiet VM1 interval is
+dominated by virtio PCI config churn, global MMIO, or neither. A host-module
+compile check of `sources/kmod-sel4-virt` passed after this change using:
+
+```bash
+make -C sources/kmod-sel4-virt MAKEFLAGS= default
+make -C sources/kmod-sel4-virt MAKEFLAGS= clean
+```
+
 ### GICv3 and seL4 IPI candidate check: 2026-04-29
 
 Two additional source-level candidates were checked after the vmfd A/B result:

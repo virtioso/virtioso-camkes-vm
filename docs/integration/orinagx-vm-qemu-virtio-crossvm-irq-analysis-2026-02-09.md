@@ -630,19 +630,21 @@ the old wait-thread shape. QEMU 8.2.7 and 9.2.0 both have the `iommu_platform`
 property and `VIRTIO_F_IOMMU_PLATFORM` support, so the important local change is
 that the feature is now advertised to VM1 by default.
 
-The VM1 logs line up with that: Linux assigns every virtio PCI device to the
-restricted DMA pool:
+The VM1 logs line up with that path: Linux assigns every virtio PCI device to
+the restricted DMA pool:
 
 - `virtio-pci 0000:00:01.0: assigned reserved memory node swiotlb@c0000000`
 - `virtio-pci 0000:00:02.0: assigned reserved memory node swiotlb@c0000000`
 - `virtio-pci 0000:00:03.0: assigned reserved memory node swiotlb@c0000000`
 - `virtio-pci 0000:00:04.0: assigned reserved memory node swiotlb@c0000000`
 
-That happens immediately before the long quiet VM1 Linux interval. The next
-useful A/B test is therefore not another QEMU wait-thread run; it is a QEMU
-device-model run that keeps QEMU 9.2.0 but disables `iommu_platform=on`, and
-then, if needed, also disables `disable-legacy=on`, to reproduce the older
-plain `virtio-*-pci` command-line shape.
+That happens immediately before the long quiet VM1 Linux interval. However,
+`iommu_platform=on` must not simply be disabled for this architecture: the
+current design depends on the zero-copy SWIOTLB/restricted-DMA path, and turning
+the feature off would test a different, invalid data path. The useful next
+split is to verify that the zero-copy SWIOTLB path is actually being used as
+intended, and to classify which QEMU/virtio PCI operations dominate the real
+forwarded request stream while VM1 is quiet.
 
 ### GICv3 and seL4 IPI candidate check: 2026-04-29
 

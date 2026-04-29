@@ -26,8 +26,6 @@
 #define CONNECTION_BASE_ADDRESS 0x3F000000
 #endif
 
-#define DEBUG_VIRTIO_CONSUME_PATH
-
 /*- set vm_virtio_device_channels = configuration[me.name].get('vm_virtio_device_channels') -*/
 /*- for drv in vm_virtio_device_channels -*/
 extern dataport_caps_handle_t vm/*? drv.id ?*/_iobuf_handle;
@@ -143,7 +141,7 @@ DEFINE_FDT_NODE(fdt_sel4_camkes_rpc_vm/*? drv.id ?*/, &fdt_sel4_camkes_rpc_vm/*?
 static int consume_callback(vm_t *vm, void *cookie)
 {
     struct camkes_crossvm_connection *connection = cookie;
-#ifdef DEBUG_VIRTIO_CONSUME_PATH
+#ifdef CONFIG_VIRTIO_VM_DEBUG
     ZF_LOGE("consume_callback: badge=%lu name=%s",
             (unsigned long)connection->consume_badge,
             connection->connection_name ? connection->connection_name : "(null)");

@@ -830,6 +830,87 @@ Current pre-kernel conclusion:
   before spending more time on IPI/GIC/QEMU explanations for the pre-kernel
   `Loading Kernel` delay.
 
+### RPi4 branch carry-over audit: 2026-04-29
+
+Because the old RPi4 branch carried deliberate enhancements on top of upstream,
+the `projects/sel4_projects_libs` history was compared against the current
+`virtioso-next` branch with `git cherry` / `git log --cherry-pick` across:
+
+- local `rpi4`
+- `tiiuae/rpi4-next`
+- dated `tiiuae/rpi4-*` snapshots
+- `tiiuae/rpi4-so-next`
+
+The audit result is not "everything was lost". Most recurring old topics are
+either already in the current branch under different commit IDs, or are
+platform-specific RPi4 support. The important exception is VM1 guest-RAM large
+page semantics.
+
+Carry-over status:
+
+- **Missing / badly superseded: guest RAM large-page touch path.**
+  - Old commits: `ad99b3a`, `9d3ac10`.
+  - Old app contract: `vm1.guest_large_pages = true`.
+  - Current replacement: `c89de50` queries `camkes_get_untyped_page_bits()`.
+  - Problem: current Orin VM1 VMSWIOTLB allocator-pool RAM does not resolve to
+    2 MiB through that query, so it falls back to 4 KiB touching.
+  - Action: restore the old libsel4vm/app-level semantic or extend the current
+    automatic page-size path to cover this RAM shape.
+
+- **Present / superseded: dataport frame-array mapping and dataport large-page
+  support.**
+  - Old commits: `0884ff33`, `1a499098`, `bbeb0ca`.
+  - Current code has `vm_map_reservation_frames()` and
+    `cross_vm_connection.c` maps dataport frames using
+    `dataport->frame_size_bits`.
+  - This means the old dataport large-page concern was brought forward in the
+    current frame-array mapping design, not forgotten in the same way as guest
+    RAM touching.
+
+- **Present / evolved: cross-VM PCI BAR size calculation.**
+  - Old commit: `8318817`.
+  - Current `get_pci_bar_size()` computes the largest data/control dataport
+    resource size across connections and uses that stride when assigning event,
+    data, and control BAR addresses.
+  - This preserves the old Linux-remap avoidance idea, now extended for the
+    split data/control BAR shape.
+
+- **Present / evolved: reservation mapping hardening.**
+  - Old commits include `088e9a7` and the `rpi4-so-next` reservation cleanup
+    series (`9095ade`, `b9750e8`, `3d9c7d`, `3e23c22`, etc.).
+  - Current `guest_memory.c` uses `bytes_left`, overflow checks, mixed-page-size
+    detection, and proper map failure return values.
+
+- **Present but still an Orin suspect: IRQ trigger/level handling.**
+  - Old RPi4 commits: `cd1bb8e`, later `b412593` / `9821942`.
+  - Current branch has GICv2 trigger/level support and separate custom GICv3
+    support for Orin.
+  - This is not an obvious missed RPi4 carry-over item, but GICv3 registered
+    IRQ/maintenance behavior remains a first-class Orin-specific suspect for
+    the post-kernel virtio stall.
+
+- **Present / not currently central: vCPU thread naming and hard-coded page-size
+  cleanup.**
+  - Old topics such as `Use proper vCPU thread name`,
+    `libsel4vm/trivial: Fix hardcoded page size`, and
+    `libsel4vmmplatsupport/trivial: Fix hardcoded` have current equivalents or
+    have been replaced by broader page-size plumbing.
+
+- **Platform-specific / low relevance to current Orin: RPi4 platform bring-up
+  and old zImage alignment.**
+  - Old commits such as `rpi4: Add VM support` and `rpi4: Fix kernel alignment`
+    are RPi4/platform-loader specific.
+  - The current Orin path loads the kernel at the configured VM entry for
+    `IMG_BIN`/LZ4, so the old RPi4 zImage 2 MiB load offset is not the leading
+    explanation for the current Orin VM1 slowness.
+
+Conclusion: the audit strengthens the current pre-kernel hypothesis. The main
+forgotten RPi4 improvement relevant to Orin VM1 is not generic "large pages"
+everywhere, but specifically the libsel4vm guest-RAM large-page touch contract
+for VM1's VMSWIOTLB-style RAM. The next implementation should target that
+contract narrowly and leave the already-carried dataport/reservation/vGIC work
+alone unless a separate test proves a bug there.
+
 ### UARTA/header run: `20260429-105435`
 
 Earlier clean Orin AGX rebuild and Autopilot run:

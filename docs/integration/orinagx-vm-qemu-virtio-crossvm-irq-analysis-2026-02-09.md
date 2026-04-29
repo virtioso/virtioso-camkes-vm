@@ -518,6 +518,100 @@ by itself.
 
 VM1 Linux log timing:
 
+### VM1 getty/UARTI TX stall: `20260429-222713`
+
+Later VM1 diagnostic runs corrected the earlier "no getty" interpretation.
+`tty1.raw` shows VM1 reaches the getty issue banner and then stops mid-write:
+
+```text
+Poky (Yocto Project Reference Distr
+```
+
+The expected `/etc/issue` text is:
+
+```text
+Poky (Yocto Project Reference Distro) 5.2.4 \n \l
+```
+
+So the current boundary is not missing `/sbin/init`, missing
+`SERIAL_CONSOLES`, stale Autopilot deployment, or absent getty. The guest gets
+far enough to print the issue banner, then the UART output path stops before
+`login:`.
+
+A narrow default-off IRQ trace was added and enabled only for Orin
+`vm_qemu_virtio` while tracing VM1 UARTI IRQ 178:
+
+- `projects/sel4_projects_libs` commits:
+  - `1ab14d7` `vgicv3: add selected IRQ trace option`
+  - `0e62c35` `vgicv3: trace selected distributor IRQ state`
+- `projects/vm` commits:
+  - `990f8cd` `VM_Arm: trace selected physical IRQ route`
+  - `1ac8089` `VM_Arm: trace selected IRQ registration`
+- `projects/virtioso-camkes-vm` commit:
+  - `5276b42` `orinagx: enable UARTI IRQ trace for vm_qemu_virtio`
+
+Clean Orin AGX build/test command sequence:
+
+```sh
+make mrproper
+make orinagx_defconfig
+make vm_qemu_virtio
+autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot submit efi --chain vm-qemu-virtio --binary /home/hlyytine/tii-sel4/orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx --json
+```
+
+Autopilot request `20260429-222713` showed:
+
+```text
+vm1: ... VM_GICV3_IRQ_TRACE instance=vm1 event=route-register irq=178 count=1 rc=0
+vm1: ... VGICV3_IRQ_TRACE event=gicd-disable irq=178 count=1 value=0xffffffff state=0x0
+vm1: ... VGICV3_IRQ_TRACE event=gicd-enable irq=178 count=1 value=0x40000 state=0x40000
+vm1: ... VGICV3_IRQ_TRACE event=gicd-disable irq=178 count=2 value=0x40000 state=0x0
+vm1: ... VGICV3_IRQ_TRACE event=gicd-enable irq=178 count=2 value=0x40000 state=0x40000
+```
+
+There were no corresponding IRQ 178 `physical-arrive`, `inject-enter`, or EOI
+trace lines before the console stalled. This proves that:
+
+1. VM1 registers the route for virtual IRQ 178.
+2. The guest enables virtual IRQ 178 in the emulated GICD.
+3. No physical interrupt arrives on that route when the UART output stops.
+
+The reason is now visible from the local NVIDIA/Orin DTS sources. The real
+Tegra234 UARTI node is:
+
+- source:
+  `vm-images/build/tmp/sysroots-components/vm_jetson_agx_orin/nvidia-kernel-oot/usr/src/device-tree/nvidia/t23x/nv-public/tegra234.dtsi`
+- node:
+  `uarti: serial@31d0000`
+- interrupt:
+  `interrupts = <GIC_SPI 285 IRQ_TYPE_LEVEL_HIGH>`
+
+That is GIC INTID `285 + 32 = 317`.
+
+The generated seL4/guest node currently says:
+
+- source:
+  `kernel/tools/dts/orinagx.dts`
+- node:
+  `uarti: serial@31d0000`
+- interrupt:
+  `interrupts = <0x0 0x92 0x4>`
+
+That is SPI 146, GIC INTID `178`.
+
+Therefore the current UARTI passthrough bug is an IRQ-number mismatch, not a
+guest getty problem and not yet a proven GICv3 injection/maintenance bug. VM1 is
+being told to enable and wait for IRQ 178, while the physical UARTI hardware
+asserts INTID 317.
+
+Do not blindly change this to 317 without handling the documented IRQ-width
+constraint. The current Orin `vm_qemu_virtio` policy says passthrough IRQ input
+changes must recompute the free 8-bit-safe range and get human affirmation
+before changing `free_plat_interrupts[]`; 317 is not 8-bit-safe. A correct fix
+needs either full-width DT IRQ mapping support for the affected path or an
+explicit decision that UARTI passthrough may use a >255 physical IRQ outside the
+cross-VM 8-bit PCI INTx constraint.
+
 - VM1 reaches UART console enable around `1.756s` and disables bootconsole at
   `1.822s`.
 - VM1 enumerates and enables virtio PCI devices from about `2.201s` to

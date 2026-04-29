@@ -139,6 +139,17 @@ Recovery note:
 - Next action: for "continue Isengard" requests, start from the primary migration plan and keep new deployment-neutral contracts out of CAmkES IDL.
 - Updated: 2026-04-23
 
+### Isengard snapshot service over generic kmod transport
+
+- Status: active
+- Primary note: [../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md](../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md#transport-reuse-direction)
+- Related notes:
+  - [../plans/kmod-sel4-virt-virtioso-next-rewrite-plan.md](../plans/kmod-sel4-virt-virtioso-next-rewrite-plan.md)
+  - [../integration/kmod-sel4-virt-backend-analysis.md](../integration/kmod-sel4-virt-backend-analysis.md)
+- Last known state: `sources/kmod-sel4-virt` already has the right substrate shape for more than QEMU: a PCI or DT-discovered endpoint with event/data/control regions, shared RPC queues, mmap exposure, doorbell notification, IRQ/upcall handling, and wait/poll readiness. The architecture direction is to refactor QEMU/vhost/virtio assumptions out of the reusable endpoint layer so a native seL4/CAmkES Isengard snapshot service can interface directly with Linux userland apps through shared memory, two-way queues, and async-call/event semantics. Isengard schemas and application-visible ABI remain in `sources/isengard-contracts`; the kmod remains transport plumbing only. A Linux VFS/debugfs-style projection over that endpoint is now in scope: expose the current coherent snapshot as uORB-like object trees under `/obj`, `/snapshots`, `/events`, and `/cmd`, while keeping Linux as an inspection/client surface and the seL4 snapshot service as the authority. If the snapshot service itself runs on Linux, `kmod-sel4-virt` is not required for the local Linux-only path; FUSE is a reasonable first projection for inspection/scripting, while high-rate coherent generations should use `mmap()`-able memory such as `memfd` or POSIX shared memory. Preferred split: both seL4-owned and Linux-owned snapshot services publish the same shared-memory generation plus control/event ABI, while `/obj` is a decoupled projection adapter over that ABI. Do not require seL4-owned kmod memory to be a literal `memfd`; the common contract should be fd-backed `mmap()` plus metadata/events, with real `memfd` as one Linux-owned backend.
+- Next action: implement the staged plan in the primary note. Start with the shared snapshot region header and generation-stable read helpers in `sources/isengard-contracts`, then add an object catalog ABI and CLI reader. Treat kmod suitability as the next high-priority spike before FUSE/CAmkES: name the generic endpoint API, identify reusable mmap/poll/event paths, and keep the first design slice separate from QEMU/vhost while preserving the existing `vm_qemu_virtio` validation path.
+- Updated: 2026-04-30
+
 ### Isengard Orin AGX support and CAN ownership
 
 - Status: active
@@ -265,14 +276,14 @@ Recovery note:
 
 ### PX4 uORB access model
 
-- Status: paused
-- Primary note: this entry; no dedicated repo note exists yet.
+- Status: captured in a dedicated Normet platform-next target-architecture note.
+- Primary note: `/home/hlyytine/normet/docs/05-platform-next/target-architecture/Normet_Object_Topic_Model_Inspired_By_PX4_uORB.md`
 - Related notes:
   - PX4 uORB documentation: `https://docs.px4.io/main/en/middleware/uorb`
   - PX4 uORB manager source/API references for the `px4_open`/`px4_read` backing model.
-- Last known state: PX4 uORB topics are exposed internally as file-like virtual device nodes, commonly visible under `/obj`, and the implementation uses file-descriptor style operations such as open/read/ioctl/poll. Normal application code should still be described as using the uORB pub/sub API (`orb_advertise`, `orb_publish`, `orb_subscribe`, `orb_copy`, or C++ wrappers), not as reading and writing ordinary persistent files.
-- Next action: if this becomes part of a platform architecture comparison, create a dedicated architecture note and keep the distinction between virtual device-node backing and application-level pub/sub semantics explicit.
-- Updated: 2026-04-27
+- Last known state: PX4 uORB topics are exposed internally as file-like virtual device nodes, commonly visible under `/obj`, and the implementation uses file-descriptor style operations such as open/read/ioctl/poll. Normal application code should still be described as using the uORB pub/sub API (`orb_advertise`, `orb_publish`, `orb_subscribe`, `orb_copy`, or C++ wrappers), not as reading and writing ordinary persistent files. For Normet, the useful direction is a Normet-owned object/topic layer inspired by `uORB`: typed topics, generated contracts, topic inspection, logging/replay, and bridgeable state over coherent CANopen/IOmux snapshots, not direct adoption of `uORB` as the platform runtime.
+- Next action: if prototyped, start with a small read-only CANopen/IOmux-derived topic projection above the coherent snapshot boundary and validate generation stability, freshness metadata, topic inspection, and logging before adding command/write paths.
+- Updated: 2026-04-28
 
 ### Novice AI usage guidance
 

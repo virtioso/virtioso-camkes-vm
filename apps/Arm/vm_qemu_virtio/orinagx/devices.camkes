@@ -216,11 +216,11 @@ assembly {
         vm1.vm_image_config = {
             "kernel_bootcmdline" :
                 "console=ttyAMA0,115200n8 "
-                "earlycon=pl011,mmio32,0x031d0000 "
+                "earlycon "
+                "root=/dev/vda "
                 "rw "
                 "debug "
                 "loglevel=8 "
-                "keep_bootcon "
                 "arm64.nopauth "
                 "kvm-arm.mode=nvhe "
                 "swiotlb=512 ",

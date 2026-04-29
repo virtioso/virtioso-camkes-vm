@@ -31,8 +31,7 @@
 
 #include <virtioarm/virtio_plat.h>
 
-#define SEL4_VIRT_RPC_DEBUG
-#ifdef SEL4_VIRT_RPC_DEBUG
+#ifdef CONFIG_VIRTIO_VM_DEBUG
 #define RPCDBG(fmt, ...) ZF_LOGE("rpcdbg: " fmt, ##__VA_ARGS__)
 #else
 #define RPCDBG(fmt, ...) do { } while (0)
@@ -199,8 +198,8 @@ static int pcidev_register(vmm_pci_space_t *pci, io_proxy_t *io_proxy,
     pcidev->backend_devfn = backend_devfn;
     pcidev->io_proxy = io_proxy;
 
-    ZF_LOGI("Registering PCI devfn 0x%"PRIx32" (backend %p devfn 0x%"PRIx32")",
-        pcidev->devfn, io_proxy, pcidev->backend_devfn);
+    RPCDBG("Registering PCI devfn 0x%"PRIx32" (backend %p devfn 0x%"PRIx32")",
+           pcidev->devfn, io_proxy, pcidev->backend_devfn);
 
     pci_devs[pci_dev_count++] = pcidev;
 
@@ -499,9 +498,9 @@ int libsel4vm_io_proxy_init(vm_t *vm, io_proxy_t *io_proxy)
      * unless backend is already running. Therefore we need to listen to start
      * signal here before proceeding to load_linux() in VM_Arm.
      */
-    ZF_LOGI("waiting for PCI backend");
+    RPCDBG("waiting for PCI backend");
     io_proxy_wait_for_backend(io_proxy);
-    ZF_LOGI("PCI backend up, continuing");
+    RPCDBG("PCI backend up, continuing");
 
     return 0;
 }

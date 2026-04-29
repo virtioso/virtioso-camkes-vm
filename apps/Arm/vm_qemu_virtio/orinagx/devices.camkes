@@ -7,7 +7,7 @@
  *
  * Two-VM virtio setup:
  * - VM0 (Driver VM): Runs virtio drivers, gets TCU console and Ethernet
- * - VM1 (Device VM): Runs QEMU with seL4 accelerator, PL011 emulated console
+ * - VM1 (Device VM): Runs QEMU with seL4 accelerator, UARTI console
  *
  * Key devices passed through to VM0 (driver):
  * - TCU: Tegra Combined UART for console (uses HSP AON mailbox)
@@ -75,6 +75,7 @@ assembly {
                 "earlycon=pl011,mmio32,0x09000000 "
                 "rdinit=/init "
                 "arm64.nopauth "
+                "kvm-arm.mode=nvhe "
                 "maxcpus=1 "
                 "swiotlb=512 ",
             "kernel_stdout" : "/serial",
@@ -84,7 +85,7 @@ assembly {
             "provide_initrd" : true,
             "initrd_name" : "linux-initrd",
             "map_one_to_one" : true,
-            "clean_cache" : false,
+            "clean_cache" : true,
         };
         vm0.vm_virtio_device_channels = [
             VIRTIO_CHANNEL_DEVICE_CONFIGURATION_DEF(0, 1)
@@ -106,7 +107,6 @@ assembly {
             {"path": "/bus@0/gpio@2200000"},  /* 0x2200000 - GPIO controller */
             {"path": "/bus@0/pinmux@2430000"}, /* 0x2430000 - Pinmux */
             {"path": "/bus@0/memory-controller@2c00000"}, /* 0x2c00000 - MC for SMMU SID */
-            {"path": "/bus@0/serial@31d0000"}, /* 0x31d0000 - SBSA UART */
             {"path": "/bus@0/mmc@3460000"},   /* 0x3460000 - SDMMC4 eMMC */
             {"path": "/bus@0/hsp@3c00000"},   /* 0x3c00000 - HSP Top0 */
             {"path": "/bus@0/phy@3f20000"},   /* 0x3f20000 - P2U PHY */
@@ -161,7 +161,6 @@ assembly {
          * GPIO (48 IRQs): SPI 288-335 -> INTID 320-367 (PHY reset)
          * HSP Top0 doorbell: SPI 176 -> INTID 208 (BPMP communication)
          * HSP AON shared1: SPI 133 -> INTID 165 (TCU mailbox)
-         * UARTI: SPI 146 -> INTID 178 (backup console)
          * SDMMC4: SPI 65 -> INTID 97 (internal eMMC)
          * P2U PHY: SPI 203 -> INTID 235 (MGBE0 PHY)
          * MGBE0 (8 IRQs): SPI 384-391 -> INTID 416-423
@@ -178,7 +177,6 @@ assembly {
             360, 361, 362, 363, 364, 365, 366, 367,  /* bank 5 */
             208,    /* HSP Top0 doorbell (SPI 176) - BPMP */
             165,    /* HSP AON shared1 (SPI 133) - TCU */
-            178,    /* UARTI (SPI 146) */
             97,     /* SDMMC4 (SPI 65) - internal eMMC */
             235,    /* P2U PHY (SPI 203) - MGBE0 PHY */
             /* SMMU interrupts */
@@ -205,7 +203,7 @@ assembly {
 
         /*
          * VM1 - Driver VM
-         * Uses virtio devices from VM0, PL011 emulated console
+         * Uses virtio devices from VM0 and UARTI for early console.
          */
         vm1.vm_address_config = {
             "ram_base" : VAR_STRINGIZE(VM1_RAM_BASE),
@@ -217,32 +215,41 @@ assembly {
         };
         vm1.vm_image_config = {
             "kernel_bootcmdline" :
-                "console=hvc0 "
-                "earlycon=pl011,mmio32,0x09000000 "
+                "console=ttyAMA0,115200n8 "
+                "earlycon=pl011,mmio32,0x031d0000 "
                 "rw "
                 "debug "
                 "loglevel=8 "
                 "initcall_debug "
                 "keep_bootcon "
                 "arm64.nopauth "
+                "kvm-arm.mode=nvhe "
                 "swiotlb=512 ",
-            "kernel_stdout" : "hvc0",
+            "kernel_stdout" : "/bus@0/serial@31d0000",
             "generate_dtb" : true,
             "provide_dtb" : false,
             "provide_initrd" : false,
-            "clean_cache" : false,
+            "clean_cache" : true,
         };
         vm1.vm_virtio_driver_channels = [
             VIRTIO_CHANNEL_DRIVER_CONFIGURATION_DEF(0, 1)
         ];
 
-        /* PL011 emulated serial for VM1 early console */
-        vm1.pl011 = 0x9000000;
-
         VIRTIO_DRIVER_GUEST_RAM_CONFIGURATION_DEF(1)
 
+        /*
+         * Keep the emulated PL011 module present for now. VM1 uses UARTI for
+         * Linux console/earlycon, but retaining the existing module avoids
+         * perturbing the component layout while isolating UARTI passthrough.
+         */
+        vm1.pl011 = 0x9000000;
+
+        vm1.dtb_irqs = [
+            178,    /* UARTI (SPI 146) */
+        ];
         vm1.irqs = [];
         vm1.dtb = dtb([
+            {"path": "/bus@0/serial@31d0000"}, /* 0x31d0000 - UARTI */
             {"path": "/reserved-memory"},
         ]);
     }

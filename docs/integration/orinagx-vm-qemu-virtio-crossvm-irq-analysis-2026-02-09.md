@@ -171,7 +171,108 @@ Prototype Option A first:
   - `sel4-rpcdbg` IRQ handler prints on guest side
   - VM1 boot progresses past current hang point.
 
-## Latest Status (2026-02-10)
+## Latest Status (2026-04-29)
+
+### UARTI routing run: `20260429-111850`
+
+After moving UARTI from VM0 to VM1 in
+`apps/Arm/vm_qemu_virtio/orinagx/devices.camkes`, a clean Orin AGX rebuild and
+Autopilot run confirmed that VM1 earlycon now appears on Autopilot `tty1`:
+
+- Build sequence:
+  - `make mrproper`
+  - `make orinagx_defconfig`
+  - `make vm_qemu_virtio`
+- Built image:
+  - `orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx`
+- Autopilot request:
+  - `20260429-111850`
+  - chain: `vm-qemu-virtio`
+  - final status: `failed`
+  - test verdict: `fail`
+  - `tty0=/dev/ttyACM0`
+  - `tty1=/dev/ttyACM1`
+
+VM1 setup generated the intended UARTI boot path:
+
+- `stdout=/bus@0/serial@31d0000`
+- `console=ttyAMA0,115200n8`
+- `earlycon=pl011,mmio32,0x031d0000`
+- DTB node `/bus@0/serial@31d0000`
+
+`tty1.ansi.log` now contains VM1 Linux earlycon output:
+
+- `earlycon: pl11 at MMIO32 0x00000000031d0000`
+- `Kernel command line: console=ttyAMA0,115200n8 earlycon=pl011,mmio32,0x031d0000 ...`
+
+So the specific "VM1 earlycon does not appear on UARTI / Autopilot tty1"
+problem is resolved by passing UARTI (`serial@31d0000`) to VM1 instead of VM0.
+
+The overall Autopilot test still fails later:
+
+- `AUTOPILOT_FAIL: USERVM_READY_TIMEOUT`
+- `AUTOPILOT_INFO: USERVM_CONSOLE_SOURCE=tty1`
+- `AUTOPILOT_USERVM_STATUS: status=exited`
+
+The VM1 Linux log stops during PCI enumeration:
+
+- `pci 0000:00:00.0: [5e14:0042] type 00 class 0x060000`
+
+No `virtio_console_init` line appears in this run before VM1 exits, so the
+current runtime boundary has moved earlier than the previous virtio-console
+stall marker.
+
+### UARTA/header run: `20260429-105435`
+
+Earlier clean Orin AGX rebuild and Autopilot run:
+
+- Build sequence:
+  - `make mrproper`
+  - `make orinagx_defconfig`
+  - `make vm_qemu_virtio`
+- Built image:
+  - `orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx`
+- Autopilot request:
+  - `20260429-105435`
+  - chain: `vm-qemu-virtio`
+  - final status: `failed`
+  - test verdict: `fail`
+  - `tty0=/dev/ttyACM0`
+  - `tty1=/dev/ttyACM1`
+
+VM0 reached the driver-VM shell and `uservmctl start` reported VM1 running.
+VM1 setup reached generated DTB handoff and produced the expected UARTA
+bootargs:
+
+- `console=ttyS0,115200n8`
+- `earlycon=uart8250,mmio32,0x03100000,115200n8`
+- `stdout-path=/bus@0/serial@3100000`
+
+`tty1.ansi.log` was non-empty, but only contained firmware/UEFI shell output
+and the EFI launch line. It had no VM1 Linux, earlycon, UART, or RAS matches.
+`vm.log` was present but empty.
+
+Important mapping correction: Autopilot `tty1=/dev/ttyACM1` is the host-side
+capture name and, on the AGX Orin dev kit micro-USB/TOPO path, corresponds to
+UARTI (`serial@31d0000`). The 40-pin expansion header pins 8/10 are a separate
+physical path: header `UART1_TX/RX`, which NVIDIA's AGX Orin mapping identifies
+as UARTA (`serial@3100000`). Do not infer the Tegra UART instance from the
+Autopilot source name alone.
+
+`tty0.ansi.log` shows VM1 faulting at first UARTA MMIO access:
+
+- `ADDR = 0x8000000003100000`
+- RAS uncorrectable error in IOB
+- RAS uncorrectable error in ACI
+
+Conclusion for this run: VM1 is configured to earlycon on header UARTA
+(`serial@3100000`), while Autopilot `tty1` is likely capturing the micro-USB
+UARTI path. That alone explains why VM1 UARTA output does not appear in
+`tty1.ansi.log`. Separately, VM1 also faults on first UARTA MMIO access, so the
+UARTA BCT/firmware access path remains relevant if the intended console is the
+40-pin header pins 8/10.
+
+## Earlier Status (2026-02-10)
 
 ### What changed since the initial IRQ mismatch finding
 

@@ -47,9 +47,20 @@ Entry fields:
   - [../platforms/orin-agx/investigations/vm-qemu-virtio-boot-investigation.md](../platforms/orin-agx/investigations/vm-qemu-virtio-boot-investigation.md)
   - [../plans/orinagx-next-vm-qemu-virtio-triage.md](../plans/orinagx-next-vm-qemu-virtio-triage.md)
   - [build-test-runbook.md](build-test-runbook.md#orin-agx-vm_qemu_virtio)
-- Last known state: selected Orin material has been replayed on top of current `virtioso-next` in `kernel`, `projects/vm`, `projects/virtioso-camkes-vm`, and `virtioso-build`. `projects/seL4_libs` already had the NULL-vspace `sel4utils_elf_reserve()` fix. `tools/seL4` was left untouched because current `virtioso-next` already carries the newer elfloader Orin/MMU/memmap line. A clean `make mrproper`, `make orinagx_defconfig`, `make vm_qemu_virtio` now builds `orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx` with VM0/VM1 `clean_cache=false`. ARM seL4-accelerated QEMU must not expose the normal QEMU `virt` GPEX/ECAM PCI host; ARM user VMs must use only the Virtioso/seL4-generated vPCI host.
-- Next action: run Orin AGX Autopilot validation with chain `vm-qemu-virtio` and confirm the VM1/user-VM log no longer shows QEMU `virt` PCI MMIO windows such as `0x10000000/0x2eff0000`, `0x3eff0000/0x10000`, high ECAM, or high MMIO. If it fails with cache/coherency-like symptoms, retry with `clean_cache=1` as the controlled comparison.
-- Updated: 2026-04-28
+- Last known state: clean Orin AGX rebuild on 2026-04-29 (`make mrproper`, `make orinagx_defconfig`, `make vm_qemu_virtio`) produced `orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx`. Autopilot request `20260429-111850` on chain `vm-qemu-virtio` finished `failed` with `test_verdict=fail`, but confirmed the UARTI console move: VM1 generated `stdout=/bus@0/serial@31d0000` with `console=ttyAMA0,115200n8 earlycon=pl011,mmio32,0x031d0000`, and `tty1.ansi.log` now contains VM1 Linux earlycon output (`earlycon: pl11 at MMIO32 0x00000000031d0000`). VM0 reached shell and `uservmctl start` succeeded. Autopilot later reported `USERVM_READY_TIMEOUT`, `USERVM_CONSOLE_SOURCE=tty1`, and `uservmctl status=exited`. The VM1 log ends at PCI enumeration (`pci 0000:00:00.0: [5e14:0042] type 00 class 0x060000`), before the earlier `virtio_console_init` stall marker. External source check on 2026-04-29 clarified that Autopilot `tty1=/dev/ttyACM1` on the AGX Orin micro-USB/TOPO path is UARTI (`serial@31d0000`), while 40-pin header pins 8/10 are header UART1 mapped to UARTA (`serial@3100000`).
+- Next action: investigate why VM1 exits during/after PCI enumeration in request `20260429-111850`; start from `tty1.ansi.log`, `tty0.ansi.log`, and `vm.log` under `autopilot/results/20260429-111850/console`. Do not use the 40-pin header `/dev/ttyUSB0` path for this UARTI test.
+- Updated: 2026-04-29
+
+### Orin AGX UARTA header console passthrough
+
+- Status: active
+- Primary note: [../platforms/orin-agx/uarta-bct/README.md](../platforms/orin-agx/uarta-bct/README.md)
+- Related notes:
+  - [../platforms/orin-agx/uarta-bct/tegra234-mb2-bct-scr-p3701-0000-uarta-vm.dts](../platforms/orin-agx/uarta-bct/tegra234-mb2-bct-scr-p3701-0000-uarta-vm.dts)
+  - [../platforms/orin-agx/uarta-bct/jetson-agx-orin-devkit-uarta-vm.conf](../platforms/orin-agx/uarta-bct/jetson-agx-orin-devkit-uarta-vm.conf)
+- Last known state: AGX Orin 40-pin header pins 8/10 are UART1 TX/RX, and local Tegra234 pinctrl/BCT evidence maps that signal to UARTA at `0x03100000`, not UARTI. VM1 passthrough generates the UARTA DTB/MMIO/IRQ correctly. With `clean_cache=true`, VM0 reaches shell and VM1 starts; the remaining failure is ATF CBB/ACI RAS at `ADDR = 0x8000000003100000`, which is first UARTA MMIO access. Stock Linux enables UARTA through BPMP clock/reset as `nvidia,tegra194-hsuart`, but VM1 earlycon uses a self-contained 8250-compatible node, so firmware/BCT must leave UARTA accessible before Linux driver probe.
+- Next action: copy the two files from the primary note into `Linux_for_Tegra`, flash with the `jetson-agx-orin-devkit-uarta-vm` target, then rerun Autopilot `vm-qemu-virtio` and verify VM1 logs appear on the external serial adapter connected to header pins 8/10 without RAS. If RAS remains after flashing, extend the platform-side investigation from SCR firewall policy to UARTA clock/reset ownership.
+- Updated: 2026-04-29
 
 ### Cross-arch console mux and stream routing
 

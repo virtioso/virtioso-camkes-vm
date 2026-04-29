@@ -480,6 +480,18 @@ be measured separately with default-off counters for doorbells, handled IRQs,
 queued work, forwarded RPCs, empty workqueue passes, and userspace poll-ready
 returns, correlated with the `VM_IMAGE_LOAD_TIMING` window.
 
+Instrumentation added for that follow-up:
+
+- `CONFIG_KMOD_SEL4_VIRT_STATS` in the workspace Kconfig, default `n`.
+- Yocto passes it to `kernel-module-sel4-virt` as `VIRTIO_VM_STATS=1`.
+- `sources/kmod-sel4-virt` emits rate-limited `sel4_virt_stats:` lines with
+  `dt_doorbell`, `dt_irq_handled`, `irq_handled`, `notify`, `work_pass`,
+  `work_empty`, `forwarded`, `wake_userspace`, and `poll_ready`.
+
+This option is intentionally separate from `CONFIG_VIRTIO_VM_DEBUG`: it should
+show whether there is a high-rate event/poll/workqueue loop without restoring
+the verbose per-event printk flood.
+
 ### UARTA/header run: `20260429-105435`
 
 Earlier clean Orin AGX rebuild and Autopilot run:

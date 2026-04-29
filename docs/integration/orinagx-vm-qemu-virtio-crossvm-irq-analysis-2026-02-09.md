@@ -934,8 +934,14 @@ was restored instead:
 - `projects/vm` commit `3acdbcc`
   - `VM_Arm: emit guest large page settings`
   - adds `guest_large_pages` as a VM attribute with default `false`
-  - emits `guest_large_pages`, `ram_base`, and `ram_size` from the VM config
-    in `seL4VMParameters.template.c`
+  - emits `ram_base` and `ram_size` from the VM config in
+    `seL4VMParameters.template.c`
+- `projects/vm` commit `fab38d1`
+  - `VM_Arm: avoid duplicate large page symbol`
+  - fixes the first clean-build failure after `3acdbcc`: CAmkES already emits
+    the `guest_large_pages` attribute as a component global, so the VM
+    parameter template must only emit the missing `ram_base` / `ram_size`
+    symbols
 - `projects/virtioso-camkes-vm` commit `dec6f0f`
   - `orinagx: enable VM1 guest large pages`
   - sets `vm1.guest_large_pages = true` for the Orin AGX
@@ -946,6 +952,20 @@ pool metadata. It also leaves the separate `guest_memory_util.c` use of
 `camkes_get_untyped_page_bits()` for explicit `untyped_mmios` /
 physical-host-bridge mapping alone; the replaced behavior is specifically the
 guest-RAM allocation fallback that made VM1 allocator-pool RAM use 4 KiB pages.
+
+Verification:
+
+- `make mrproper`
+- `make orinagx_defconfig`
+- `make vm_qemu_virtio`
+
+The first build attempt failed at the VM component link due to duplicate
+`guest_large_pages` symbols. After `fab38d1`, the resumed clean build
+completed and produced:
+
+- `orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx`
+- size: `54624580` bytes
+- timestamp: `2026-04-29 17:34`
 
 ### UARTA/header run: `20260429-105435`
 

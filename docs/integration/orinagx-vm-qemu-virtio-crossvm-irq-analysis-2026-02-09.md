@@ -749,6 +749,40 @@ untyped objects, but the generated metadata still tells `vm_ram_touch()` to
 retype and touch 4 KiB frames. That is the concrete behavior to restore or
 replace when fixing VM1 pre-kernel load performance.
 
+Follow-up history check corrected the implementation detail. The older elegant
+path was primarily in `projects/sel4_projects_libs/libsel4vm`, not in the
+CAmkES simple template:
+
+- `ad99b3a` (`Improve guest large page support`, 2022-01-07) added weak
+  `guest_large_pages`, `ram_base()`, and `ram_size()` symbols to
+  `libsel4vm/src/guest_ram.c`. When `guest_large_pages` was true and
+  `vm_ram_touch()` accessed an address inside the configured RAM range, it used
+  `seL4_LargePageBits` and 2 MiB alignment for the touch callback.
+- `9d3ac10` (`Rework guest large page support`, 2023-03-16) replaced the old
+  hard-coded large-page hack with externally provided CAmkES symbols:
+  `guest_large_pages`, `ram_base`, and `ram_size`.
+- The RPi4 app branch still shows this intended app-side contract:
+  `vm1.guest_large_pages = true`, `vm0.cross_connector_large_pages = true`,
+  and VM1 RAM omitted from `untyped_mmios`.
+- `a579896` (`Use libsel4vm's automatic page size tracking`, 2023-09-01) later
+  removed those app attributes from the then-current app, expecting libsel4vm
+  to track page sizes automatically.
+- The current working `projects/sel4_projects_libs` branch contains a newer
+  replacement, `c89de50` (`guest_ram: Query page size from CAmkES
+  untyped_mmios config`, 2026-01-09). That code queries
+  `camkes_get_untyped_page_bits(addr)` in the RAM allocation iterators and
+  falls back to 4 KiB when no configured page size is found.
+
+Therefore the current Orin issue is more precise than "large pages missing":
+the old `guest_large_pages` libsel4vm path is not present, and the newer
+automatic page-size path only gives VM1 large frames when the CAmkES page-size
+query can associate the guest RAM address with a 2 MiB-backed region. Current
+Orin VM1 does not satisfy that condition, so it falls back to 4 KiB touching.
+Do not fix this by globally changing CAmkES simple-pool metadata; restore the
+guest-RAM large-page contract in libsel4vm/app configuration or make the newer
+automatic page-size tracking cover VM1's VMSWIOTLB allocator-pool RAM in a
+way that matches the old RPi4 semantics.
+
 That difference predicts the measured kernel-load ratio:
 
 - VM1 loads the 44,352,000 byte kernel through 4 KiB chunks:

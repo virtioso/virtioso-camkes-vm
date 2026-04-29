@@ -911,6 +911,42 @@ for VM1's VMSWIOTLB-style RAM. The next implementation should target that
 contract narrowly and leave the already-carried dataport/reservation/vGIC work
 alone unless a separate test proves a bug there.
 
+### RPi4 guest large-page contract restored: 2026-04-29
+
+The current `camkes_get_untyped_page_bits()` guest-RAM allocation logic was not
+upstream seL4 code. It came from the local January 2026 branch work:
+
+- `c89de50` / `22ee1fc`
+  - `guest_ram: Query page size from CAmkES untyped_mmios config`
+  - commit text includes `Generated with Claude Code`
+
+Per the RPi4 branch policy for this investigation, that guest-RAM allocation
+logic was removed from `libsel4vm/src/guest_ram.c` and the RPi4-style contract
+was restored instead:
+
+- `projects/sel4_projects_libs` commit `5b87dd5`
+  - `libsel4vm: restore guest large page contract`
+  - restores weak defaults for `guest_large_pages`, `ram_base`, and `ram_size`
+  - RAM allocation iterators use `seL4_LargePageBits` when
+    `guest_large_pages` is true and the address is inside
+    `[ram_base, ram_base + ram_size)`
+  - otherwise they keep the upstream/default `seL4_PageBits` behavior
+- `projects/vm` commit `3acdbcc`
+  - `VM_Arm: emit guest large page settings`
+  - adds `guest_large_pages` as a VM attribute with default `false`
+  - emits `guest_large_pages`, `ram_base`, and `ram_size` from the VM config
+    in `seL4VMParameters.template.c`
+- `projects/virtioso-camkes-vm` commit `dec6f0f`
+  - `orinagx: enable VM1 guest large pages`
+  - sets `vm1.guest_large_pages = true` for the Orin AGX
+    `vm_qemu_virtio` app
+
+This change intentionally does **not** globally modify CAmkES simple untyped
+pool metadata. It also leaves the separate `guest_memory_util.c` use of
+`camkes_get_untyped_page_bits()` for explicit `untyped_mmios` /
+physical-host-bridge mapping alone; the replaced behavior is specifically the
+guest-RAM allocation fallback that made VM1 allocator-pool RAM use 4 KiB pages.
+
 ### UARTA/header run: `20260429-105435`
 
 Earlier clean Orin AGX rebuild and Autopilot run:

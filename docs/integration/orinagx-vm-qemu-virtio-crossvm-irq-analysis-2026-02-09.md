@@ -553,6 +553,55 @@ classify which QEMU/virtio MMIO operations dominate those forwarded requests
 during the `3s` to `61s` interval, preferably with rate-limited per-op/per-device
 stats rather than per-event printk.
 
+### QEMU wait-thread A/B run: `20260429-165235`
+
+Run `20260429-165235` tested the hypothesis that QEMU commit
+`26be78e2a8` (`sel4: handle rpc through vmfd readiness`) caused the VM1
+slowness by moving seL4 RPC servicing from the older dedicated `SEL4_WAIT_IO`
+thread into QEMU's vmfd main-loop readiness handler.
+
+To make the hypothesis falsifiable, the workspace gained a diagnostic build
+switch:
+
+- `CONFIG_QEMU_SEL4_RPC_WAIT_THREAD=y`
+
+That switch builds the QEMU seL4 accelerator with the older dedicated wait
+thread shape while leaving the rest of the Orin image path unchanged. The run
+also kept:
+
+- `CONFIG_VM_IMAGE_LOAD_TIMING=y`
+- `CONFIG_KMOD_SEL4_VIRT_STATS=y`
+
+The result does **not** support the vmfd-readiness change as the primary
+slowness cause.
+
+VMM image-load timing:
+
+| VM | Phase | Bytes | usec | Approx wall time | clean_cache |
+| --- | --- | ---: | ---: | ---: | ---: |
+| VM0 | kernel `linux` | 44352000 | 46024 | 46.0 ms | 1 |
+| VM0 | initrd `linux-initrd` | 2695784 | 4088 | 4.1 ms | 1 |
+| VM0 | generated DTB | 327680 | 1670 | 1.7 ms | 1 |
+| VM1 | kernel `linux` | 44352000 | 21716773 | 21.7 s | 1 |
+| VM1 | generated DTB | 327680 | 159763 | 160 ms | 1 |
+
+VM1 Linux still booted slowly after that. The guest reached PCI/virtio setup
+around `2.738s` to `4.053s`, then was quiet until `cacheinfo` at `55.340s`.
+`virtio_blk` appeared at `57.481s`, rootfs mounted at `67.133s`, and
+`/sbin/init` started at `67.356s`. Autopilot still failed with
+`USERVM_READY_TIMEOUT`.
+
+The kmod stats in the wait-thread run are also qualitatively different from the
+vmfd run in one important way: `poll_ready` stayed `0` because QEMU was no
+longer using vmfd poll readiness. Despite that, the same slowness class
+remained, with real forwarded requests and `work_empty=0`.
+
+Conclusion: keep `CONFIG_QEMU_SEL4_RPC_WAIT_THREAD` as a useful A/B diagnostic,
+but do not treat the QEMU vmfd-readiness conversion as the current primary
+suspect. The stronger remaining suspects are the VM1 RAM/data/control mapping
+and cache-maintenance path, plus the exact high-volume operation class behind
+the forwarded requests during virtio PCI probing.
+
 ### UARTA/header run: `20260429-105435`
 
 Earlier clean Orin AGX rebuild and Autopilot run:

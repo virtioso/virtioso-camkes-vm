@@ -602,6 +602,88 @@ suspect. The stronger remaining suspects are the VM1 RAM/data/control mapping
 and cache-maintenance path, plus the exact high-volume operation class behind
 the forwarded requests during virtio PCI probing.
 
+### GICv3 and seL4 IPI candidate check: 2026-04-29
+
+Two additional source-level candidates were checked after the vmfd A/B result:
+
+1. Orin AGX GICv3 CAmkES VM support may still have bugs.
+2. The seL4 kernel IPI path may still be slow or incorrect.
+
+The current generated Orin image is SMP-capable:
+
+- `orinagx_vm_qemu_virtio/kernel/gen_config/kernel/gen_config.h`
+  - `CONFIG_MAX_NUM_NODES 12`
+  - `CONFIG_ENABLE_SMP_SUPPORT 1`
+
+However, the generated CapDL for this app places the relevant CAmkES threads on
+CPU affinity 0, and both VM components have one vCPU:
+
+- `orinagx_vm_qemu_virtio/vm_qemu_virtio.cdl`
+  - `vm0_*` TCBs: `affinity: 0`
+  - `vm1_*` TCBs: `affinity: 0`
+- `orinagx_vm_qemu_virtio/devices.camkes.cpp`
+  - `vm0.num_vcpus = 1`
+- `orinagx_vm_qemu_virtio/vm1/include/camkes-component-vm1.h`
+  - `num_vcpus_DEF 1`
+
+`libsel4vm/src/arch/arm/boot.c` does call `seL4_TCB_SetAffinity()` for vCPU
+TCBs when `CONFIG_MAX_NUM_NODES > 1`, but the affinity it sets is `vcpu_id`.
+For this one-vCPU VM0/VM1 configuration, both guest vCPU TCBs remain on CPU 0.
+No runtime affinity reassignment was found in the app path.
+
+Conclusion for the IPI candidate: the kernel IPI fixes are real and relevant
+to multi-core Orin support, but this generated `vm_qemu_virtio` app should not
+depend on cross-core IPIs for the VM0/VM1/VMM hot path. IPI slowness is
+therefore a weak explanation for the current VM1 slowdown unless a later change
+pins components or vCPUs away from CPU 0.
+
+The GICv3/vGIC candidate remains more plausible for the post-kernel stall:
+
+- The current GICv3 vGIC implementation is custom Orin-era work in
+  `projects/sel4_projects_libs/libsel4vm/src/arch/arm/vgic/vgic_v3.c`.
+- It uses hard-coded `NUM_LIST_REGS 4` from
+  `projects/sel4_projects_libs/libsel4vm/src/arch/arm/vgic/virq.h`.
+- It relies on vGIC maintenance exits to free list-register shadow state and
+  reinject queued or still-asserted level IRQs.
+- The Linux quiet interval starts after PCI/virtio setup, where virtio INTx and
+  cross-VM event IRQs are active and guest EOI/maintenance behavior matters.
+
+The main virtio paths are registered IRQ paths, not the unregistered
+direct-inject path:
+
+- PCI INTx:
+  - `projects/virtioso-camkes-vm/src/libsel4vm_glue.c`
+  - `shared_irq_line_init()` registers `INTERRUPT_PCI_INTX_BASE + i`
+  - `handle_pci_intx()` drives `shared_irq_line_change()`
+  - `shared_irq_line_change()` calls `vm_set_irq_level()`
+- Cross-VM doorbell:
+  - `projects/sel4_projects_libs/libsel4vmmplatsupport/src/drivers/cross_vm_connection.c`
+  - `register_consume_event()` calls `vm_register_irq()`
+  - `consume_connection_event()` later calls `vm_inject_irq()` for that registered IRQ
+
+That matters because registered IRQs depend on:
+
+- guest enable state (`GICD_ISENABLER` / `GICR_ISENABLER0`),
+- the vGIC IRQ queue,
+- list-register shadow state,
+- maintenance exits after EOI,
+- level-triggered reinjection if the line remains asserted.
+
+A bug or excessive cost in that path could explain the Linux-side pause between
+virtio probing and later block/rootfs progress. It does not explain the
+pre-Linux VMM-side VM1 kernel image load outliers, because those happen before
+VM1 executes Linux and before guest GIC/vGIC interrupt delivery can dominate.
+
+Current classification:
+
+- Pre-kernel VM1 image load slowness: keep VM1 memory mapping/cache-maintenance
+  path as the leading suspect.
+- Post-kernel Linux stall around virtio PCI/console/block: promote GICv3 vGIC
+  registered-IRQ/maintenance behavior to a first-class suspect alongside
+  per-op QEMU/sel4 request classification.
+- seL4 IPI slow path: currently low priority for this app because generated
+  VM/VMM/vCPU affinity is CPU 0 only.
+
 ### UARTA/header run: `20260429-105435`
 
 Earlier clean Orin AGX rebuild and Autopilot run:

@@ -604,13 +604,23 @@ guest getty problem and not yet a proven GICv3 injection/maintenance bug. VM1 is
 being told to enable and wait for IRQ 178, while the physical UARTI hardware
 asserts INTID 317.
 
-Do not blindly change this to 317 without handling the documented IRQ-width
-constraint. The current Orin `vm_qemu_virtio` policy says passthrough IRQ input
-changes must recompute the free 8-bit-safe range and get human affirmation
-before changing `free_plat_interrupts[]`; 317 is not 8-bit-safe. A correct fix
-needs either full-width DT IRQ mapping support for the affected path or an
-explicit decision that UARTI passthrough may use a >255 physical IRQ outside the
-cross-VM 8-bit PCI INTx constraint.
+The direct DT passthrough path is separate from the 8-bit PCI
+`interrupt_line`/cross-VM INTx path. `seL4VMDTBPassthrough-to.template.c`
+generates `camkes_dtb_irqs[]` as `int` values and allocates
+`seL4_IRQHandler` caps by the literal IRQ number. `VM_Arm/src/main.c` retrieves
+those `int` values, registers them with `vm_register_irq()`, and routes them
+through `irq_server_register_irq()` as `ps_irq_t` physical interrupt numbers.
+The `free_plat_interrupts[] <= 255` constraint still applies to the synthetic
+PCI/cross-VM interrupt-line allocation, but UARTI is a direct non-PCI
+passthrough IRQ and can use physical INTID 317.
+
+Follow-up fix:
+
+- `kernel/tools/dts/orinagx.dts`: change UARTI from SPI 146 to SPI 285.
+- `apps/Arm/vm_qemu_virtio/orinagx/devices.camkes`: change `vm1.dtb_irqs`
+  from 178 to 317.
+- `apps/Arm/vm_qemu_virtio/settings.cmake`: trace IRQ 317 for the next Orin
+  run.
 
 - VM1 reaches UART console enable around `1.756s` and disables bootconsole at
   `1.822s`.

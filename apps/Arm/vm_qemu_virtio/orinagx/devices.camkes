@@ -245,7 +245,7 @@ assembly {
         vm1.pl011 = 0x9000000;
 
         vm1.dtb_irqs = [
-            178,    /* UARTI (SPI 146) */
+            317,    /* UARTI (SPI 285) */
         ];
         vm1.irqs = [];
         vm1.dtb = dtb([

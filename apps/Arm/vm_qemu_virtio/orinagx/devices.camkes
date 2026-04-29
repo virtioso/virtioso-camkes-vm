@@ -72,7 +72,7 @@ assembly {
         vm0.vm_image_config = {
             "kernel_bootcmdline" :
                 "console=ttyTCU0 "
-                "earlycon=pl011,mmio32,0x09000000 "
+                "quiet "
                 "rdinit=/init "
                 "arm64.nopauth "
                 "kvm-arm.mode=nvhe "
@@ -216,12 +216,9 @@ assembly {
         vm1.vm_image_config = {
             "kernel_bootcmdline" :
                 "console=ttyAMA0,115200n8 "
-                "earlycon "
+                "quiet "
                 "root=/dev/vda "
                 "rw "
-                "debug "
-                "loglevel=8 "
-                "init=/sbin/virtioso-diag-init "
                 "arm64.nopauth "
                 "kvm-arm.mode=nvhe "
                 "swiotlb=512 ",
@@ -239,7 +236,7 @@ assembly {
 
         /*
          * Keep the emulated PL011 module present for now. VM1 uses UARTI for
-         * Linux console/earlycon, but retaining the existing module avoids
+         * the Linux console, but retaining the existing module avoids
          * perturbing the component layout while isolating UARTI passthrough.
          */
         vm1.pl011 = 0x9000000;

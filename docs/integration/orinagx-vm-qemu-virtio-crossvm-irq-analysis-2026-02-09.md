@@ -400,6 +400,86 @@ Next useful experiments should avoid printk floods:
 - Keep the earlier getty/stale-rootfs/UARTI questions closed unless a future
   image sha256 or generated bootarg contradicts the evidence above.
 
+### VMM image-load timing run: `20260429-145048`
+
+The first timing-enabled run that emitted observable timing lines was
+`20260429-145048`. It was built from a clean Orin AGX configuration with
+`CONFIG_VM_IMAGE_LOAD_TIMING=y`.
+
+Timing evidence:
+
+| VM | Phase | Bytes | usec | Approx wall time | clean_cache |
+| --- | --- | ---: | ---: | ---: | ---: |
+| VM0 | kernel `linux` | 44352000 | 45939 | 45.9 ms | 1 |
+| VM0 | initrd `linux-initrd` | 2694584 | 4086 | 4.1 ms | 1 |
+| VM0 | generated DTB | 327680 | 1671 | 1.7 ms | 1 |
+| VM1 | kernel `linux` | 44352000 | 21698201 | 21.7 s | 1 |
+| VM1 | generated DTB | 327680 | 159612 | 159.6 ms | 1 |
+
+This confirms the user's observation: VM1's VMM-side Linux kernel load is
+already very slow before VM1 Linux starts. The same kernel image size loads in
+about `45.9 ms` for VM0 and about `21.7 s` for VM1, a roughly `472x`
+difference.
+
+This does not contradict the later QEMU/virtio hypothesis; it splits the problem
+into two measured phases:
+
+1. VM1 pre-kernel load is slow in the CAmkES VMM image-load path.
+2. VM1 post-kernel boot can still be slow in the nested QEMU/seL4 virtio path.
+
+Runtime evidence also shows a key VM0/VM1 memory-path difference:
+
+- VM0: `Guest RAM mapped from untyped memory (unity stage-2 mapping)`
+- VM1: `Guest RAM mapped from allocator pool (NO unity stage-2 mapping)`
+
+That is now the primary source-backed suspect for the pre-kernel load gap. Both
+VMs have `clean_cache=1` and load the same kernel image, but VM0's image load is
+fast while VM1's is slow. The next source review should focus on why
+`vm_ram_touch()` plus `seL4_ARM_Page_CleanInvalidate_Data()` is hundreds of
+times slower for VM1's allocator-pool/no-unity mapping path than for VM0's
+untyped/unity mapping path.
+
+### Inter-VM RPC during VM1 image load
+
+The image-load timing does not prove that the RAM path is the only active
+factor. Source order shows that VM1 installs devices and initializes VMM modules
+before loading the guest images:
+
+1. `init_modules(&vm, __start__vmm_module, __stop__vmm_module)`
+2. `load_vm_images(&vm, &vm_config)`
+3. `dump_dtb_base64(gen_dtb_buf)`
+4. `vcpu_start(vm_vcpu)`
+5. `vm_run(&vm)`
+
+The `cross_vm_connections` module registers its async consume handler in
+`init_cross_vm_connections()` and depends on `vpci_init`, so a VM0-origin
+cross-VM notification can in principle arrive during VM1 `load_vm_images()`.
+However, VM1 Linux is not started until after `load_vm_images()` and the DTB
+dump, so VM1 cannot yet be probing PCI, touching virtqueues, or producing
+guest-origin RPC at the measured `21.7 s` kernel-load point.
+
+The Linux-side `kmod-sel4-virt` path is also event-driven rather than an obvious
+empty-queue spin loop:
+
+- `sel4_dt_irqhandler()` returns `IRQ_NONE` when the consume event register is
+  zero and queues work only through the common interrupt path when the IRQ is
+  handled.
+- `sel4_vm_upcall_notify()` queues a single work item on `sel4_ioreq_wq`.
+- `sel4_vm_process_ioreqs()` walks concrete driver RPC requests and wakes
+  userspace only when `sel4_ioreq_pending()` says a userspace request is ready.
+- `sel4_vm_poll()` waits on `ioreq_wait` and reports readable only when a
+  userspace RPC request is pending.
+- `sel4_ioeventfd_match()` scans registered ioeventfds only while processing an
+  actual MMIO request.
+
+Therefore, an inter-VM/RPC CPU-burn bug is still a valid second suspect if an
+event register is stuck asserted, an IRQ is retriggering, or VM0 userspace keeps
+polling a permanently-ready fd. But that would be a VM0-origin/runtime
+contention issue during VM1 VMM image load, not VM1 guest PCI probing. It should
+be measured separately with default-off counters for doorbells, handled IRQs,
+queued work, forwarded RPCs, empty workqueue passes, and userspace poll-ready
+returns, correlated with the `VM_IMAGE_LOAD_TIMING` window.
+
 ### UARTA/header run: `20260429-105435`
 
 Earlier clean Orin AGX rebuild and Autopilot run:

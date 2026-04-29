@@ -43,5 +43,9 @@ elseif("${PLATFORM}" STREQUAL "rpi4")
 elseif("${PLATFORM}" STREQUAL "orinagx")
     # Set machine for image paths
     set(VM_IMAGE_MACHINE "vm-jetson-agx-orin")
+    set(VmGicV3IrqTrace ON CACHE BOOL "" FORCE)
+    set(VmGicV3IrqTraceIrq 178 CACHE STRING "" FORCE)
+    set(LibSel4VMGicV3IrqTrace ON CACHE BOOL "" FORCE)
+    set(LibSel4VMGicV3IrqTraceIrq 178 CACHE STRING "" FORCE)
 
 endif()

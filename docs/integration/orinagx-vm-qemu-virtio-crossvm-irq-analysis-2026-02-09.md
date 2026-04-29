@@ -622,6 +622,53 @@ Follow-up fix:
 - `apps/Arm/vm_qemu_virtio/settings.cmake`: trace IRQ 317 for the next Orin
   run.
 
+### UARTI INTID 317 validation: `20260429-224104`
+
+The follow-up clean build/test used:
+
+```sh
+make mrproper
+make orinagx_defconfig
+make vm_qemu_virtio
+autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot submit efi --chain vm-qemu-virtio --binary /home/hlyytine/tii-sel4/orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx --json
+```
+
+Build output:
+
+- image:
+  `orinagx_vm_qemu_virtio/images/capdl-loader-image-arm-orinagx`
+- size:
+  `54645060` bytes
+
+Autopilot request `20260429-224104` proved the corrected UARTI route:
+
+```text
+vm1: ... VM_GICV3_IRQ_TRACE instance=vm1 event=route-register irq=317 count=1 rc=0
+vm1: ... VGICV3_IRQ_TRACE event=gicd-enable irq=317 count=1 value=0x20000000 state=0x20000000
+vm1: ... VM_GICV3_IRQ_TRACE instance=vm1 event=physical-arrive irq=317 count=1 rc=0
+vm1: ... VGICV3_IRQ_TRACE ... event=inject-enter irq=317 count=1 rc=0 lr=-1
+vm1: ... VGICV3_IRQ_TRACE ... event=load-lr irq=317 count=1 rc=0 lr=0
+vm1: ... VGICV3_IRQ_TRACE ... event=eoi irq=317 count=1 rc=0 lr=0
+vm1: ... VM_GICV3_IRQ_TRACE instance=vm1 event=physical-ack irq=317 count=1 rc=0
+```
+
+VM1 then completed the console path and accepted login on UARTI:
+
+```text
+Poky (Yocto Project Reference Distro) 5.2.4 user-vm /dev/ttyAMA0
+user-vm login: root
+root@user-vm:~#
+```
+
+The chain still reported `overall_status: fail`, but not because VM1 failed to
+boot or because UARTI/getty was blocked. `chain.json` shows
+`wait_uservm_tty1_ready` passed with `outcome_label: ready_marker` on the
+`USERVM_READY version=1|login:` pattern. The later
+`wait_qemu_bootstrap_diag` step timed out. The analysis hook also still reports
+`virtio_console_probe_window_check: fail` because those probe-window markers
+were not observed. Treat this request as UARTI/getty validation success and
+Autopilot diagnostic-readiness failure.
+
 - VM1 reaches UART console enable around `1.756s` and disables bootconsole at
   `1.822s`.
 - VM1 enumerates and enables virtio PCI devices from about `2.201s` to

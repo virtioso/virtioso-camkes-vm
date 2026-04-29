@@ -492,6 +492,67 @@ This option is intentionally separate from `CONFIG_VIRTIO_VM_DEBUG`: it should
 show whether there is a high-rate event/poll/workqueue loop without restoring
 the verbose per-event printk flood.
 
+### Combined timing/stats run: `20260429-161305`
+
+Run `20260429-161305` was built after refreshing the driver-VM Yocto image so
+the embedded `sel4_virt.ko` included `CONFIG_KMOD_SEL4_VIRT_STATS` support.
+The final seL4 image had both:
+
+- `CONFIG_VM_IMAGE_LOAD_TIMING=y`
+- `CONFIG_KMOD_SEL4_VIRT_STATS=y`
+
+VMM image-load timing:
+
+| VM | Phase | Bytes | usec | Approx wall time | clean_cache |
+| --- | --- | ---: | ---: | ---: | ---: |
+| VM0 | kernel `linux` | 44352000 | 33235 | 33.2 ms | 1 |
+| VM0 | initrd `linux-initrd` | 2695784 | 2429 | 2.4 ms | 1 |
+| VM0 | generated DTB | 327680 | 399 | 0.4 ms | 1 |
+| VM1 | kernel `linux` | 44352000 | 731398 | 0.73 s | 1 |
+| VM1 | generated DTB | 327680 | 1988 | 2.0 ms | 1 |
+
+This still shows VM1's VMM-side kernel load is slower than VM0's, but not the
+earlier `21.7 s` outlier from run `20260429-145048`. The pre-kernel load gap is
+therefore real but variable; it no longer explains the large VM1 Linux boot gap
+by itself.
+
+VM1 Linux log timing:
+
+- VM1 reaches UART console enable around `1.756s` and disables bootconsole at
+  `1.822s`.
+- VM1 enumerates and enables virtio PCI devices from about `2.201s` to
+  `3.223s`.
+- The next visible VM1 kernel line is not until `58.844s`
+  (`cacheinfo: Unable to detect cache hierarchy for CPU 0`).
+- `virtio_blk virtio0: [vda] ...` appears at `61.243s`.
+- Rootfs mounts at `71.447s`, and `/sbin/init` starts at `71.672s`.
+
+That means the observed "near 1.8s then much later" behavior should not be
+interpreted as VM1's guest clock being frozen in this run: the guest timestamp
+eventually advances to `58s`/`71s`. The symptom is a long quiet kernel interval
+after PCI/virtio enumeration, not merely delayed UART output.
+
+The `sel4_virt_stats:` counters also rule out an empty-workqueue spin for this
+run. Around the quiet interval:
+
+- `work_empty` remains `0`.
+- `forwarded` tracks handled IRQ/work passes one-for-one.
+- `dt_irq_handled`, `irq_handled`, `notify`, `work_pass`, `forwarded`, and
+  `wake_userspace` keep increasing.
+- `poll_ready` also increases, but at a lower rate.
+
+Examples:
+
+- At `23.290s`: `forwarded=793`, `work_empty=0`, `poll_ready=11`.
+- At `60.221s`: `forwarded=1600`, `work_empty=0`, `poll_ready=730`.
+- At `105.769s`: `forwarded=2510`, `work_empty=0`, `poll_ready=1497`.
+
+So the post-kernel bottleneck is backed by real forwarded VM1 requests, not a
+kernel workqueue burning CPU on empty queues. The next useful split is to
+classify which QEMU/virtio MMIO operations dominate those forwarded requests
+during the `3s` to `61s` interval, preferably with rate-limited per-op/per-device
+stats rather than per-event printk.
+
 ### UARTA/header run: `20260429-105435`
 
 Earlier clean Orin AGX rebuild and Autopilot run:

@@ -725,6 +725,30 @@ granularity:
     `.size_bits = 24, .page_bits = 12`
   - runtime log: `Guest RAM mapped from allocator pool (NO unity stage-2 mapping)`
 
+This is a regression from the older RPi4 `vm_qemu_virtio` large-page path, not
+an inherent `VMSWIOTLB` limitation. Commit `c47cda6` (`Improve large page
+support`) added explicit component attributes:
+
+- `guest_large_pages`
+- `cross_connector_large_pages`
+
+and set the RPi4 app to:
+
+- `vm0.cross_connector_large_pages = true`
+- `vm1.guest_large_pages = true`
+
+That older path allowed VM1 guest RAM to use large pages even in the
+VMSWIOTLB-era app shape. The current shared Virtioso macro only expands VM1's
+allocator pool to enough size-24 untypeds:
+
+- `vm1.simple_untyped24_pool = 12 + (VM1_RAM_SIZE >> 24)`
+
+but the current CAmkES simple template records normal allocator-pool untypeds
+with `.page_bits = 12`. In other words, the current VM1 path has large enough
+untyped objects, but the generated metadata still tells `vm_ram_touch()` to
+retype and touch 4 KiB frames. That is the concrete behavior to restore or
+replace when fixing VM1 pre-kernel load performance.
+
 That difference predicts the measured kernel-load ratio:
 
 - VM1 loads the 44,352,000 byte kernel through 4 KiB chunks:
@@ -751,6 +775,14 @@ first 4 KiB of each 2 MiB touched chunk, so VM0 is fast partly because it is not
 performing equivalent cache maintenance over the whole loaded range. This makes
 VM0 versus VM1 timing a useful performance clue, but not proof that the VM0
 cache-maintenance behavior is the desired long-term behavior.
+
+This correctness bug was fixed in `projects/sel4_projects_libs` commit
+`7cf1a26` (`libsel4vmmplatsupport: clean loaded image ranges`). The ARM image
+loader now asks the VMM vspace root to clean/invalidate the actual virtual
+range written by the image-load callback instead of cleaning only offset
+`0..4K` of the backing page cap. After that fix, VM0/VM1 timing comparisons
+should be interpreted as the cost of the intended range operation, not the old
+partial-clean artifact.
 
 Current pre-kernel conclusion:
 

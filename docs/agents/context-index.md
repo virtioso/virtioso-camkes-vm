@@ -133,10 +133,23 @@ Recovery note:
 - Primary note: [../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md](../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md)
 - Related notes:
   - [../../../isengard-camkes-vm/docs/architecture.md](../../../isengard-camkes-vm/docs/architecture.md)
+  - [../../../isengard-camkes-vm/docs/orin-agx-support-plan.md](../../../isengard-camkes-vm/docs/orin-agx-support-plan.md)
   - [../../../isengard-camkes-vm/docs/README.md](../../../isengard-camkes-vm/docs/README.md)
 - Last known state: business logic must exist in one shared semantic implementation and remain freely placeable in native seL4, native Linux, or Linux-on-seL4. `projects/isengard-camkes-vm` is seL4-side only; host-portable implementation belongs under `sources/`, currently `sources/isengard-core`, with new Linux-side image work routed through `vm-images/meta-isengard`.
 - Next action: for "continue Isengard" requests, start from the primary migration plan and keep new deployment-neutral contracts out of CAmkES IDL.
 - Updated: 2026-04-23
+
+### Isengard Orin AGX support and CAN ownership
+
+- Status: active
+- Primary note: [../../../isengard-camkes-vm/docs/orin-agx-support-plan.md](../../../isengard-camkes-vm/docs/orin-agx-support-plan.md)
+- Related notes:
+  - [../../../isengard-camkes-vm/docs/architecture.md](../../../isengard-camkes-vm/docs/architecture.md)
+  - [../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md](../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md)
+  - [../integration/orinagx-vm-qemu-virtio-crossvm-irq-analysis-2026-02-09.md](../integration/orinagx-vm-qemu-virtio-crossvm-irq-analysis-2026-02-09.md)
+- Last known state: Orin AGX `vm_qemu_virtio` is treated as a working substrate for Isengard, including prior boot slowness and diagnostic-readiness issues. The target is maximum software reuse across Linux-native, Linux-on-seL4, Linux-owned CAN, seL4-owned CAN, `qemu_x86_64`, and `orinagx`. Isengard has a portable semantic core in `sources/isengard-core` and an x86 seL4 app shape, but no Orin/Arm Isengard app shape yet. Local Yocto evidence points to NVIDIA `mttcan` as the first Orin integrated-CAN driver path through `nvidia-kernel-oot-canbus` / `kernel-module-mttcan`.
+- Next action: perform Phase 0 from the primary note: define the minimal reusable CAN backend interface, prove or stub it on `qemu_x86_64` with Linux vcan/SocketCAN, capture active Orin CAN DT nodes, `mttcan` probe evidence, CAN netdev names, MMIO/IRQ/clock/reset/pinmux/transceiver resources, then decide the first Orin Isengard app shape around Linux-owned CAN before adding the Arm/Orin app skeleton.
+- Updated: 2026-04-29
 
 ### Legacy Autopilot MCP startup, status, and queue truth
 

@@ -218,9 +218,187 @@ The VM1 Linux log stops during PCI enumeration:
 
 - `pci 0000:00:00.0: [5e14:0042] type 00 class 0x060000`
 
+### UARTI earlycon and VM1 image/getty verification: `20260429-132803`
+
+Follow-up testing corrected two earlier assumptions.
+
+First, VM1 should not carry a hard-coded `earlycon=pl011,...` bootarg for this
+path. UARTI is exposed to VM1 as the SBSA UART node:
+
+- `stdout=/bus@0/serial@31d0000`
+- `console=ttyAMA0,115200n8`
+- `earlycon`
+
+The VM1 log still prints:
+
+- `earlycon: pl11 at MMIO32 0x00000000031d0000`
+
+This is Linux's earlycon implementation detail for `arm,sbsa-uart`; it does not
+mean the command line is forcing the wrong UART. The same log confirms the real
+device path:
+
+- `31d0000.serial: ttyAMA0 at MMIO 0x31d0000 ... is a SBSA`
+- `printk: bootconsole [pl11] disabled`
+
+Second, Autopilot did deploy the driver VM rootfs for this run. The chain record
+for request `20260429-132803` includes:
+
+- `prepare_vm_image_dir`
+- `upload_driver_vm_rootfs`
+- `upload_efi`
+- `boot_efi`
+
+`upload_driver_vm_rootfs` finished `ok` before EFI upload. The uploaded source
+artifact was:
+
+- `vm-images/build/tmp/deploy/images/vm-jetson-agx-orin/vm-image-driver-vm-jetson-agx-orin.rootfs.ext4`
+
+The driver image contains:
+
+- `/var/lib/virt/images/user-vm.qcow2`
+- size: `101646336`
+
+The embedded qcow2 was extracted with `debugfs` and compared against the deploy
+directory user image:
+
+- embedded: `/tmp/autopilot-user-vm.qcow2`
+- deploy: `vm-images/build/tmp/deploy/images/vm-jetson-agx-orin/vm-image-user-vm-jetson-agx-orin.rootfs.ext4.qcow2`
+- sha256 for both:
+  `077f26787adcd700b50e7f289266dbe7bf337a76a9cbff88c8d5ad98106ea80c`
+
+After converting the embedded qcow2 to raw and inspecting it with `debugfs`, the
+user VM `/etc/inittab` contains the expected UARTI getty:
+
+```text
+AMA0:12345:respawn:/usr/sbin/ttyrun ttyAMA0 /bin/start_getty 115200 ttyAMA0 vt102
+```
+
+Therefore the missing VM1 login prompt in `20260429-132803` is not explained by
+Autopilot skipping the driver image upload, stale eMMC contents, or a missing
+`SERIAL_CONSOLES`/inittab change in the packaged user VM image.
+
+The current failure boundary is later:
+
+- VM1 starts `/sbin/init`
+- VM1 prints only `INIT: version 3.14 booting`
+- VM1 does not reach `Starting udev`, `INIT: Entering runlevel`, or `login:`
+  before Autopilot timeout
+
+This points at an early userspace/rcS stall or VM/QEMU stall after init starts.
+There is also still a real kernel-time gap before root mount:
+
+- `3.324558`: `msm_serial: driver initialized`
+- `54.617393`: `cacheinfo: Unable to detect cache hierarchy for CPU 0`
+- `64.724981`: `Run /sbin/init as init process`
+
 No `virtio_console_init` line appears in this run before VM1 exits, so the
 current runtime boundary has moved earlier than the previous virtio-console
 stall marker.
+
+### VM1 sluggishness source-path analysis: 2026-04-29
+
+This analysis was done from the source path rather than another hardware run.
+
+Conclusion: the VM1 slowness is no longer primarily explained by UART output,
+but there are two different slow phases and they should not be collapsed into
+one root cause.
+
+1. If the delay is while the CAmkES VMM prints `Loading Kernel`, that is before
+   VM1 Linux starts. This path is ordinary VMM image loading and cache
+   maintenance, not QEMU/virtio emulation.
+2. If the delay is after VM1 Linux timestamps begin, the strongest source-backed
+   explanation is the nested QEMU/seL4 device-model path. VM1 then pays for many
+   synchronous VM1 -> seL4 VMM -> `sel4_virt` kmod -> VM0/QEMU -> QEMU device
+   model -> kmod/VMM acknowledgements during PCI/virtio probing and rootfs I/O.
+   VM0 does not use that path for its own kernel/rootfs boot.
+
+Runtime alignment from `20260429-132803`:
+
+- UARTI earlycon is now correctly routed and the boot console is disabled after
+  the SBSA UART driver binds.
+- The large gap from about `3.324s` to `54.617s` occurs during generic device
+  and bus initialization before `virtio_blk` reports `/dev/vda`.
+- Root mount appears around `64.590s`, then `/sbin/init` starts around
+  `64.724s`.
+- This timing points at trap-heavy device discovery and block/rootfs access, not
+  serial throughput.
+
+Source-path evidence:
+
+- `devices.camkes` makes VM0 a 512 MiB direct VM with initrd, one-to-one
+  mapping, and physical device passthrough; VM0 runs QEMU and provides the
+  virtio backends.
+- The same file makes VM1 a 256 MiB generated-DTB VM with `root=/dev/vda`,
+  UARTI console, `clean_cache=true`, `swiotlb=512`, an 8 MiB SWIOTLB bounce
+  area at `0xC0000000`, and a virtio driver channel to VM0.
+- `projects/vm/components/VM_Arm/src/main.c` prints `Loading Kernel` immediately
+  before calling `vm_load_guest_kernel()`. On ARM,
+  `libsel4vmmplatsupport/src/arch/arm/guest_image.c` loads the image through
+  `vm_ram_touch()` page callbacks. For normal images, each callback reads a page
+  from the file descriptor into mapped guest memory; for LZ4 images, each
+  callback copies a decompressed page. With `vm->mem.clean_cache` set, both paths
+  then call `seL4_ARM_Page_CleanInvalidate_Data()` for that 4 KiB page. This can
+  plausibly make the pre-kernel `Loading Kernel` phase slow.
+- `qemu-rnd-helper` launches VM1 as `/usr/bin/qemu-system-aarch64 --accel sel4
+  -M virt`, with a qcow2 `virtio-blk-pci` root disk,
+  `disable-legacy=on,iommu_platform=on`, 9p `-virtfs`,
+  `virtio-serial-pci`, optional `virtconsole`, and for `VMID=1` a `tap0`
+  `virtio-net-pci` device. It also copies `/var/lib/virt/images/user-vm.qcow2`
+  into `/tmp/vm1` by default before QEMU starts.
+- The qcow2 copy can delay VM1 launch, but it happens before the guest kernel
+  timestamps. It cannot explain the later in-kernel 50+ second gap once Linux is
+  already printing timestamps.
+- QEMU's seL4 accelerator registers the VM fd with `qemu_set_fd_handler()`.
+  When the fd is readable, QEMU drains the forwarded RPC queue in the QEMU main
+  loop. `QEMU_OP_MMIO` requests are handled synchronously by either generic
+  memory-region access or PCI config-space access and then acknowledged back to
+  the driver RPC ring.
+- The QEMU-side ioeventfd registration currently records `addr_space =
+  AS_GLOBAL`. The kmod-side ioeventfd fast path only handles matching MMIO
+  writes; all MMIO reads deliberately fall through to userspace. PCI config
+  reads/writes also go through QEMU userspace handling.
+- The kmod upcall path uses one global work item and a workqueue with
+  `max_active=1`; that work scans all VMs and forwards unhandled requests to
+  the userspace RPC queue before waking the QEMU fd poll path.
+- `virt-sel4.c` exposes the seL4 PCI host around the GICv2m, PCI ECAM, PCI MMIO
+  window, and PCI I/O window. VM1's modern virtio PCI devices therefore
+  exercise this emulated PCI path during probe.
+
+Likely contributors, ranked:
+
+1. Synchronous userspace exits for VM1 PCI config and virtio MMIO, especially
+   reads that cannot use the ioeventfd write fast path.
+2. Heavy default VM1 QEMU device surface: qcow2 virtio-blk, tap virtio-net,
+   virtio-serial/virtconsole, 9p, `iommu_platform=on`, SWIOTLB, and vPCI/MSI
+   plumbing.
+3. kmod upcall serialization through a single global work item and single-active
+   workqueue.
+4. Pre-kernel `Loading Kernel` time is likely dominated by VMM image load plus
+   per-page cache clean/invalidate when `clean_cache=true`. This needs separate
+   timing around `vm_load_guest_kernel()` and should not be attributed to QEMU.
+   VM0 also uses `clean_cache=true`, so if VM0's kernel load is materially
+   faster, compare image size, compression type, and exact load timing before
+   treating cache maintenance as the whole explanation.
+5. UART output is now a low-probability primary cause because the observed gap
+   is before root mount and after early console routing has been corrected.
+
+Next useful experiments should avoid printk floods:
+
+- Default-off VMM image-load timing has been added as `VmImageLoadTiming` /
+  `CONFIG_VM_IMAGE_LOAD_TIMING`. When enabled, `VM_Arm` emits one
+  `VM_IMAGE_LOAD_TIMING` line per kernel/initrd/DTB load with instance, phase,
+  image name, byte count, CNTPCT cycles/frequency, computed microseconds, error
+  code, and `clean_cache` state. The default build keeps it off.
+- Add default-off counters/timing, not repeated printk, for forwarded RPC
+  counts by VM, op, address space, direction, and latency in both
+  `sources/kmod-sel4-virt` and `sources/qemu/accel/sel4`.
+- Run a minimal VM1 QEMU surface: no tap net, no 9p, no virtio-serial/console,
+  raw block instead of qcow2 if possible, and only the virtio-blk root device.
+- If the counters confirm RPC pressure, consider a kmod per-VM work item/queue
+  and a broader fast path for virtqueue kicks or PCI/virtio accesses that do not
+  need full QEMU userspace handling.
+- Keep the earlier getty/stale-rootfs/UARTI questions closed unless a future
+  image sha256 or generated bootarg contradicts the evidence above.
 
 ### UARTA/header run: `20260429-105435`
 

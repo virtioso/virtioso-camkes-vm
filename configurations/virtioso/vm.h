@@ -41,6 +41,7 @@
     vm##num.asid_pool = true; \
     vm##num.simple = true; \
     vm##num.sem_value = 0; \
+    vm##num.guest_large_pages = true; \
     /* heap_size set per-app in camkes file - not in macro */
 
 #undef VM_COMPONENT_DEF

@@ -221,7 +221,7 @@ assembly {
                 "rw "
                 "debug "
                 "loglevel=8 "
-                "init=/bin/cttyhack "
+                "init=/sbin/virtioso-diag-init "
                 "arm64.nopauth "
                 "kvm-arm.mode=nvhe "
                 "swiotlb=512 ",

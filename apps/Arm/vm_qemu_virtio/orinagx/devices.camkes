@@ -230,6 +230,7 @@ assembly {
             "provide_initrd" : false,
             "clean_cache" : true,
         };
+        vm1.guest_large_pages = true;
         vm1.vm_virtio_driver_channels = [
             VIRTIO_CHANNEL_DRIVER_CONFIGURATION_DEF(0, 1)
         ];

@@ -221,7 +221,7 @@ assembly {
                 "rw "
                 "debug "
                 "loglevel=8 "
-                "init=/bin/sh "
+                "init=/bin/cttyhack "
                 "arm64.nopauth "
                 "kvm-arm.mode=nvhe "
                 "swiotlb=512 ",

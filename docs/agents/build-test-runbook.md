@@ -66,8 +66,9 @@ This file is the canonical source for build and test command sequences.
 9. Inspect managed-launch evidence under:
    `results/<id>/console/tty0.ansi.log`
 10. The `qemu_x86_64_defconfig` chain remains the boot-to-login smoke test;
-    `qemu_x86_64_vm_qemu_virtio_uservm` is the x86 profile that actually runs
-    `uservmctl start` and `uservmctl wait-ready`.
+    `qemu_x86_64_vm_qemu_virtio_uservm` is the x86 profile that runs
+    `uservmctl start`, `uservmctl wait-ready`, VM1 root login on
+    `user_vm_console`, and a VM1 `uname -a`.
 
 ## Orin AGX `vm_minimal`
 

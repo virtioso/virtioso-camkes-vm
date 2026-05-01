@@ -278,26 +278,6 @@ def _router_command(
     ]
 
 
-def _binary_frame_wrapped_command(
-    manifest_path: Path,
-    wrapped_command: list[str],
-    *,
-    channel_name: str = "driver_vm_console",
-    tool_root: Path | None = None,
-) -> list[str]:
-    script_root = tool_root or SCRIPT_DIR
-    return [
-        "python3",
-        str(script_root / "console_frame_stream.py"),
-        "--manifest",
-        str(manifest_path),
-        "--channel",
-        channel_name,
-        "--",
-        *wrapped_command,
-    ]
-
-
 def _build_extra_qemu_args(build_dir: Path) -> str:
     args_file = build_dir / "images" / "qemu-extra-args"
     if not args_file.exists():
@@ -322,63 +302,6 @@ def _merge_extra_qemu_args(
     if extra_qemu_args.strip():
         merged.extend(shlex.split(extra_qemu_args))
     return _shell_join(merged)
-
-
-def _rewrite_extra_qemu_args_for_binary_frames(binary: Path, extra_qemu_args: str) -> str:
-    if _console_profile(binary) != "vm_qemu_virtio" or not _env_flag("VIRTIOSO_CONSOLE_ROUTER_USE_BINARY_FRAMES"):
-        return extra_qemu_args
-    argv = shlex.split(extra_qemu_args) if extra_qemu_args.strip() else []
-    filtered: list[str] = []
-    idx = 0
-    has_display = False
-    has_vga = False
-    has_fw_cfg = False
-    while idx < len(argv):
-        arg = argv[idx]
-        if arg == "-nographic":
-            idx += 1
-            continue
-        if arg == "-display":
-            has_display = True
-            filtered.extend(argv[idx: idx + 2])
-            idx += 2
-            continue
-        if arg == "-vga":
-            if idx + 1 < len(argv) and argv[idx + 1] == "none":
-                idx += 2
-                continue
-            has_vga = True
-            filtered.extend(argv[idx: idx + 2])
-            idx += 2
-            continue
-        if arg == "-fw_cfg":
-            has_fw_cfg = True
-            filtered.extend(argv[idx: idx + 2])
-            idx += 2
-            continue
-        filtered.append(arg)
-        idx += 1
-    if not has_display:
-        filtered.extend(["-display", "none"])
-    if not has_vga:
-        filtered.extend(["-vga", "none", "-device", "VGA,bus=pcie.0,addr=0x3"])
-    if not has_fw_cfg:
-        filtered.extend(["-fw_cfg", "name=etc/sercon-port,string=0"])
-    return _shell_join(filtered)
-
-
-def _append_qemu_dedicated_mux_uplink(extra_qemu_args: str, socket_path: str) -> str:
-    argv = shlex.split(extra_qemu_args) if extra_qemu_args.strip() else []
-    argv.extend([
-        "-chardev", f"socket,id=virtioso_mux,path={socket_path},server=on,wait=off",
-        "-serial", "chardev:virtioso_mux",
-    ])
-    return _shell_join(argv)
-
-
-def _short_mux_socket_path(prefix: str) -> Path:
-    tmp_dir = Path(tempfile.gettempdir())
-    return tmp_dir / f"{prefix}-{os.getpid()}.sock"
 
 
 def _simulate_command(build_dir: Path, binary: Path, qemu_binary: Path, extra_qemu_args: str) -> list[str]:
@@ -433,30 +356,11 @@ def run_local(
         runtime,
         include_local_bios=True,
     )
-    merged_extra_qemu_args = _rewrite_extra_qemu_args_for_binary_frames(binary, merged_extra_qemu_args)
-    dedicated_mux_uplink = _dedicated_mux_uplink_opt_in(binary)
-    mux_socket_path = _short_mux_socket_path("virtioso-local-mux")
-    if dedicated_mux_uplink:
-        merged_extra_qemu_args = _append_qemu_dedicated_mux_uplink(
-            merged_extra_qemu_args,
-            str(mux_socket_path),
-        )
     simulate = _simulate_script(build_dir)
     if simulate.exists():
         wrapped_argv = _simulate_command(build_dir, binary, runtime.binary, merged_extra_qemu_args)
     else:
         wrapped_argv = _fallback_local_command(binary, spec, runtime.binary, merged_extra_qemu_args)
-    if dedicated_mux_uplink:
-        wrapped_argv = [
-            "python3",
-            str(SCRIPT_DIR / "qemu_mux_uplink_bridge.py"),
-            "--socket-path",
-            str(mux_socket_path),
-            "--legacy-log",
-            str(console_root / "qemu-legacy.log"),
-            "--",
-            *wrapped_argv,
-        ]
     manifest_path = _write_console_manifest(console_root / "console-manifest.json", target, binary, spec)
     router_runtime_dir = console_root / "console-runtime"
     argv = _router_command(manifest_path, router_runtime_dir, wrapped_argv)
@@ -699,22 +603,11 @@ def _env_text(name: str) -> str:
     return os.environ.get(name, "").strip()
 
 
-def _dedicated_mux_uplink_opt_in(binary: Path) -> bool:
-    return (
-        _console_profile(binary) == "vm_qemu_virtio"
-        and _env_flag("VIRTIOSO_CONSOLE_ROUTER_USE_BINARY_FRAMES")
-        and _env_flag("VIRTIOSO_QEMU_DEDICATED_MUX_UPLINK")
-    )
-
-
 def _simulate_serial_opt(binary: Path) -> str:
     explicit = _env_text("VIRTIOSO_QEMU_SIM_SERIAL_OPT")
     if explicit:
         return explicit
-    if _console_profile(binary) == "vm_qemu_virtio" and (
-        _env_flag("VIRTIOSO_QEMU_SPLIT_MONITOR")
-        or _env_flag("VIRTIOSO_CONSOLE_ROUTER_USE_BINARY_FRAMES")
-    ):
+    if _console_profile(binary) == "vm_qemu_virtio" and _env_flag("VIRTIOSO_QEMU_SPLIT_MONITOR"):
         return "-serial stdio -monitor none"
     return ""
 
@@ -722,76 +615,6 @@ def _simulate_serial_opt(binary: Path) -> str:
 def _console_manifest(target: str, binary: Path, spec: TargetSpec) -> dict:
     run_id = datetime.now(timezone.utc).isoformat(timespec="seconds")
     profile = _console_profile(binary)
-    binary_framed_opt_in = _env_flag("VIRTIOSO_CONSOLE_ROUTER_USE_BINARY_FRAMES")
-    dedicated_mux_uplink = _dedicated_mux_uplink_opt_in(binary)
-    framed_opt_in = _env_flag("VIRTIOSO_CONSOLE_ROUTER_USE_JSONL_FRAMES")
-    prefix_demux_opt_in = _env_flag("VIRTIOSO_CONSOLE_ROUTER_USE_VM_PREFIX_DEMUX")
-    if profile == "vm_qemu_virtio" and binary_framed_opt_in:
-        return {
-            "version": 1,
-            "run_id": run_id,
-            "target": target,
-            "binary_name": binary.name,
-            "transport": {
-                "type": "binary_frames",
-                "owner": "qemu_runner",
-                "qemu_binary": spec.qemu_binary,
-                "default_input_channel": "driver_vm_console",
-                "framing_mode": "producer_binary_native",
-                "transport_path": (
-                    "dedicated_qemu_uart_uplink"
-                    if dedicated_mux_uplink else
-                    "shared_qemu_serial_stdio"
-                ),
-                "note": (
-                    "Explicit binary-framed producer path over a dedicated second QEMU serial uplink."
-                    if dedicated_mux_uplink else
-                    "Explicit binary-framed producer path with source-owned stream identity and no router-side source heuristics."
-                ),
-            },
-            "channels": _logical_vm_qemu_virtio_channels(),
-        }
-    if profile == "vm_qemu_virtio" and framed_opt_in:
-        return {
-            "version": 1,
-            "run_id": run_id,
-            "target": target,
-            "binary_name": binary.name,
-            "transport": {
-                "type": "jsonl_frames",
-                "owner": "qemu_runner",
-                "qemu_binary": spec.qemu_binary,
-                "default_input_channel": "driver_vm_console",
-                "framing_mode": "producer_tagged",
-            },
-            "channels": _logical_vm_qemu_virtio_channels(),
-        }
-    if profile == "vm_qemu_virtio" and prefix_demux_opt_in:
-        return {
-            "version": 1,
-            "run_id": run_id,
-            "target": target,
-            "binary_name": binary.name,
-            "transport": {
-                "type": "line_prefixes",
-                "owner": "qemu_runner",
-                "qemu_binary": spec.qemu_binary,
-                "default_input_channel": "driver_vm_console",
-                "prefix_map": {
-                    "[vmmdbg] ": "vmm_debug",
-                    "vmmdbg: ": "vmm_debug",
-                    "[vm0] ": "vmm_mux_control",
-                    "[vm1] ": "vmm_mux_control",
-                    "vm0: ": "vmm_mux_control",
-                    "vm1: ": "vmm_mux_control",
-                },
-                "fallback_channel": "driver_vm_console",
-                "classification_mode": "ansi_stripped_vmm_prefix_else_driver_console",
-                "producer_kind": "legacy_vmm_serial_mux",
-                "note": "Prefix-demux routes legacy vm0/vm1 VMM annotations to control and treats unprefixed text as the current driver-console compatibility stream.",
-            },
-            "channels": _logical_vm_qemu_virtio_channels(),
-        }
     # The current runner still collapses QEMU-backed console output onto a single
     # runner-owned stream. Represent that topology honestly first; later slices
     # can split this into source-specific channels without changing manifest
@@ -826,7 +649,7 @@ def _console_manifest(target: str, binary: Path, spec: TargetSpec) -> dict:
 
 def _copy_console_support_tools(bundle_dir: Path) -> list[Path]:
     copied: list[Path] = []
-    for name in ("console_router.py", "console_frame_stream.py", "qemu_mux_uplink_bridge.py"):
+    for name in ("console_router.py",):
         src = SCRIPT_DIR / name
         dst = bundle_dir / "runtime" / name
         dst.parent.mkdir(parents=True, exist_ok=True)
@@ -848,7 +671,6 @@ def _write_remote_wrapper(
     wrapper = runtime_build.parent / "run-bundle.sh"
     qemu_wrapper = runtime_build.parent / "qemu-wrapper.sh"
     qemu_data_dir = toolchain_usr / "share" / "qemu"
-    dedicated_mux_uplink = _dedicated_mux_uplink_opt_in(binary)
     qemu_extra_parts: list[str] = []
     if bios_dir is not None:
         qemu_extra_parts.extend(["-L", "../../toolchain/pc-bios"])
@@ -876,10 +698,6 @@ def _write_remote_wrapper(
     qemu_wrapper.write_text("\n".join(qemu_wrapper_lines) + "\n")
     qemu_wrapper.chmod(0o755)
     simulate_serial_opt = _simulate_serial_opt(binary)
-    binary_frames_opt_in = _console_profile(binary) == "vm_qemu_virtio" and _env_flag(
-        "VIRTIOSO_CONSOLE_ROUTER_USE_BINARY_FRAMES"
-    )
-    dedicated_mux_uplink = _dedicated_mux_uplink_opt_in(binary)
     lines = [
         "#!/usr/bin/env bash",
         "set -euo pipefail",
@@ -901,55 +719,21 @@ def _write_remote_wrapper(
         '  producer_cmd+=("--serial=${simulate_serial_opt}")',
         'fi',
     ]
-    if binary_frames_opt_in and dedicated_mux_uplink:
-        lines.extend([
-            'mux_socket_base="${TMPDIR:-/tmp}/virtioso-mux-${PPID:-$$}"',
-            'mux_socket="${mux_socket_base}.sock"',
-            'mux_socket_counter=0',
-            'while [[ -e "${mux_socket}" ]]; do',
-            '  mux_socket_counter=$((mux_socket_counter + 1))',
-            '  mux_socket="${mux_socket_base}-${mux_socket_counter}.sock"',
-            'done',
-            'dedicated_mux_args="-chardev socket,id=virtioso_mux,path=${mux_socket},server=on,wait=off -serial chardev:virtioso_mux"',
-            'if [[ -n "${qemu_extra_opt}" ]]; then',
-            '  qemu_extra_opt="${qemu_extra_opt} ${dedicated_mux_args}"',
-            'else',
-            '  qemu_extra_opt="${dedicated_mux_args}"',
-            'fi',
-        ])
     lines.extend([
         'if [[ -n "${qemu_extra_opt}" ]]; then',
         '  producer_cmd+=("--extra-qemu-args=${qemu_extra_opt}")',
         'fi',
+        'router_cmd=(',
+        '  python3 "${SCRIPT_DIR}/console_router.py" run-command',
+        '  --manifest "${console_manifest}"',
+        '  --runtime-dir "${console_runtime_dir}"',
+        '  --',
+        '  "${producer_cmd[@]}"',
+        ')',
     ])
-    if binary_frames_opt_in:
-        if dedicated_mux_uplink:
-            lines.extend([
-                'router_cmd=(',
-                '  python3 "${SCRIPT_DIR}/qemu_mux_uplink_bridge.py"',
-                '  --socket-path "${mux_socket}"',
-                '  --legacy-log "${log_path}.legacy"',
-                '  --',
-                '  "${producer_cmd[@]}"',
-                ')',
-            ])
-        else:
-            lines.extend([
-                'router_cmd=("${producer_cmd[@]}")',
-            ])
-    else:
-        lines.extend([
-            'router_cmd=(',
-            '  python3 "${SCRIPT_DIR}/console_router.py" run-command',
-            '  --manifest "${console_manifest}"',
-            '  --runtime-dir "${console_runtime_dir}"',
-            '  --',
-            '  "${producer_cmd[@]}"',
-            ')',
-        ])
     lines.extend([
         "set +e",
-        ('"${router_cmd[@]}" 2>>"${log_path}.stderr" | tee "${log_path}"' if binary_frames_opt_in else '"${router_cmd[@]}" 2>&1 | tee "${log_path}"'),
+        '"${router_cmd[@]}" 2>&1 | tee "${log_path}"',
         'sim_rc=${PIPESTATUS[0]}',
         "set -e",
         'if [[ "${sim_rc}" -eq 0 ]] && grep -qE "Segmentation fault \\(core dumped\\)|QEMU failed;" "${log_path}"; then',
@@ -1023,7 +807,6 @@ def prepare_remote_bundle(
         runtime,
         include_local_bios=False,
     )
-    merged_extra_qemu_args = _rewrite_extra_qemu_args_for_binary_frames(binary, merged_extra_qemu_args)
     bundle_root = Path(output).expanduser().resolve() if output else Path(tempfile.mkdtemp(prefix="virtioso-qemu-bundle-"))
     try:
         bundle_dir = bundle_root / _bundle_name(binary, target)

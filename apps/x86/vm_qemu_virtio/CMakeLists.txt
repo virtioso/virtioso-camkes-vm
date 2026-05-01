@@ -9,7 +9,9 @@ cmake_minimum_required(VERSION 3.8.2)
 project(vm-qemu-virtio-x86 C)
 
 add_definitions(-DVMM_CONSOLE_DROP_DIAG_OUTPUT=1)
-add_definitions(-DGUEST_CONSOLE_SINK_DEBUGPUTCHAR_REPORTS=1)
+add_definitions(-DVMM_DEBUG_HEARTBEAT_REPORTS=0)
+add_definitions(-DGUEST_CONSOLE_SINK_RPC_REPORTS=0)
+add_definitions(-DCONSOLE_SINK_RPC_REPORTS=0)
 
 include(${CAMKES_VM_HELPERS_PATH})
 include(${VIRTIOSO_CAMKES_VM_HELPERS_PATH})

@@ -901,34 +901,41 @@ def _write_remote_wrapper(
         '  producer_cmd+=("--serial=${simulate_serial_opt}")',
         'fi',
     ]
+    if binary_frames_opt_in and dedicated_mux_uplink:
+        lines.extend([
+            'mux_socket_base="${TMPDIR:-/tmp}/virtioso-mux-${PPID:-$$}"',
+            'mux_socket="${mux_socket_base}.sock"',
+            'mux_socket_counter=0',
+            'while [[ -e "${mux_socket}" ]]; do',
+            '  mux_socket_counter=$((mux_socket_counter + 1))',
+            '  mux_socket="${mux_socket_base}-${mux_socket_counter}.sock"',
+            'done',
+            'dedicated_mux_args="-chardev socket,id=virtioso_mux,path=${mux_socket},server=on,wait=off -serial chardev:virtioso_mux"',
+            'if [[ -n "${qemu_extra_opt}" ]]; then',
+            '  qemu_extra_opt="${qemu_extra_opt} ${dedicated_mux_args}"',
+            'else',
+            '  qemu_extra_opt="${dedicated_mux_args}"',
+            'fi',
+        ])
+    lines.extend([
+        'if [[ -n "${qemu_extra_opt}" ]]; then',
+        '  producer_cmd+=("--extra-qemu-args=${qemu_extra_opt}")',
+        'fi',
+    ])
     if binary_frames_opt_in:
         if dedicated_mux_uplink:
             lines.extend([
-                'mux_socket_base="${TMPDIR:-/tmp}/virtioso-mux-${PPID:-$$}"',
-                'mux_socket="${mux_socket_base}.sock"',
-                'mux_socket_counter=0',
-                'while [[ -e "${mux_socket}" ]]; do',
-                '  mux_socket_counter=$((mux_socket_counter + 1))',
-                '  mux_socket="${mux_socket_base}-${mux_socket_counter}.sock"',
-                'done',
-                'dedicated_mux_args="-chardev socket,id=virtioso_mux,path=${mux_socket},server=on,wait=off -serial chardev:virtioso_mux"',
-                'if [[ -n "${qemu_extra_opt}" ]]; then',
-                '  qemu_extra_opt="${qemu_extra_opt} ${dedicated_mux_args}"',
-                'else',
-                '  qemu_extra_opt="${dedicated_mux_args}"',
-                'fi',
                 'router_cmd=(',
                 '  python3 "${SCRIPT_DIR}/qemu_mux_uplink_bridge.py"',
                 '  --socket-path "${mux_socket}"',
                 '  --legacy-log "${log_path}.legacy"',
                 '  --',
+                '  "${producer_cmd[@]}"',
                 ')',
             ])
         else:
             lines.extend([
-                'router_cmd=(',
-                '  "${producer_cmd[@]}"',
-                ')',
+                'router_cmd=("${producer_cmd[@]}")',
             ])
     else:
         lines.extend([
@@ -937,14 +944,9 @@ def _write_remote_wrapper(
             '  --manifest "${console_manifest}"',
             '  --runtime-dir "${console_runtime_dir}"',
             '  --',
+            '  "${producer_cmd[@]}"',
             ')',
         ])
-    lines.extend([
-        'if [[ -n "${qemu_extra_opt}" ]]; then',
-        '  producer_cmd+=("--extra-qemu-args=${qemu_extra_opt}")',
-        'fi',
-        'router_cmd+=("${producer_cmd[@]}")',
-    ])
     lines.extend([
         "set +e",
         ('"${router_cmd[@]}" 2>>"${log_path}.stderr" | tee "${log_path}"' if binary_frames_opt_in else '"${router_cmd[@]}" 2>&1 | tee "${log_path}"'),

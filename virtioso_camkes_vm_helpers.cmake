@@ -170,6 +170,8 @@ function(DeclareVirtiosoX86CAmkESVM name)
     DeclareCAmkESVM(
         ${name}
         EXTRA_SOURCES
+        ${VM_PROJECT_DIR}/components/VM_Arm/src/modules/init_ram.c
+        ${VIRTIOSO_CAMKES_VM_DIR}/src/camkes/modules/init_dataport_ram.c
         ${VIRTIOSO_CAMKES_VM_DIR}/src/camkes/modules/io_proxy.c
         ${VM_COMP_EXTRA_SOURCES}
         EXTRA_INCLUDES

@@ -1,0 +1,42 @@
+/dts-v1/;
+
+#include "tegra234-chip.dtsi"
+
+/ {
+	tfc {
+		/*
+		 * UART1 on the AGX Orin 40-pin header is UARTA at 0x03100000.
+		 * Match UARTI's non-secure firewall policy so a VM can use UARTA
+		 * directly as an early console.
+		 */
+		reg@5690 { /* CBB_CENTRAL_CBB_FIREWALL_UARTA_BLF, READ_CTL */
+			exclusion-info = <2>;
+			value = <0x00000043>;
+		};
+
+		reg@5691 { /* CBB_CENTRAL_CBB_FIREWALL_UARTA_BLF, WRITE_CTL */
+			exclusion-info = <2>;
+			value = <0x00000043>;
+		};
+
+		reg@5692 { /* CBB_CENTRAL_CBB_FIREWALL_UARTA_BLF, CTL_SETTING */
+			exclusion-info = <2>;
+			value = <0x00030000>;
+		};
+
+		reg@5693 { /* CBB_CENTRAL_CBB_FIREWALL_UARTA_CAR_BLF, READ_CTL */
+			exclusion-info = <2>;
+			value = <0x0000004b>;
+		};
+
+		reg@5694 { /* CBB_CENTRAL_CBB_FIREWALL_UARTA_CAR_BLF, WRITE_CTL */
+			exclusion-info = <2>;
+			value = <0x0000004b>;
+		};
+
+		reg@5695 { /* CBB_CENTRAL_CBB_FIREWALL_UARTA_CAR_BLF, CTL_SETTING */
+			exclusion-info = <2>;
+			value = <0x00030000>;
+		};
+	};
+};

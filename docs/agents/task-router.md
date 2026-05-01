@@ -15,6 +15,7 @@ This file is the canonical task router for operational agent workflows.
 
 | User intent | Use this source |
 |---|---|
+| Ask whether we were working on a topic, recover lost context, or find an old plan/investigation | [context-index.md](context-index.md) |
 | Work on `projects/virtioso-camkes-vm/apps/Arm` examples | [example-workflows-fastpath.md](example-workflows-fastpath.md) |
 | Work on `projects/vm-examples/apps/Arm` examples | [example-workflows-fastpath.md](example-workflows-fastpath.md) |
 | Work on Yocto-built VM image content under `vm-images/*` | [example-workflows-fastpath.md](example-workflows-fastpath.md#yocto-vm-image-fast-path) |

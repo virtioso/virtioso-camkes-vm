@@ -1,0 +1,96 @@
+direction: right
+
+title: "X86 vm_qemu_virtio Console Topology: Current binary_frames Path"
+
+autopilot: {
+  label: "Autopilot"
+  style.fill: "#e8f1ff"
+
+  chain: "chain_runtime.py\nwait_pattern / send_cmd"
+  sources: "sources:\n- driver_vm_console\n- user_vm_console\n- vmm_mux_control\n- vmm_debug\n- tty0 alias"
+}
+
+local_runner: {
+  label: "Local Runner Host"
+  style.fill: "#eef7ea"
+
+  qemu_runner: "tools/qemu_runner.py\nmanifest owner\ntransport selector"
+  router: "tools/console_router.py\nbinary frame decoder\ncreates console-runtime/\nPTYs + raw.log + events.jsonl"
+  runtime: "console-runtime/\nchannels/*\nsessions.json\nruntime-manifest.json"
+}
+
+remote_host: {
+  label: "Remote QEMU Host"
+  style.fill: "#fff6e8"
+
+  ssh: "ssh process stdio\nsingle byte stream"
+  bundle: "runtime/run-bundle.sh\nsimulate\nQEMU -serial stdio -monitor none"
+
+  serial_server: {
+    label: "SerialServer / host-visible console mux"
+    style.fill: "#fffdf7"
+    processed: "processed_putchar\nhost-visible raw sink"
+    guest: "guest_putchar\nhost-visible guest sink"
+  }
+
+  init_vm0: {
+    label: "Init (vm0)"
+    style.fill: "#f8f8ff"
+    diag0: "set_putchar -> vmm_console_diag_putchar"
+    dbg0: "vmm_debug_emitf\nvmm_console_debug_putchar"
+    uart0: "serial.c\nvmm_console_guest_putchar"
+  }
+
+  init_vm1: {
+    label: "Init (vm1)"
+    style.fill: "#f8f8ff"
+    diag1: "set_putchar -> vmm_console_diag_putchar"
+    dbg1: "vmm_debug_emitf\nvmm_console_debug_putchar"
+    uart1: "serial.c\nvmm_console_guest_putchar"
+  }
+
+  framed_stream: "Merged producer stream on stdout\ntransport: binary_frames\nframe header:\nmagic + version + stream_id + dir + flags + len"
+}
+
+guest_channels: {
+  label: "Logical Channels"
+  style.fill: "#f7f7f7"
+  s1: "1 driver_vm_console\nVM0 guest console"
+  s3: "3 vmm_mux_control\ngeneric Init diagnostics\nvm0:/vm1: chatter"
+  s5: "5 user_vm_console\nVM1 guest console"
+  s7: "7 vmm_debug\nexplicit heartbeats\nvm_run_return"
+}
+
+init_vm0.diag0 -> serial_server.processed: "emit framed bytes\nstream 3"
+init_vm0.dbg0 -> serial_server.processed: "emit framed bytes\nstream 7"
+init_vm0.uart0 -> serial_server.guest: "emit framed bytes\nstream 1"
+
+init_vm1.diag1 -> serial_server.processed: "emit framed bytes\nstream 3"
+init_vm1.dbg1 -> serial_server.processed: "emit framed bytes\nstream 7"
+init_vm1.uart1 -> serial_server.guest: "emit framed bytes\nstream 5"
+
+serial_server.processed -> framed_stream: "host-visible stdout path"
+serial_server.guest -> framed_stream: "host-visible stdout path"
+bundle -> framed_stream: "stdout of wrapped run"
+framed_stream -> ssh: "remote stdout bytes"
+ssh -> local_runner.router: "stdin/stdout transport\nsingle ssh byte stream"
+
+local_runner.qemu_runner -> local_runner.router: "run-command\ntransport.type=binary_frames\ndefault_input_channel=driver_vm_console"
+local_runner.router -> local_runner.runtime: "materialize per-channel logs\ncreate PTYs for interactive channels"
+
+local_runner.router -> guest_channels.s1: "decode stream_id=1"
+local_runner.router -> guest_channels.s3: "decode stream_id=3"
+local_runner.router -> guest_channels.s5: "decode stream_id=5"
+local_runner.router -> guest_channels.s7: "decode stream_id=7"
+
+autopilot.chain -> local_runner.runtime: "read path\nsessions.json -> raw.log"
+autopilot.chain -> local_runner.router: "write path\nopen PTY\nencode tx binary frame"
+
+autopilot.sources -> guest_channels.s1
+autopilot.sources -> guest_channels.s5
+autopilot.sources -> guest_channels.s3
+autopilot.sources -> guest_channels.s7
+
+note_current: "Current verified state\n- stream 3 and 7 materialize locally\n- remote producer emits stream 1 and 5\n- local runtime still fails to materialize 1 and 5"
+note_current.style.fill: "#fdecec"
+local_runner.router -> note_current: "current blocker"

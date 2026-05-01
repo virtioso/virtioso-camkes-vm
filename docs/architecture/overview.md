@@ -2,6 +2,15 @@
 
 This document describes the high-level architecture of the Virtioso seL4 Virtio Virtualization Platform.
 
+Relevant supporting architecture documents:
+
+- [vm-topology.md](vm-topology.md)
+- [virtio-architecture.md](virtio-architecture.md)
+- [cross-arch-tcu-uart-mux-plan-2026-05-01.md](cross-arch-tcu-uart-mux-plan-2026-05-01.md)
+- [console-mux-nvidia-style-rewrite-plan-2026-04-27.md](console-mux-nvidia-style-rewrite-plan-2026-04-27.md)
+- [console-transport-and-routing.md](console-transport-and-routing.md)
+- [autopilot-console-source-integration.md](autopilot-console-source-integration.md)
+
 ## Architecture Diagram
 
 ```mermaid

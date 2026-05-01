@@ -65,10 +65,23 @@ function(DeclareVirtiosoArmCAmkESVM name)
 endfunction(DeclareVirtiosoArmCAmkESVM)
 
 function(DeclareVirtiosoX86CAmkESVM name)
+    cmake_parse_arguments(
+        PARSE_ARGV 1 VM_COMP "" ""
+        "EXTRA_SOURCES;EXTRA_INCLUDES;EXTRA_LIBS;EXTRA_C_FLAGS;EXTRA_LD_FLAGS"
+    )
     DeclareCAmkESVM(
         ${name}
+        EXTRA_SOURCES
+        ${VM_COMP_EXTRA_SOURCES}
+        EXTRA_INCLUDES
+        ${VM_COMP_EXTRA_INCLUDES}
         EXTRA_LIBS
         virtioso_camkes_vm_Config
+        ${VM_COMP_EXTRA_LIBS}
+        EXTRA_C_FLAGS
+        ${VM_COMP_EXTRA_C_FLAGS}
+        EXTRA_LD_FLAGS
+        ${VM_COMP_EXTRA_LD_FLAGS}
     )
 endfunction(DeclareVirtiosoX86CAmkESVM)
 

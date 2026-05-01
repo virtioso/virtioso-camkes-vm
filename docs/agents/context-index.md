@@ -62,11 +62,12 @@ Entry fields:
 - Next action: copy the two files from the primary note into `Linux_for_Tegra`, flash with the `jetson-agx-orin-devkit-uarta-vm` target, then rerun Autopilot `vm-qemu-virtio` and verify VM1 logs appear on the external serial adapter connected to header pins 8/10 without RAS. If RAS remains after flashing, extend the platform-side investigation from SCR firewall policy to UARTA clock/reset ownership.
 - Updated: 2026-04-29
 
-### Cross-arch console mux and stream routing
+### Cross-arch TCU-style UART mux and stream routing
 
 - Status: active
-- Primary note: [../architecture/console-mux-nvidia-style-rewrite-plan-2026-04-27.md](../architecture/console-mux-nvidia-style-rewrite-plan-2026-04-27.md)
+- Primary note: [../architecture/cross-arch-tcu-uart-mux-plan-2026-05-01.md](../architecture/cross-arch-tcu-uart-mux-plan-2026-05-01.md)
 - Related notes:
+  - [../architecture/console-mux-nvidia-style-rewrite-plan-2026-04-27.md](../architecture/console-mux-nvidia-style-rewrite-plan-2026-04-27.md)
   - [../architecture/console-mux-camkes-architecture-plan-2026-04-25.md](../architecture/console-mux-camkes-architecture-plan-2026-04-25.md)
   - [../architecture/console-transport-and-routing.md](../architecture/console-transport-and-routing.md)
   - [../architecture/autopilot-console-source-integration.md](../architecture/autopilot-console-source-integration.md)
@@ -75,20 +76,29 @@ Entry fields:
   - [../integration/console-timeline-and-interactive-architecture-2026-04-23.md](../integration/console-timeline-and-interactive-architecture-2026-04-23.md)
   - [../integration/x86-vm-qemu-virtio-console-stream-inventory-2026-04-24.md](../integration/x86-vm-qemu-virtio-console-stream-inventory-2026-04-24.md)
   - [../integration/x86-vm-qemu-virtio-framed-console-transport-plan-2026-04-24.md](../integration/x86-vm-qemu-virtio-framed-console-transport-plan-2026-04-24.md)
-- Last known state: the earlier `CF` / `binary_frames` direction is no longer the target architecture. The new direction is a minimal NVIDIA-style mux protocol on the seL4 side, second-UART isolation for low-level output, generated CAmkES stream enumeration, and `tcu_muxer`-style host demux. `vmm_mux_control` and `vmm_debug` must stay distinct.
-- Next action: audit active-path dependencies on `CF`, `binary_frames`, and `line_prefixes`, then replace target emission and host demux around a generated stream inventory seam.
-- Updated: 2026-04-27
+  - [../integration/orinagx-vm-qemu-virtio-crossvm-irq-analysis-2026-02-09.md](../integration/orinagx-vm-qemu-virtio-crossvm-irq-analysis-2026-02-09.md)
+  - [../platforms/orin-agx/investigations/tcu-console-sporadic-hang.md](../platforms/orin-agx/investigations/tcu-console-sporadic-hang.md)
+- Last known state: the earlier `CF` / `binary_frames` direction is no longer the target architecture and does not need compatibility preservation. The active topic is explicitly cross-arch: share a minimal NVIDIA TCU-style mux contract across x86 and Arm, but use `0xfe <stream-id>` as our escape/switch sequence instead of NVIDIA `tcu_muxer`'s `0xff` so our mux can run over a real NVIDIA TCU path. The implementation order has changed: template-generated stream mappings come first, and all manually assigned stream IDs are migration targets to remove. Every CAmkES component gets its own generated stream identity; there is no shared default stream. The mux announces generated stream IDs, CAmkES component names, directions, and aliases to the demuxer, and the demuxer creates PTYs/logs from that introspection instead of hard-coded maps. Autopilot must consume the same introspection and stop embedding stream IDs or post-demux `/dev` assumptions. The muxer is hardware-facing on real platforms: keep the mux core separate from platform UART backends, and make Arm backends support device-tree/passthrough-style UART ownership metadata like VM device passthrough. Arm guests should see a proper bidirectional UART device model, preferably PL011 unless another standard model is better; output-only earlycon is not enough, and the same device-model contract should be supportable by QEMU when the VM is run outside seL4.
+- Next action: before implementation, commit current work in each touched repo and create `before-mux` backup branches. Then implement the generated registry/enforcement slice first: CAmkES/Jinja2 stream registry generation, no hand-authored `stream_id` assignments, no public raw stream-ID APIs, and generated host metadata. Only after that should the UART backend boundary, bidirectional Arm guest UART model, `0xfe` encoder/demux, Orin physical-UART discovery cleanup, and Autopilot introspection consumption be implemented. Add a default-on Kconfig item consumed by app-specific `settings.cmake` so each app can intentionally select mux/demux or upstream-style behavior.
+- Updated: 2026-05-01
 
 Recovery note:
 
-- if a future session asks whether the console/mux work already has a plan,
-  open the primary note above first
+- if a future session asks whether the console/mux work already has a plan, or
+  asks about making NVIDIA TCU-style muxing available on both x86 and Arm, open
+  the primary note above first
 - do not restart from the older framed-transport notes unless the task is
-  explicitly historical or removal-related
+  explicitly historical or removal-related; `line_prefixes`, `binary_frames`,
+  and `CF` framing are local-only post-upstream mux/demux work and may be
+  rewritten instead of preserved
 - the key decision recorded on 2026-04-27 is that we own the full stack and
   therefore do not preserve compatibility with `CF` or `binary_frames`
-- the intended target is NVIDIA-style `0xff <stream-id>` switching, not richer
-  protocol framing
+- the intended target is NVIDIA-style stream switching with our own `0xfe`
+  escape byte, not NVIDIA's `0xff`, and not richer protocol framing
+- do not resume from a plan that keeps existing numeric stream IDs "for now";
+  generated stream identity and introspection are the first required slice
+- do not bake Orin TCU, UARTI, SBSA UART, PL011, 8250, or QEMU chardev behavior
+  into the mux core; use selected platform UART backends
 
 ### `qemu_x86_64_defconfig` `vm_qemu_virtio` target topology
 

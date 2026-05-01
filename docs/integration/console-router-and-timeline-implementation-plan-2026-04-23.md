@@ -21,8 +21,112 @@ This plan is coexistence-first. It preserves the current workflows while
 introducing a better console boundary under the existing QEMU runner and
 Autopilot abstractions.
 
+Current architecture references:
+
+- [Console Transport And Routing Architecture](../architecture/console-transport-and-routing.md)
+- [Autopilot Console Source Integration](../architecture/autopilot-console-source-integration.md)
+- historical x86 notes:
+  - [X86 `vm_qemu_virtio` Console Stream Inventory (2026-04-24)](x86-vm-qemu-virtio-console-stream-inventory-2026-04-24.md)
+  - [X86 `vm_qemu_virtio` Framed Console Transport Plan (2026-04-24)](x86-vm-qemu-virtio-framed-console-transport-plan-2026-04-24.md)
+
 ## Progress
 
+- 2026-04-25: corrected the current x86 producer stream ownership split in the
+  native `binary_frames` path and captured the next live blocker.
+  - `projects/vm/components/Init/src/console_frame_transport.c` and
+    `console_frame_transport.h` now distinguish:
+    - generic `Init` diagnostics -> stream `3` (`vmm_mux_control`)
+    - explicit heartbeat / `vm_run_return` debug -> stream `7`
+      (`vmm_debug`)
+    - guest UART from `vm0` -> stream `1` (`driver_vm_console`)
+    - guest UART from `vm1` -> stream `5` (`user_vm_console`)
+  - `projects/vm/components/Init/src/main.c` now routes global `Init`
+    `set_putchar(...)` traffic to `vmm_console_diag_putchar` instead of the
+    debug stream, so generic `vm0:` / `vm1:` chatter no longer pollutes
+    `vmm_debug`
+  - explicit VMM heartbeat emitters now bypass global stdio and write directly
+    to stream `7`
+  - verification:
+    - clean rebuild passed with `make mrproper`,
+      `make qemu_x86_64_defconfig`, and `make vm_qemu_virtio`
+    - live remote run:
+      `/tmp/qemu-x86-binary-frames-thinkpad-fix3`
+  - observed live result from `fix3`:
+    - `vmm_mux_control/raw.log` is populated with the legacy `vm0:` / `vm1:`
+      diagnostic chatter
+    - `vmm_debug/raw.log` is populated with explicit `[vmmdbg] ...` heartbeat
+      traffic
+    - `driver_vm_console/raw.log` and `user_vm_console/raw.log` remain empty
+      locally
+  - crucial source-side proof:
+    - the live remote producer log on
+      `hlyytine-ThinkPad-T14-Gen-1` does emit guest-console frames
+    - in
+      `~/virtioso-qemu-runs/qemu_x86_64_defconfig/qemu_x86_64_defconfig-capdl-loader-image-x86_64-pc99-20260425T072750Z/runtime/qemu-run.log`,
+      first stream offsets were:
+      - stream `3` at `75285`
+      - stream `7` at `134741`
+      - stream `1` at `614247`
+      - stream `5` at `647813`
+    - the stream `1` and `5` payload starts with real guest boot text such as
+      `[    0.000... ]`, so the producer is not the remaining missing piece
+  - current blocker:
+    - the local `binary_frames` router/runtime still fails to materialize
+      valid incoming stream `1` and `5` frames into the corresponding
+      interactive guest-channel `raw.log` files
+    - so the investigation has moved from producer stream ownership to the
+      router/runtime handling of valid guest-console frame delivery
+- 2026-04-24: added a dedicated x86 console-stream inventory reference:
+  [x86-vm-qemu-virtio-console-stream-inventory-2026-04-24.md](x86-vm-qemu-virtio-console-stream-inventory-2026-04-24.md)
+  - purpose:
+    - freeze the meaning of `driver_vm_console`, `vmm_mux_control`, and
+      `vmm_debug`
+    - separate verdict sources from diagnostics-only sources
+    - document which logical channels are declared versus actually populated by
+      the current `line_prefixes` compatibility transport
+- 2026-04-24: added a dedicated framed transport target note:
+  [x86-vm-qemu-virtio-framed-console-transport-plan-2026-04-24.md](x86-vm-qemu-virtio-framed-console-transport-plan-2026-04-24.md)
+  - purpose:
+    - make `line_prefixes` explicitly legacy-only for x86
+    - define a no-heuristics target where the producer owns stream identity
+    - specify the migration direction toward length-delimited framed records
+- 2026-04-24: implemented the first code slice for that target:
+  - `tools/console_router.py` now supports `transport.type = "binary_frames"`
+  - `tools/console_frame_stream.py` was added as an explicit producer wrapper
+    that frames one declared logical channel with no router-side heuristics
+  - `tools/qemu_runner.py` can now emit a `binary_frames` manifest and wrap
+    the x86 `vm_qemu_virtio` producer path when
+    `VIRTIOSO_CONSOLE_ROUTER_USE_BINARY_FRAMES=1`
+  - current limitation: this first slice is explicit and non-heuristic, but
+    still single-channel on the producer side (`driver_vm_console`) until the
+    upstream producer can emit multiple real stream ids directly
+- 2026-04-24: advanced the x86 path from the temporary single-channel wrapper
+  toward native producer-owned framing:
+  - `projects/vm/components/Init/src/main.c` now routes VMM stdio through a
+    framed debug sink for the x86 `vm_qemu_virtio` app
+  - `projects/vm/components/Init/src/serial.c` now routes guest UART bytes
+    through a framed `driver_vm_console` sink for that same app
+  - `apps/x86/vm_qemu_virtio/CMakeLists.txt` enables the framed producer path
+    via `-DVMM_CONSOLE_FRAMED_OUTPUT=1`
+  - `tools/qemu_runner.py` now treats `binary_frames` as a native producer
+    transport and forces `-serial stdio -monitor none` so QEMU monitor output
+    stops sharing the framed transport
+  - build verification: clean `make mrproper`, `make qemu_x86_64_defconfig`,
+    and `make vm_qemu_virtio` all succeeded with the new transport code
+  - live verification: a real remote x86 probe no longer fails immediately on
+    the startup `mon:stdio` path, and the local router now creates the named
+    `binary_frames` channel set successfully
+  - remaining blocker: the run still later aborts on an unframed `ESC c`
+    sequence, which proves at least one additional producer in the x86 launch
+    path still writes raw bytes outside the new framed sinks
+- 2026-04-24: fixed an Autopilot recovery gap that was masking fresh x86
+  console investigations. The daemon had died while
+  `20260424-112023.request` and `20260424-191925.request` were still in
+  `requests/processing/`, and the previous manager start path left them there
+  indefinitely. `autopilot_manager.py` now requeues stale `processing`
+  requests on the next `autopilot_start` or `autopilot_restart`, matching the
+  documented graceful-shutdown contract and appending the recovery action to
+  `runtime/autopilot.log`.
 - 2026-04-24: corrected the current x86 login investigation methodology after
   a bad five-run repetition summary mixed remote SSH transport failures with
   guest-console behavior. The chain/sample interpretation must now treat these

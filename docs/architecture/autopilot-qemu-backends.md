@@ -3,6 +3,11 @@
 This document defines the execution architecture for QEMU-backed targets used by
 Virtioso seL4 builds and by autopilot.
 
+Related console architecture documents:
+
+- [console-transport-and-routing.md](console-transport-and-routing.md)
+- [autopilot-console-source-integration.md](autopilot-console-source-integration.md)
+
 ## Goals
 
 - Keep the deploy and boot flow backend-specific.
@@ -122,6 +127,10 @@ defines host-specific coordinates.
 
 Autopilot should treat QEMU-backed targets as process-backed sources rather than
 UART-backed sources.
+
+For the split-console x86 path, the detailed source-resolution and PTY-write
+contract now lives in
+[autopilot-console-source-integration.md](autopilot-console-source-integration.md).
 
 Responsibilities that remain shared with Orin:
 

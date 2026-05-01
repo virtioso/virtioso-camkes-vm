@@ -1,0 +1,70 @@
+direction: down
+
+title: "Autopilot Interaction With console-runtime"
+
+autopilot: {
+  label: "Autopilot"
+  style.fill: "#e8f1ff"
+  manifest_load: "load console/console-manifest.json"
+  sessions_load: "load console-runtime/sessions.json"
+  alias: "resolve source name\nand legacy_aliases"
+  read: "wait_pattern\nread session log_path"
+  write: "send_cmd\nopen channel PTY"
+}
+
+runtime: {
+  label: "console-runtime"
+  style.fill: "#eef7ea"
+  sessions: "sessions.json\nname -> log_path/events_path/pty_path"
+  driver_log: "channels/driver_vm_console/raw.log"
+  user_log: "channels/user_vm_console/raw.log"
+  mux_log: "channels/vmm_mux_control/raw.log"
+  dbg_log: "channels/vmm_debug/raw.log"
+  driver_pty: "channels/driver_vm_console/pty"
+  user_pty: "channels/user_vm_console/pty"
+}
+
+router: {
+  label: "console_router.py"
+  style.fill: "#fff6e8"
+  decode_rx: "decode producer rx"
+  append: "append_raw()\nemit_event()"
+  pty_rx: "forward rx to PTY\nfor interactive channels"
+  encode_tx: "encode tx\nbinary frame / jsonl / raw stdin"
+}
+
+producer: {
+  label: "Wrapped producer"
+  style.fill: "#f7f7f7"
+  out: "stdout transport"
+  in: "stdin transport"
+}
+
+autopilot.manifest_load -> runtime.sessions: "join manifest channels\nwith sessions"
+autopilot.sessions_load -> runtime.sessions
+autopilot.alias -> runtime.sessions: "source -> session"
+
+autopilot.read -> runtime.driver_log: "source=driver_vm_console"
+autopilot.read -> runtime.user_log: "source=user_vm_console"
+autopilot.read -> runtime.mux_log: "source=vmm_mux_control"
+autopilot.read -> runtime.dbg_log: "source=vmm_debug"
+
+autopilot.write -> runtime.driver_pty: "default interactive path"
+autopilot.write -> runtime.user_pty: "if chain targets VM1 console"
+
+producer.out -> router.decode_rx: "producer transport"
+router.decode_rx -> router.append
+router.append -> runtime.driver_log
+router.append -> runtime.user_log
+router.append -> runtime.mux_log
+router.append -> runtime.dbg_log
+router.pty_rx -> runtime.driver_pty
+router.pty_rx -> runtime.user_pty
+
+runtime.driver_pty -> router.encode_tx: "user / Autopilot input bytes"
+runtime.user_pty -> router.encode_tx: "user / Autopilot input bytes"
+router.encode_tx -> producer.in: "transport-specific tx"
+
+note: "Authority rule\nAutopilot selects post-demux channels\nIt does not implement its own demuxer"
+note.style.fill: "#fff6e8"
+autopilot.alias -> note

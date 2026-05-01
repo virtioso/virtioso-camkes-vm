@@ -1,0 +1,53 @@
+direction: right
+
+title: "X86 vm_qemu_virtio Console Topology: Legacy line_prefixes Compatibility Path"
+
+autopilot: {
+  label: "Autopilot"
+  style.fill: "#e8f1ff"
+  chain: "chain_runtime.py"
+  regex: "regexes run on named sources\nbut source identity came from router classification"
+}
+
+runner: {
+  label: "Runner / Router"
+  style.fill: "#eef7ea"
+  qemu_runner: "tools/qemu_runner.py\ntransport.type=line_prefixes\nprefix_map + fallback_channel"
+  router: "tools/console_router.py\nansi strip\nprefix match\nfallback flush"
+  runtime: "console-runtime/\nraw.log + events.jsonl + PTYs"
+}
+
+remote: {
+  label: "Remote Wrapped Process"
+  style.fill: "#fff6e8"
+  merged: "One merged stdout stream\nplaintext only"
+  sources: "mixed speakers:\n- QEMU launcher text\n- SeaBIOS / bootloader\n- generic vm0:/vm1: chatter\n- [vmmdbg] lines\n- guest prompt / shell"
+}
+
+channels: {
+  label: "Router-created logical views"
+  style.fill: "#f7f7f7"
+  tty0: "tty0 alias\ncompatibility name"
+  driver: "driver_vm_console\nfallback sink"
+  mux: "vmm_mux_control\nprefix matched"
+  debug: "vmm_debug\nprefix matched"
+}
+
+remote.sources -> remote.merged: "all sources merge before attribution"
+remote.merged -> runner.router: "transport: plaintext stdio"
+runner.qemu_runner -> runner.router: "prefix_map:\n[vmmdbg] -> vmm_debug\nvm0:/vm1: -> vmm_mux_control\nfallback -> driver_vm_console"
+
+runner.router -> channels.debug: "match textual prefixes"
+runner.router -> channels.mux: "match textual prefixes"
+runner.router -> channels.driver: "everything else\nincluding prompts and unclassified text"
+
+channels.driver -> channels.tty0: "legacy alias"
+
+autopilot.chain -> runner.runtime: "read per-channel raw.log"
+autopilot.regex -> channels.driver
+autopilot.regex -> channels.debug
+autopilot.regex -> channels.mux
+
+problem: "Architectural problem\nsource identity is inferred after merge\nnewline timing and formatting affect routing"
+problem.style.fill: "#fdecec"
+runner.router -> problem: "heuristic demux"

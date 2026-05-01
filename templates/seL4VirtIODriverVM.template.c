@@ -58,6 +58,7 @@ int vm/*? dev.id ?*/_io_proxy_run(io_proxy_t *io_proxy)
     return 0;
 }
 
+#ifdef CONFIG_ARCH_ARM
 static fdt_dataport_t fdt_swiotlb_vm/*? dev.id ?*/ = {
     .node = {
         .name = "swiotlb",
@@ -69,6 +70,7 @@ static fdt_dataport_t fdt_swiotlb_vm/*? dev.id ?*/ = {
 };
 
 DEFINE_FDT_NODE(fdt_swiotlb_vm/*? dev.id ?*/, &fdt_swiotlb_vm/*? dev.id ?*/.node)
+#endif
 
 io_proxy_t vm/*? dev.id ?*/_io_proxy = {
     .data_base = /*? dev.data_base ?*/,

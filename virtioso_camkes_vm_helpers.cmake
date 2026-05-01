@@ -170,16 +170,30 @@ function(DeclareVirtiosoX86CAmkESVM name)
     DeclareCAmkESVM(
         ${name}
         EXTRA_SOURCES
+        ${VIRTIOSO_CAMKES_VM_DIR}/src/camkes/modules/io_proxy.c
         ${VM_COMP_EXTRA_SOURCES}
         EXTRA_INCLUDES
+        ${VIRTIOSO_CAMKES_VM_DIR}/include
+        ${VIRTIOSO_CONTRACTS_INCLUDE_DIR}
         ${VM_COMP_EXTRA_INCLUDES}
         EXTRA_LIBS
+        virtioso_camkes_vm
         virtioso_camkes_vm_Config
         ${VM_COMP_EXTRA_LIBS}
         EXTRA_C_FLAGS
         ${VM_COMP_EXTRA_C_FLAGS}
         EXTRA_LD_FLAGS
         ${VM_COMP_EXTRA_LD_FLAGS}
+    )
+    DeclareCAmkESComponent(
+        ${name}
+        TEMPLATE_SOURCES
+        seL4VMParameters.template.c
+        seL4VirtIODeviceVM.template.c
+        seL4VirtIODriverVM.template.c
+        TEMPLATE_HEADERS
+        seL4VMParameters.template.h
+        seL4VirtIODeviceVM.template.h
     )
 endfunction(DeclareVirtiosoX86CAmkESVM)
 

@@ -27,17 +27,22 @@
 #include <virtioso/emulated_device.h>
 
 #include <sel4vmmplatsupport/ioports.h>
+#ifdef CONFIG_ARCH_ARM
 #include <sel4vmmplatsupport/arch/vpci.h>
+#endif
 
+#ifdef CONFIG_ARCH_ARM
 #include <virtioarm/virtio_plat.h>
+#define INTERRUPT_PCI_INTX_BASE (VIRTIO_CON_PLAT_INTERRUPT_LINE)
+#else
+#define INTERRUPT_PCI_INTX_BASE 16
+#endif
 
 #ifdef CONFIG_VIRTIO_VM_DEBUG
 #define RPCDBG(fmt, ...) ZF_LOGE("rpcdbg: " fmt, ##__VA_ARGS__)
 #else
 #define RPCDBG(fmt, ...) do { } while (0)
 #endif
-
-#define INTERRUPT_PCI_INTX_BASE (VIRTIO_CON_PLAT_INTERRUPT_LINE)
 
 typedef int (*rpc_callback_fn_t)(io_proxy_t *io_proxy, unsigned int op,
                                  rpcmsg_t *msg);

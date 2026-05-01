@@ -32,6 +32,7 @@ else()
         src/io_proxy.c
         src/irq_line.c
         src/irq_reservations.c
+        src/libsel4vm_glue.c
         src/list.c
         src/mmio_reservations.c
         src/msi.c

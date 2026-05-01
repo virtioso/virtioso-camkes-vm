@@ -56,6 +56,7 @@ typedef struct fdt_sel4_camkes_rpc {
     uint32_t driver_vmid;
 } fdt_sel4_camkes_rpc_t;
 
+#ifdef CONFIG_ARCH_ARM
 static int fdt_node_generate_sel4_camkes_rpc(fdt_node_t *node, void *fdt)
 {
     fdt_sel4_camkes_rpc_t *rpc = (fdt_sel4_camkes_rpc_t *)node;
@@ -137,6 +138,7 @@ static fdt_sel4_camkes_rpc_t fdt_sel4_camkes_rpc_vm/*? drv.id ?*/ = {
 
 DEFINE_FDT_NODE(fdt_sel4_camkes_rpc_vm/*? drv.id ?*/, &fdt_sel4_camkes_rpc_vm/*? drv.id ?*/.node)
 /*- endfor -*/
+#endif
 
 static int consume_callback(vm_t *vm, void *cookie)
 {

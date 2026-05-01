@@ -66,8 +66,6 @@ assembly {
         VM_CONFIGURATION_DEF()
         VM_VIRTIOSO_CONFIGURATION_DEF(0)
 
-        vm0_guest_console_sink.stream_id = 1;
-
         vm0.simple_untyped23_pool = 21;
         vm0.simple_untyped22_pool = 1;
         vm0.heap_size = 0x5000000;

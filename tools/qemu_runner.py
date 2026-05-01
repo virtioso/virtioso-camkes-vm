@@ -26,6 +26,8 @@ from typing import Iterable
 SCRIPT_DIR = Path(__file__).resolve().parent
 WORKSPACE_ROOT = SCRIPT_DIR.parent.parent.parent
 VM_IMAGES_DIR = WORKSPACE_ROOT / "vm-images"
+TCU_MUXER_DIR = WORKSPACE_ROOT / "sources" / "tcu_muxer"
+TCU_MUXER_BINARY = TCU_MUXER_DIR / "tcu_muxer"
 DEFAULT_REMOTE_CONFIG = Path.home() / ".virtioso-qemu-runners.json"
 DEFAULT_RUNTIME_DEPLOY_DIR = VM_IMAGES_DIR / "build" / "tmp" / "deploy" / "virtioso-qemu-runtime"
 
@@ -260,6 +262,21 @@ def _write_console_manifest(path: Path, target: str, binary: Path, spec: TargetS
     return path
 
 
+def _write_bundle_console_manifest(path: Path, target: str, binary: Path, spec: TargetSpec) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(_console_manifest(target, binary, spec, force_process_stdio=True), indent=2) + "\n")
+    return path
+
+
+def _ensure_tcu_muxer_binary() -> Path:
+    if not (TCU_MUXER_DIR / "Makefile").exists():
+        raise RunnerError(f"tcu_muxer source directory not found: {TCU_MUXER_DIR}")
+    subprocess.run(["make", "-C", str(TCU_MUXER_DIR)], check=True)
+    if not TCU_MUXER_BINARY.exists():
+        raise RunnerError(f"tcu_muxer build did not produce {TCU_MUXER_BINARY}")
+    return TCU_MUXER_BINARY
+
+
 def _router_command(
     manifest_path: Path,
     runtime_dir: Path,
@@ -361,6 +378,8 @@ def run_local(
         wrapped_argv = _simulate_command(build_dir, binary, runtime.binary, merged_extra_qemu_args)
     else:
         wrapped_argv = _fallback_local_command(binary, spec, runtime.binary, merged_extra_qemu_args)
+    if _console_profile(binary) == "vm_qemu_virtio" and not dry_run:
+        _ensure_tcu_muxer_binary()
     manifest_path = _write_console_manifest(console_root / "console-manifest.json", target, binary, spec)
     router_runtime_dir = console_root / "console-runtime"
     argv = _router_command(manifest_path, router_runtime_dir, wrapped_argv)
@@ -612,7 +631,7 @@ def _simulate_serial_opt(binary: Path) -> str:
     return ""
 
 
-def _console_manifest(target: str, binary: Path, spec: TargetSpec) -> dict:
+def _console_manifest(target: str, binary: Path, spec: TargetSpec, *, force_process_stdio: bool = False) -> dict:
     run_id = datetime.now(timezone.utc).isoformat(timespec="seconds")
     profile = _console_profile(binary)
     # The current runner still collapses QEMU-backed console output onto a single
@@ -633,6 +652,30 @@ def _console_manifest(target: str, binary: Path, spec: TargetSpec) -> dict:
         merged_channel["declared_successor_channels"] = [
             channel["name"] for channel in _logical_vm_qemu_virtio_channels()
         ]
+        if not force_process_stdio:
+            return {
+                "version": 1,
+                "run_id": run_id,
+                "target": target,
+                "binary_name": binary.name,
+                "transport": {
+                    "type": "virtioso_tcu_mux",
+                    "owner": "qemu_runner",
+                    "qemu_binary": spec.qemu_binary,
+                    "tcu_muxer_path": str(TCU_MUXER_BINARY),
+                    "outer": "raw",
+                    "note": "Runner-side Virtioso 0xfe demux; dynamic PTYs are created from target stream announcements.",
+                },
+                "channels": [
+                    {
+                        "id": 0,
+                        "name": "RAW",
+                        "kind": "raw_mux_stream",
+                        "interactive": False,
+                        "pty": True,
+                    }
+                ],
+            }
     return {
         "version": 1,
         "run_id": run_id,
@@ -824,7 +867,7 @@ def prepare_remote_bundle(
             bundled_interpreter,
         )
         (bundle_dir / "bundle.json").write_text(json.dumps(_bundle_metadata(target, binary, spec), indent=2))
-        (bundle_dir / "console-manifest.json").write_text(json.dumps(_console_manifest(target, binary, spec), indent=2))
+        _write_bundle_console_manifest(bundle_dir / "console-manifest.json", target, binary, spec)
         return bundle_dir
     finally:
         if temp_runtime_root is not None:
@@ -986,6 +1029,8 @@ def run_remote(
         else Path(tempfile.mkdtemp(prefix="virtioso-console-remote-"))
     )
     manifest_path = _write_console_manifest(console_root / "console-manifest.json", target, binary, spec)
+    if _console_profile(binary) == "vm_qemu_virtio" and not dry_run:
+        _ensure_tcu_muxer_binary()
     router_runtime_dir = console_root / "console-runtime"
     remote = f"{runner['ssh_user']}@{runner['ssh_host']}"
     remote_dir = runner["remote_dir"]

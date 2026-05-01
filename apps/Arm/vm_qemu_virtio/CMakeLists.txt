@@ -43,6 +43,15 @@ DefineCAmkESVMFileServer()
 DeclareVirtiosoCAmkESVM(VM0)
 DeclareVirtiosoCAmkESVM(VM1)
 
+VirtiosoGenerateCAmkESStreamRegistry(
+    vm_qemu_virtio
+    vm_qemu_virtio.camkes
+    CPP_FLAGS
+    ${cpp_flags}
+    CPP_INCLUDES
+    ${CAMKES_VM_DIR}/components/VM_Arm
+)
+
 # Declare root server
 DeclareCAmkESRootserver(
     vm_qemu_virtio.camkes

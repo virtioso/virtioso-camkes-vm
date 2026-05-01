@@ -78,6 +78,10 @@ AddToFileServer("rootfs.cpio.gz" "${VM_IMAGE_ROOTFS}")
 
 DeclareVirtiosoX86CAmkESVM(Init0)
 
+VirtiosoGenerateCAmkESStreamRegistry(
+    vm_qemu_virtio_minimal
+    vm_qemu_virtio_minimal.camkes
+)
 DeclareCAmkESVMRootServer(vm_qemu_virtio_minimal.camkes)
 
 if(SIMULATION)

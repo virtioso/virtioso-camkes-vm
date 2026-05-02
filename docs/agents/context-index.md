@@ -142,14 +142,15 @@ Recovery note:
 ### Isengard portable semantic core and Linux-only QEMU path
 
 - Status: active
-- Primary note: [../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md](../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md)
+- Primary note: [../../../isengard-camkes-vm/docs/normet-isengard-project-direction.md](../../../isengard-camkes-vm/docs/normet-isengard-project-direction.md)
 - Related notes:
+  - [../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md](../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md)
   - [../../../isengard-camkes-vm/docs/architecture.md](../../../isengard-camkes-vm/docs/architecture.md)
   - [../../../isengard-camkes-vm/docs/orin-agx-support-plan.md](../../../isengard-camkes-vm/docs/orin-agx-support-plan.md)
   - [../../../isengard-camkes-vm/docs/README.md](../../../isengard-camkes-vm/docs/README.md)
-- Last known state: business logic must exist in one shared semantic implementation and remain freely placeable in native seL4, native Linux, or Linux-on-seL4. `projects/isengard-camkes-vm` is seL4-side only; host-portable implementation belongs under `sources/`, currently `sources/isengard-core`, with new Linux-side image work routed through `vm-images/meta-isengard`.
-- Next action: for "continue Isengard" requests, start from the primary migration plan and keep new deployment-neutral contracts out of CAmkES IDL.
-- Updated: 2026-04-23
+- Last known state: high-level Normet / Isengard direction is now explicit. Orin-family rugged hardware is the primary direction, both plain Linux and seL4-with-Linux-VM placements remain open, and target priority is Orin AGX, then `qemu_arm64`, then `qemu_x86_64`, then real x86. Business logic must exist in one shared semantic implementation and remain freely placeable in native seL4, native Linux, or Linux-on-seL4. `projects/isengard-camkes-vm` is seL4-side only; host-portable implementation belongs under `sources/`, currently `sources/isengard-core`, with new Linux-side image work routed through `vm-images/meta-isengard`. Reusable Virtioso / Isengard code that currently lives in x86-specific app directories should be extracted into shared `sources/` or shared substrate before adding Arm/Orin support. Arm-compatible Kvaser/CAN simulation is an open design choice because real Orin seL4 has no outer QEMU layer.
+- Next action: for Normet / Isengard architecture work, start from the primary project-direction note, then open the lower-level Orin and Linux-only plans. Decide the first shared-code extraction and CAN/Kvaser simulation seam before growing another x86-only implementation.
+- Updated: 2026-05-02
 
 ### Isengard snapshot service over generic kmod transport
 
@@ -167,6 +168,7 @@ Recovery note:
 - Status: active
 - Primary note: [../../../isengard-camkes-vm/docs/orin-agx-support-plan.md](../../../isengard-camkes-vm/docs/orin-agx-support-plan.md)
 - Related notes:
+  - [../../../isengard-camkes-vm/docs/normet-isengard-project-direction.md](../../../isengard-camkes-vm/docs/normet-isengard-project-direction.md)
   - [../../../isengard-camkes-vm/docs/architecture.md](../../../isengard-camkes-vm/docs/architecture.md)
   - [../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md](../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md)
   - [../integration/orinagx-vm-qemu-virtio-crossvm-irq-analysis-2026-02-09.md](../integration/orinagx-vm-qemu-virtio-crossvm-irq-analysis-2026-02-09.md)

@@ -97,6 +97,13 @@ For `qemu_x86_64_defconfig` QEMU-backed x86 validation:
 
 ## Session Warm-Start Defaults
 
+- For Normet / Isengard architecture or platform-direction work, open
+  `projects/isengard-camkes-vm/docs/normet-isengard-project-direction.md`
+  first. Current strategic defaults: Orin-family rugged hardware is the primary
+  direction; both plain Linux and seL4-with-Linux-VM placements remain open;
+  target priority is Orin AGX, then `qemu_arm64`, then `qemu_x86_64`, then real
+  x86; reusable code should move out of x86-only app directories into shared
+  `sources/` or shared Virtioso/Isengard substrate before adding Arm support.
 - For requests mentioning `projects/virtioso-camkes-vm/apps/Arm` or
   `projects/vm-examples/apps/Arm`, route immediately via
   `docs/agents/example-workflows-fastpath.md` instead of broad repo scanning.
@@ -105,8 +112,9 @@ For `qemu_x86_64_defconfig` QEMU-backed x86 validation:
   `vm-images/virtioso-yocto-layers/` unless the request explicitly asks for a
   full-layer review.
 - For requests like “continue Isengard stuff”, route immediately to
-  `projects/isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md` and
-  treat `projects/isengard-camkes-vm` as the seL4-side repo plus
+  `projects/isengard-camkes-vm/docs/normet-isengard-project-direction.md`,
+  then open the lower-level Orin and Linux-only plans as needed. Treat
+  `projects/isengard-camkes-vm` as the seL4-side repo plus
   `sources/isengard-core` as the current source-side implementation repo.
   Linux-side software for that plan must go through a dedicated Yocto layer
   `vm-images/meta-isengard`.

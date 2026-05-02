@@ -99,7 +99,9 @@ For `qemu_x86_64_defconfig` QEMU-backed x86 validation:
 
 - For Normet / Isengard architecture or platform-direction work, open
   `projects/isengard-camkes-vm/docs/normet-isengard-project-direction.md`
-  first. Current strategic defaults: Orin-family rugged hardware is the primary
+  first, then `projects/isengard-camkes-vm/docs/isengard-master-tracker.md`
+  for active tasks, dependencies, open decisions, and validation expectations.
+  Current strategic defaults: Orin-family rugged hardware is the primary
   direction; both plain Linux and seL4-with-Linux-VM placements remain open;
   target priority is Orin AGX, then `qemu_arm64`, then `qemu_x86_64`, then real
   x86; reusable code should move out of x86-only app directories into shared

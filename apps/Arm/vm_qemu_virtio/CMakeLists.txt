@@ -20,6 +20,18 @@ config_option(
 )
 AddCamkesCPPFlag(cpp_flags CONFIG_VARS UserVmDtb)
 
+CAmkESAddImportPath(${VIRTIOSO_CAMKES_VM_DIR}/components/GuestConsoleSink)
+CAmkESAddImportPath(${VIRTIOSO_CAMKES_VM_DIR}/components/ConsoleDebugBatchSink)
+
+add_subdirectory(
+    ${VIRTIOSO_CAMKES_VM_DIR}/components/GuestConsoleSink
+    ${CMAKE_CURRENT_BINARY_DIR}/GuestConsoleSink
+)
+add_subdirectory(
+    ${VIRTIOSO_CAMKES_VM_DIR}/components/ConsoleDebugBatchSink
+    ${CMAKE_CURRENT_BINARY_DIR}/ConsoleDebugBatchSink
+)
+
 AddToFileServer("linux" "${VM_IMAGE_LINUX}")
 AddToFileServer("linux-initrd" ${VM_IMAGE_INITRD})
 

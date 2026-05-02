@@ -13,6 +13,8 @@ import <seL4VMDTBPassthrough.idl4>;
 import <FileServerInterface.camkes>;
 import <FileServer/FileServer.camkes>;
 import <SerialServer/SerialServer.camkes>;
+import <GuestConsoleSink.camkes>;
+import <ConsoleDebugBatchSink.camkes>;
 import <vm-connectors.camkes>;
 import <devices.camkes>;
 
@@ -32,10 +34,17 @@ assembly {
     composition {
         /* Boilerplate composition settings */
         VM_GENERAL_COMPOSITION_DEF()
+        component ConsoleDebugBatchSink mux_debug_uplink;
+        component GuestConsoleSink vm0_guest_console_sink;
+        component GuestConsoleSink vm1_guest_console_sink;
 
         /* Other standard VM definitions (vm0, vm1) */
         VM_COMPOSITION_DEF(0)
         VM_COMPOSITION_DEF(1)
+        connection seL4RPCCall vm0_guest_console(from vm0.guest_putchar, to vm0_guest_console_sink.guest_putchar);
+        connection seL4RPCCall vm1_guest_console(from vm1.guest_putchar, to vm1_guest_console_sink.guest_putchar);
+        connection seL4SerialServer vm0_guest_console_sink_uplink(from vm0_guest_console_sink.mux_batch, to mux_debug_uplink.raw_batch);
+        connection seL4SerialServer vm1_guest_console_sink_uplink(from vm1_guest_console_sink.mux_batch, to mux_debug_uplink.raw_batch);
 
         VIRTIO_COMPOSITION_DEF(0, 1)
 

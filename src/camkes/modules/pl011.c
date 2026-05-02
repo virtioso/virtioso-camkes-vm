@@ -18,6 +18,11 @@
 #define PL011_UARTDR    0x00    /* UARTDR: uart data register */
 #define PL011_UARTFR    0x18    /* UARTFR: uart flag register */
 
+__attribute__((weak)) void guest_putchar_putchar(int c)
+{
+    putchar(c);
+}
+
 static inline bool pl011_read_fault(pl011_t *p, vm_vcpu_t *vcpu,
                                     uintptr_t paddr, size_t len)
 {
@@ -42,7 +47,7 @@ static inline bool pl011_write_fault(pl011_t *p, vm_vcpu_t *vcpu,
 
     switch (paddr - p->base) {
     case PL011_UARTDR:
-        putchar((int) value);
+        guest_putchar_putchar((int)value);
         break;
     default:
         ZF_LOGW("unhandled write: vcpu=%d addr=0x%"PRIxPTR" len=%zu value=%08",

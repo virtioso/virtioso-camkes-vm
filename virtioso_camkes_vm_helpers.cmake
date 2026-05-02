@@ -68,11 +68,11 @@ function(VirtiosoGenerateCAmkESStreamRegistry name camkes_config)
         "${CMAKE_CURRENT_LIST_DIR}"
         "${CMAKE_CURRENT_SOURCE_DIR}"
         "${VIRTIOSO_CAMKES_VM_DIR}"
+        ${STREAM_REGISTRY_CPP_INCLUDES}
         "${CAMKES_VM_DIR}/components/VM"
         "${CAMKES_VM_DIR}/components/VM/configurations"
         "${CAMKES_VM_DIR}/components/VM_Arm"
         "${CAMKES_VM_DIR}/components/VM_Arm/configurations"
-        ${STREAM_REGISTRY_CPP_INCLUDES}
     )
 
     set(stream_registry_include_args "")
@@ -85,7 +85,7 @@ function(VirtiosoGenerateCAmkESStreamRegistry name camkes_config)
     set(stream_registry_cpp_flag_args "")
     foreach(cpp_flag IN LISTS STREAM_REGISTRY_CPP_FLAGS)
         if(cpp_flag)
-            list(APPEND stream_registry_cpp_flag_args --cpp-flag "${cpp_flag}")
+            list(APPEND stream_registry_cpp_flag_args "--cpp-flag=${cpp_flag}")
         endif()
     endforeach()
 

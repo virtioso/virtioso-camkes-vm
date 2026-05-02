@@ -8,9 +8,13 @@ Edits made via either path affect the same file; treat `projects/virtioso-camkes
 
 ## Current Investigation Focus
 
-- Topic: Orin AGX `vm_qemu_virtio` VM1 boot stall around `virtio_console_init`.
-- Working notes (primary): `docs/integration/orinagx-vm-qemu-virtio-crossvm-irq-analysis-2026-02-09.md`.
-- Current status: cross-VM IRQ path is active (`irq=236` injects successfully); investigation focus is now virtio-console init/probe behavior.
+- Topic: Orin AGX CAmkES component mux/demux completion.
+- Working notes (primary): `docs/architecture/cross-arch-tcu-uart-mux-plan-2026-05-01.md`.
+- Current status: finish the mux/demux path on real Orin AGX first. Keep the
+  shared `0xfe` TCU-style protocol, generated CAmkES stream identity, runtime
+  announcements, demux-created channels, and Autopilot introspection as the
+  target. Put x86 mux completion into backlog/regression unless a shared fix is
+  needed for Orin.
 
 ## Defaults (Per User Request)
 

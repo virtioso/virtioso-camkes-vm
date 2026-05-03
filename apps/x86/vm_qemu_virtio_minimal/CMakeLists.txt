@@ -16,6 +16,12 @@ CAmkESAddImportPath(${VIRTIOSO_CAMKES_VM_DIR}/components/ConsoleMux/interfaces)
 CAmkESAddImportPath(${VIRTIOSO_CAMKES_VM_DIR}/components/ConsoleMux)
 CAmkESAddImportPath(${VIRTIOSO_CAMKES_VM_DIR}/components/GuestConsoleSink)
 CAmkESAddImportPath(${VIRTIOSO_CAMKES_VM_DIR}/components/ConsolePassthroughSink)
+
+VirtiosoGenerateCAmkESStreamRegistry(
+    vm_qemu_virtio_minimal
+    vm_qemu_virtio_minimal.camkes
+)
+
 add_subdirectory(
     ${VIRTIOSO_CAMKES_VM_DIR}/components/ConsoleMux
     ${CMAKE_CURRENT_BINARY_DIR}/ConsoleMux
@@ -77,11 +83,6 @@ AddToFileServer("bzimage" "${decompressed_kernel}" DEPENDS extract_linux_kernel)
 AddToFileServer("rootfs.cpio.gz" "${VM_IMAGE_ROOTFS}")
 
 DeclareVirtiosoX86CAmkESVM(Init0)
-
-VirtiosoGenerateCAmkESStreamRegistry(
-    vm_qemu_virtio_minimal
-    vm_qemu_virtio_minimal.camkes
-)
 DeclareCAmkESVMRootServer(vm_qemu_virtio_minimal.camkes)
 
 if(SIMULATION)

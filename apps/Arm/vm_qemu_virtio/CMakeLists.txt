@@ -21,11 +21,25 @@ config_option(
 AddCamkesCPPFlag(cpp_flags CONFIG_VARS UserVmDtb)
 
 CAmkESAddImportPath(${VIRTIOSO_CAMKES_VM_DIR}/components/GuestConsoleSink)
+CAmkESAddImportPath(${VIRTIOSO_CAMKES_VM_DIR}/components/ConsoleMux)
 CAmkESAddImportPath(${VIRTIOSO_CAMKES_VM_DIR}/components/ConsoleDebugBatchSink)
+
+VirtiosoGenerateCAmkESStreamRegistry(
+    vm_qemu_virtio
+    vm_qemu_virtio.camkes
+    CPP_FLAGS
+    ${cpp_flags}
+    CPP_INCLUDES
+    ${CAMKES_VM_DIR}/components/VM_Arm
+)
 
 add_subdirectory(
     ${VIRTIOSO_CAMKES_VM_DIR}/components/GuestConsoleSink
     ${CMAKE_CURRENT_BINARY_DIR}/GuestConsoleSink
+)
+add_subdirectory(
+    ${VIRTIOSO_CAMKES_VM_DIR}/components/ConsoleMux
+    ${CMAKE_CURRENT_BINARY_DIR}/ConsoleMux
 )
 add_subdirectory(
     ${VIRTIOSO_CAMKES_VM_DIR}/components/ConsoleDebugBatchSink
@@ -54,15 +68,6 @@ DefineCAmkESVMFileServer()
 
 DeclareVirtiosoCAmkESVM(VM0)
 DeclareVirtiosoCAmkESVM(VM1)
-
-VirtiosoGenerateCAmkESStreamRegistry(
-    vm_qemu_virtio
-    vm_qemu_virtio.camkes
-    CPP_FLAGS
-    ${cpp_flags}
-    CPP_INCLUDES
-    ${CAMKES_VM_DIR}/components/VM_Arm
-)
 
 # Declare root server
 DeclareCAmkESRootserver(

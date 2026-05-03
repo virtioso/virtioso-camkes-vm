@@ -35,13 +35,21 @@
         string ctrl_size; \
     } vm_virtio_device_channels[] = []; \
 
-#define VM_VIRTIOSO_CONFIGURATION_DEF(num) \
+#define VM_VIRTIOSO_CONFIGURATION_BASE_DEF(num) \
     vm##num.fs_shmem_size = 0x100000; \
     vm##num.global_endpoint_base = 1 << 27; \
     vm##num.asid_pool = true; \
     vm##num.simple = true; \
     vm##num.sem_value = 0; \
+
+#define VM_VIRTIOSO_CONFIGURATION_DEF(num) \
+    VM_VIRTIOSO_CONFIGURATION_BASE_DEF(num) \
     vm##num.guest_large_pages = true; \
+    /* heap_size set per-app in camkes file - not in macro */
+
+#define VM_VIRTIOSO_X86_CONFIGURATION_DEF(num) \
+    VM_VIRTIOSO_CONFIGURATION_BASE_DEF(num) \
+    vm##num.guest_large_pages = false; \
     /* heap_size set per-app in camkes file - not in macro */
 
 #undef VM_COMPONENT_DEF

@@ -21,11 +21,11 @@ import <vm-connectors.camkes>;
 
 #define VM1_GUEST_CMDLINE "earlyprintk=ttyS0,115200 console=ttyS0,115200 i8042.nokbd=y i8042.nomux=y " \
 "i8042.noaux=y io_delay=udelay noisapnp pci=nomsi nolapic_timer initcall_blacklist=raid6_select_algo " \
-"root=/dev/vda rw"
+"root=/dev/vda rw rootwait"
 
-#define VM0_VM1_VIRTIO_DATA_BASE        0x9F000000
+#define VM0_VM1_VIRTIO_DATA_BASE        0xA0800000
 #define VM0_VM1_VIRTIO_DATA_SIZE        0x00800000
-#define VM0_VM1_VIRTIO_CTRL_BASE        0xA0000000
+#define VM0_VM1_VIRTIO_CTRL_BASE        0xA1000000
 #define VM0_VM1_VIRTIO_CTRL_SIZE        0x00080000
 
 #define VM_GUEST_SINK_NAME(num) CAT(CAT(vm, num), _guest_console_sink)
@@ -89,17 +89,17 @@ assembly {
 
     configuration {
         VM_CONFIGURATION_DEF()
-        VM_VIRTIOSO_CONFIGURATION_DEF(0)
-        VM_VIRTIOSO_CONFIGURATION_DEF(1)
+        VM_VIRTIOSO_X86_CONFIGURATION_DEF(0)
+        VM_VIRTIOSO_X86_CONFIGURATION_DEF(1)
         VIRTIO_CONFIGURATION_DEF(0, 1)
 
-        vm0.simple_untyped23_pool = 21;
+        vm0.simple_untyped23_pool = 32;
         vm0.simple_untyped22_pool = 1;
-        vm0.heap_size = 0x5000000;
+        vm0.heap_size = 0x10000;
         vm0.iospace_domain = 0x0f;
         vm0.pci_devices_iospace = 1;
         vm1.heap_size = 0x300000;
-        vm1.simple_untyped23_pool = 21;
+        vm1.simple_untyped23_pool = 32;
         vm1.simple_untyped22_pool = 1;
         vm1.iospace_domain = 0x10;
         vm1.pci_devices_iospace = 2;

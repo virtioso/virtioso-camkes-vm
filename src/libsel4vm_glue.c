@@ -499,6 +499,7 @@ int libsel4vm_io_proxy_init(vm_t *vm, io_proxy_t *io_proxy)
         return -1;
     }
 
+#ifdef CONFIG_ARCH_ARM
     /* load_linux() eventually calls fdt_generate_vpci_node(), which blocks
      * unless backend is already running. Therefore we need to listen to start
      * signal here before proceeding to load_linux() in VM_Arm.
@@ -506,6 +507,7 @@ int libsel4vm_io_proxy_init(vm_t *vm, io_proxy_t *io_proxy)
     RPCDBG("waiting for PCI backend");
     io_proxy_wait_for_backend(io_proxy);
     RPCDBG("PCI backend up, continuing");
+#endif
 
     return 0;
 }

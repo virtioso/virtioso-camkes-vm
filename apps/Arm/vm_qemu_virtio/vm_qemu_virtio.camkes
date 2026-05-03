@@ -9,12 +9,13 @@
 
 import <std_connector.camkes>;
 import <global-connectors.camkes>;
+import <Timer.idl4>;
 import <seL4VMDTBPassthrough.idl4>;
 import <FileServerInterface.camkes>;
 import <FileServer/FileServer.camkes>;
-import <SerialServer/SerialServer.camkes>;
 import <GuestConsoleSink.camkes>;
-import <ConsoleDebugBatchSink.camkes>;
+import <ConsoleMux.camkes>;
+import <VirtQueue/VirtQueue.camkes>;
 import <vm-connectors.camkes>;
 import <devices.camkes>;
 
@@ -34,17 +35,21 @@ assembly {
     composition {
         /* Boilerplate composition settings */
         VM_GENERAL_COMPOSITION_DEF()
-        component ConsoleDebugBatchSink mux_debug_uplink;
+        component ConsoleMux console_mux;
         component GuestConsoleSink vm0_guest_console_sink;
         component GuestConsoleSink vm1_guest_console_sink;
 
         /* Other standard VM definitions (vm0, vm1) */
         VM_COMPOSITION_DEF(0)
         VM_COMPOSITION_DEF(1)
+        connection seL4SerialServer serial_input_vm0(from vm0.serial_getchar, to console_mux.getchar);
+        connection seL4SerialServer serial_input_vm1(from vm1.serial_getchar, to console_mux.getchar);
         connection seL4RPCCall vm0_guest_console(from vm0.guest_putchar, to vm0_guest_console_sink.guest_putchar);
         connection seL4RPCCall vm1_guest_console(from vm1.guest_putchar, to vm1_guest_console_sink.guest_putchar);
-        connection seL4SerialServer vm0_guest_console_sink_uplink(from vm0_guest_console_sink.mux_batch, to mux_debug_uplink.raw_batch);
-        connection seL4SerialServer vm1_guest_console_sink_uplink(from vm1_guest_console_sink.mux_batch, to mux_debug_uplink.raw_batch);
+        connection seL4SerialServer vm0_console_mux(from vm0.batch, to console_mux.mux_batch);
+        connection seL4SerialServer vm1_console_mux(from vm1.batch, to console_mux.mux_batch);
+        connection seL4SerialServer vm0_guest_console_sink_mux(from vm0_guest_console_sink.mux_batch, to console_mux.mux_batch);
+        connection seL4SerialServer vm1_guest_console_sink_mux(from vm1_guest_console_sink.mux_batch, to console_mux.mux_batch);
 
         VIRTIO_COMPOSITION_DEF(0, 1)
 
@@ -67,6 +72,8 @@ assembly {
         vm0.cnode_size_bits = 23;
         vm0.base_prio = 100;
         vm0._priority = 121;
+        vm0.batch_shmem_size = 0x1000;
+        vm0.serial_getchar_shmem_size = 0x1000;
 
         vm1.num_extra_frame_caps = 0;
         vm1.extra_frame_map_address = 0;
@@ -74,5 +81,7 @@ assembly {
 
         vm1.base_prio = 100;
         vm1._priority = 101;
+        vm1.batch_shmem_size = 0x1000;
+        vm1.serial_getchar_shmem_size = 0x1000;
     }
 }

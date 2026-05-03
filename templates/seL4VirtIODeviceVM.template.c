@@ -22,6 +22,12 @@
 #elif CONFIG_PLAT_ORIN_AGX
 /* Must be within PCI_MEM_REGION (0xC1000000+), after SWIOTLB (0xC0000000-0xC07FFFFF) */
 #define CONNECTION_BASE_ADDRESS 0xC1000000
+#elif defined(CONFIG_ARCH_X86)
+/*
+ * Keep the synthetic cross-VM PCI BARs out of the physical PCI host-bridge
+ * passthrough window; the x86 q35 VPCI root window advertises this range.
+ */
+#define CONNECTION_BASE_ADDRESS 0xA0000000
 #else
 #define CONNECTION_BASE_ADDRESS 0x3F000000
 #endif

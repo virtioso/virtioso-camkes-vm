@@ -45,12 +45,13 @@ Entry fields:
 - Primary note: `/home/hlyytine/aicomp/entry3.md`
 - Related notes:
   - `/home/hlyytine/aicomp/autopilot-impact-inventory-internal.md`
+  - `/home/hlyytine/aicomp/autopilot-demo-video-plan.md`
   - `/home/hlyytine/aicomp/entry2.md`
   - `/home/hlyytine/aicomp/Unikie AI Boost - Unikie.pdf`
   - `/home/hlyytine/aicomp/Unikie AI Boost Reward.pdf`
   - `/home/hlyytine/autopilot`
-- Last known state: Unikie has launched an internal AI competition, and Autopilot is considered worth submitting. The draft application files already exist under `/home/hlyytine/aicomp`. `entry3.md` is the tighter current pitch; `entry2.md` is the longer, more complete source draft. The internal impact inventory now captures the stronger before/after framing and concrete outcomes: Orin AGX pKVM SMMUv2 driver validation, broader seL4/Virtioso hardware/QEMU validation, and anonymized industrial-controller platform architecture/prototype work. Preserve the fact that Autopilot itself was written by AI agents and is used by AI agents to test low-level systems on real hardware.
-- Next action: turn the internal inventory into a max-two-page application under the official headings: situation, AI approach, result, contrast, and evidence. Keep the "before vs after" section central, quantify where possible, and anonymize the industrial-controller project unless disclosure is explicitly allowed.
+- Last known state: Unikie has launched an internal AI competition, and Autopilot is considered worth submitting. The draft application files already exist under `/home/hlyytine/aicomp`. `entry3.md` is the tighter current pitch; `entry2.md` is the longer, more complete source draft. The internal impact inventory now captures the stronger before/after framing, pKVM and Isengard time estimates, and concrete outcomes: Orin AGX pKVM SMMUv2 driver validation, broader seL4/Virtioso hardware/QEMU validation, and anonymized industrial-controller platform architecture/prototype work. Preserve the fact that Autopilot itself was written by AI agents and is used by AI agents to test low-level systems on real hardware. The current demo-video candidate is an ordinary Codex prompt asking Autopilot to run Orin AGX `vm_qemu_virtio`, log into VM1, inspect `/proc/cpuinfo`, and cite the request/result evidence; needed demo polish should stay generic, especially tmux panes created from runtime introspection rather than hardcoded VM names.
+- Next action: turn the internal inventory into a max-two-page application under the official headings: situation, AI approach, result, contrast, and evidence. Keep the "before vs after" section central, quantify where possible, anonymize the industrial-controller project unless disclosure is explicitly allowed, and decide whether to implement the generic Autopilot tmux-pane enhancements before recording the VM1 CPU-info demo.
 - Updated: 2026-05-03
 
 ### Orin AGX `vm_qemu_virtio` VM1 virtio-console stall

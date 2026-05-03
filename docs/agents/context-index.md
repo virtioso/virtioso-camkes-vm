@@ -44,12 +44,13 @@ Entry fields:
 - Status: active
 - Primary note: `/home/hlyytine/aicomp/entry3.md`
 - Related notes:
+  - `/home/hlyytine/aicomp/autopilot-impact-inventory-internal.md`
   - `/home/hlyytine/aicomp/entry2.md`
   - `/home/hlyytine/aicomp/Unikie AI Boost - Unikie.pdf`
   - `/home/hlyytine/aicomp/Unikie AI Boost Reward.pdf`
   - `/home/hlyytine/autopilot`
-- Last known state: Unikie has launched an internal AI competition, and Autopilot is considered worth submitting. The draft application files already exist under `/home/hlyytine/aicomp`. `entry3.md` is the tighter current pitch; `entry2.md` is the longer, more complete source draft. The strongest framing is that Autopilot brings real hardware into the AI development loop through a narrow command API, structured evidence, target-specific backends, and recovery. Preserve the fact that Autopilot itself was written by AI agents and is used by AI agents to test low-level systems on real hardware.
-- Next action: read the two competition PDFs for the exact judging criteria and submission format, then hone `entry3.md` against that rubric using the concrete Orin AGX, remote QEMU, seL4/Virtioso, tmux/live-console, evidence, and phone/Tailscale remote-workflow points from `entry2.md`. Keep confidentiality in mind and prefer concrete outcomes over product-brochure phrasing.
+- Last known state: Unikie has launched an internal AI competition, and Autopilot is considered worth submitting. The draft application files already exist under `/home/hlyytine/aicomp`. `entry3.md` is the tighter current pitch; `entry2.md` is the longer, more complete source draft. The internal impact inventory now captures the stronger before/after framing and concrete outcomes: Orin AGX pKVM SMMUv2 driver validation, broader seL4/Virtioso hardware/QEMU validation, and anonymized industrial-controller platform architecture/prototype work. Preserve the fact that Autopilot itself was written by AI agents and is used by AI agents to test low-level systems on real hardware.
+- Next action: turn the internal inventory into a max-two-page application under the official headings: situation, AI approach, result, contrast, and evidence. Keep the "before vs after" section central, quantify where possible, and anonymize the industrial-controller project unless disclosure is explicitly allowed.
 - Updated: 2026-05-03
 
 ### Orin AGX `vm_qemu_virtio` VM1 virtio-console stall

@@ -42,8 +42,8 @@ assembly {
         /* Other standard VM definitions (vm0, vm1) */
         VM_COMPOSITION_DEF(0)
         VM_COMPOSITION_DEF(1)
-        connection seL4SerialServer serial_input_vm0(from vm0.serial_getchar, to console_mux.getchar);
-        connection seL4SerialServer serial_input_vm1(from vm1.serial_getchar, to console_mux.getchar);
+        connection seL4SerialServer serial_input_vm0(from vm0.serial_getchar, to console_mux.vm0_getchar);
+        connection seL4SerialServer serial_input_vm1(from vm1.serial_getchar, to console_mux.vm1_getchar);
         connection seL4RPCCall vm0_guest_console(from vm0.guest_putchar, to vm0_guest_console_sink.guest_putchar);
         connection seL4RPCCall vm1_guest_console(from vm1.guest_putchar, to vm1_guest_console_sink.guest_putchar);
         connection seL4SerialServer vm0_console_mux(from vm0.batch, to console_mux.mux_batch);

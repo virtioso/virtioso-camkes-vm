@@ -264,18 +264,19 @@ Recovery note:
   `virtioso-contracts` owns the shard-open request shape,
   `sources/kmod-sel4-virt` exposes `SEL4_TRACE_OPEN_SHARD` by delegating to
   `kmod-vio-trace`, and `sources/qemu` opens/maps an EL0 shard when available
-  without adding event IDs. A narrow VM-fd poll slice follows this: kmod makes
-  the existing VM fd readable when the forwarded RPC queue has work, and QEMU
-  drains that existing queue from `qemu_set_fd_handler()` instead of a wait
-  thread. Do not add old `SEL4_DELEG_*`, direct slots, mailbox, or generation
-  fields.
+  without adding event IDs. The VM-fd poll slice is also done: kmod commit
+  `ec0e7de vmfd: poll forwarded rpc readiness` makes the VM fd readable when the
+  forwarded RPC queue has work, and QEMU commit `26be78e2a8 sel4: handle rpc
+  through vmfd readiness` drains the same queue from the main loop, removing the
+  dedicated seL4 virtio wait thread without changing the request ABI. Do not add
+  old `SEL4_DELEG_*`, direct slots, mailbox, or generation fields.
 - Orin AGX branch triage is now recorded separately. Keep real Orin platform,
   DTS, carefully sliced elfloader work, cross-VM IRQ, control-dataport support,
   the VM DTB dump hook, and the `sel4utils_elf_reserve()` NULL-vspace fix. Do
   not replay the old cacheability attempts, SDEI/RAS-hunting changes, or
   hyp-ftrace path. Try without forced `clean_cache=1` first, but retain it as a
   fallback experiment if symptoms justify it.
-- Updated: 2026-04-27
+- Updated: 2026-05-04
 
 ### Cross-EL tracing implementation
 

@@ -41,7 +41,7 @@ Entry fields:
 
 ### Unikie AI Boost Autopilot competition entry
 
-- Status: active
+- Status: paused
 - Primary note: `/home/hlyytine/aicomp/entry3.md`
 - Related notes:
   - `/home/hlyytine/aicomp/autopilot-impact-inventory-internal.md`
@@ -69,7 +69,7 @@ Entry fields:
 
 ### Orin AGX UARTA header console passthrough
 
-- Status: active
+- Status: paused
 - Primary note: [../platforms/orin-agx/uarta-bct/README.md](../platforms/orin-agx/uarta-bct/README.md)
 - Related notes:
   - [../platforms/orin-agx/uarta-bct/tegra234-mb2-bct-scr-p3701-0000-uarta-vm.dts](../platforms/orin-agx/uarta-bct/tegra234-mb2-bct-scr-p3701-0000-uarta-vm.dts)
@@ -124,7 +124,7 @@ Recovery note:
 
 ### `qemu_x86_64_defconfig` `vm_qemu_virtio` target topology
 
-- Status: active
+- Status: paused
 - Primary note: [../integration/x86-qemu-pc99-vm-qemu-virtio-port-notes-2026-04-16.md](../integration/x86-qemu-pc99-vm-qemu-virtio-port-notes-2026-04-16.md)
 - Related notes:
   - [../integration/arm64-vm-qemu-virtio-shape.md](../integration/arm64-vm-qemu-virtio-shape.md)

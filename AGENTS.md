@@ -84,6 +84,12 @@ For `qemu_x86_64_defconfig` QEMU-backed x86 validation:
   chain as for the build target.
 - Always pass `--autopilot-dir /home/hlyytine/tii-sel4/autopilot` to
   `autopilot`.
+- When reporting VM-specific console evidence from mux/demux Autopilot runs,
+  always check the demuxed `vmX_guest_console_sink` log for the target VM
+  first. For VM1 `uname -a` proof, prefer
+  `results/<id>/console/console-runtime/tcu_muxer_logs/vm1_guest_console_sink.txt`
+  over raw host captures such as `tty1.raw`; raw captures may show firmware or
+  carrier traffic rather than the logical VM stream.
 - `qemu_x86_64_defconfig` is an autopilot-backed remote QEMU target; prefer the
   autopilot path for test execution and only fall back to direct
   `tools/qemu_runner.py` debugging when the autopilot backend itself is the

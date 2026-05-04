@@ -33,6 +33,13 @@ This file is the canonical policy for Autopilot test submission and results.
 - `autopilot status --json` reports queue state and startup cleanup.
 - Console logs are stored under:
   `results/<id>/console/`
+- For mux/demux runs, VM-specific evidence must come first from the demuxed
+  guest console sink for that VM:
+  `results/<id>/console/console-runtime/tcu_muxer_logs/vmX_guest_console_sink.txt`
+- Do not use raw host captures such as `tty0.raw` or `tty1.raw` as primary
+  proof for VM-specific commands when the matching `vmX_guest_console_sink`
+  log exists. Raw captures may include firmware, boot carrier, or multiplexed
+  traffic that is not the target VM stream.
 - Guest DTB/DTS exports are stored under:
   `results/<id>/device-trees/`
 

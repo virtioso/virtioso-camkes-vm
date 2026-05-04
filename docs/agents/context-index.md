@@ -302,14 +302,14 @@ Recovery note:
 
 ### Normet rugged x86 secure boot, TPM, attestation, and BSP questions
 
-- Status: active
+- Status: paused
 - Primary note: [../../../../../normet/docs/05-platform-next/trust-and-update/Rugged_x86_Secure_Boot_TPM_Attestation_And_BSP_Questions.md](../../../../../normet/docs/05-platform-next/trust-and-update/Rugged_x86_Secure_Boot_TPM_Attestation_And_BSP_Questions.md)
 - Related notes:
   - [../../../../../normet/docs/05-platform-next/trust-and-update/Boot_Trust_And_Platform_Ownership_Comparison.md](../../../../../normet/docs/05-platform-next/trust-and-update/Boot_Trust_And_Platform_Ownership_Comparison.md)
   - [../../../../../normet/docs/05-platform-next/trust-and-update/Why_Update_And_Boot_Trust_Must_Be_First_Class_In_Normet_Platform_Design.md](../../../../../normet/docs/05-platform-next/trust-and-update/Why_Update_And_Boot_Trust_Must_Be_First_Class_In_Normet_Platform_Design.md)
 - Last known state: EPEC rugged `x86` call-prep requirements were captured in a durable Normet note. The key questions are customer-owned `UEFI` Secure Boot `PK`/`KEK`/`db`/`dbx`, `TPM 2.0` type and provisioning, measured boot and attestation behavior, BSP source availability, arbitrary customer-signed EFI payloads, custom Linux or hypervisor/seL4 loader support, `VT-x`/`VT-d`/IOMMU exposure, update/recovery semantics, and the minimum engineering package to request from the vendor.
-- Next action: after the EPEC call, update the primary note with vendor answers and classify each answer as acceptable, risky, blocked, or requiring follow-up evidence.
-- Updated: 2026-04-27
+- Next action: deprioritised — Orin AGX hardware is the primary direction, making rugged x86 evaluation unlikely to be needed. Reopen only if a customer or project requirement forces a non-Orin x86 platform choice.
+- Updated: 2026-05-04
 
 ### PX4 uORB access model
 

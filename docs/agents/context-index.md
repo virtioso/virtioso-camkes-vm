@@ -264,16 +264,17 @@ Recovery note:
 - Next action: before any tracing code edits, verify repo cleanliness and request explicit approval for branch creation or dirty-repo handling.
 - Updated: 2026-04-27
 
-### Snapshot region reader-side memory barrier gap
+### Snapshot reader API and N-buffer design
 
-- Status: active
-- Primary note: `sources/isengard-contracts/include/isengard/snapshot.h`
+- Status: active — implementation in progress
+- Primary note: `projects/isengard-camkes-vm/docs/snapshot-reader-api.md`
 - Related notes:
-  - `sources/isengard-contracts/include/isengard/snapshot_provider_posix.h`
-  - `sources/isengard-contracts/include/isengard/snapshot_source_posix.h`
-- Last known state: User raised the concern that the snapshot writer (`isengard_snapshot_provider_publish`) can overwrite shared memory while a reader is mid-read. This is intentional — it's a seqlock. The writer side has correct `__sync_synchronize()` barriers (after `WRITING`, after `READY`). However, the reader side (`isengard_snapshot_region_read_begin` and `isengard_snapshot_region_read_retry` in `snapshot.h`) uses plain C reads of `writer_state` and `generation` with no memory barriers. On ARM64 (weakly ordered), the CPU can reorder data reads relative to the state/generation checks, meaning the generation-mismatch detection can silently fail and the reader can consume partially-overwritten data without retrying.
-- Next action: Add `__sync_synchronize()` (or `__atomic_load_n(..., __ATOMIC_ACQUIRE)`) to the reader path: (1) after saving `generation` in `read_begin`, before any data reads; (2) at the start of `read_retry`, before reading `writer_state`/`generation`. This matches the kernel `read_seqbegin`/`read_seqretry` pattern. Fix is confined to `snapshot.h` inline functions. Low urgency for the current single-core vcan0 demo, but required before multi-core production use.
-- Updated: 2026-05-05
+  - `sources/isengard-contracts/include/isengard/snapshot.h` — seqlock primitives; reader-side barriers fixed in commit `9f90f58`
+  - `sources/isengard-contracts/include/isengard/snapshot_reader.h` — scheme-independent reader API (seqlock-backed; struct designed for tagged-union extension to N-buffer)
+  - `sources/isengard-app/platform/linux/isengard_objfs.c` — FUSE objfs; all callbacks migrated to reader API
+- Last known state: Seqlock correctness fixed (barriers in `snapshot.h`, `isengard-contracts` commit `9f90f58`). All call sites migrated to `isengard_snapshot_reader_t` acquire/release API. N-buffer design fully documented in `snapshot-reader-api.md` (commit `cc4ae17` on `isengard-camkes-vm/isengard-next`): slot structure, writer/reader CAS protocols, capability comparison vs seqlock, FUSE objfs per-generation directory design with open-time pinning semantics (`/snapshots/current/` pins latest at `open` moment; `/snapshots/<gen>/` joins existing pin), five Normet use cases. Implementation of `snapshot_nbuffer.h`, extended `snapshot_reader.h`, and `isengard_objfs.c` generation-tagged dirs is the active next step.
+- Next action: (1) implement `sources/isengard-contracts/include/isengard/snapshot_nbuffer.h` with slot struct and CAS pin/unpin API; (2) extend `snapshot_reader.h` with N-buffer scheme dispatch; (3) update `isengard_objfs.c` for `/snapshots/current/` and `/snapshots/<gen>/` path routing + per-open-file slot pinning.
+- Updated: 2026-05-06
 
 ### CANopen snapshot publication from seL4 to Linux
 

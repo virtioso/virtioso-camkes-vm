@@ -264,19 +264,21 @@ Recovery note:
 - Next action: before any tracing code edits, verify repo cleanliness and request explicit approval for branch creation or dirty-repo handling.
 - Updated: 2026-04-27
 
-### Snapshot reader API, N-buffer design, and topic projection
+### Snapshot reader API, N-buffer design, topic projection, C++/Rust wrappers
 
-- Status: complete (Linux path); topic layer added
+- Status: complete (Linux path)
 - Primary note: `projects/isengard-camkes-vm/docs/snapshot-reader-api.md`
 - Related notes:
-  - `sources/isengard-contracts/include/isengard/snapshot.h` — seqlock primitives; reader-side barriers fixed in commit `9f90f58`
+  - `sources/isengard-contracts/include/isengard/snapshot.h` — seqlock primitives; `static_assert` guard fixed for C++ (`!defined(__cplusplus)`) in commit `2121ff3`
   - `sources/isengard-contracts/include/isengard/snapshot_reader.h` — scheme-independent reader API; N-buffer scheme dispatch added (commit `b7dc472`)
-  - `sources/isengard-contracts/include/isengard/snapshot_nbuffer.h` — new; 4-slot CAS-refcount pool (commits `b7dc472`, `afa302f`)
-  - `sources/isengard-contracts/include/isengard/snapshot_topic.h` — new; topic descriptor types `isengard_topic_field_t` / `isengard_topic_def_t` (commit `00493a0`)
-  - `sources/isengard-app/platform/linux/isengard_objfs.c` — FUSE objfs with N-buffer pool, `/snapshots/` generation-tagged tree, and `/topics/` projection layer (commits `a47590a`, `68f98a6`)
-- Last known state: Full N-buffer implementation complete and verified. Topic projection layer added: `/topics/<name>/` exposes named field subsets pinned at open time from the N-buffer pool; if pool not yet populated, open returns ENOENT. Topics: `can_status`, `runtime`, `supply`. `_generation` synthetic file in each topic dir for cross-topic coordination. Design, use-case analysis, and topic section in `snapshot-reader-api.md`.
-- Next action: Wire real `isengard_app` CANopenNODE data into the snapshot provider (Phase 0 CAN contract work) so `/obj/obj/isengard/` and `/topics/` reflect live CAN state rather than demo values. Future: pub/sub notification layer using topic name as subscription key.
-- Updated: 2026-05-05
+  - `sources/isengard-contracts/include/isengard/snapshot_nbuffer.h` — 4-slot CAS-refcount pool (commits `b7dc472`, `afa302f`)
+  - `sources/isengard-contracts/include/isengard/snapshot_topic.h` — topic descriptor types (commit `00493a0`)
+  - `sources/isengard-contracts/include/isengard/snapshot.hpp` — C++11 header-only wrapper: `SnapshotPin` RAII, `topics::CanStatus/Runtime/Supply` (commit `2121ff3`)
+  - `sources/isengard-app/platform/linux/isengard_objfs.c` — FUSE objfs with N-buffer pool, `/snapshots/` tree, `/topics/` projection layer (commits `a47590a`, `68f98a6`)
+  - `sources/isengard-rs/` — Rust crate: `SnapshotPin<'pool>` lifetime-safe pin, pure-Rust N-buffer ops, topic projections; 7 tests pass (commit `8a20327`)
+- Last known state: Full stack complete. N-buffer pool, FUSE `/snapshots/` + `/topics/` paths, C++11 RAII wrapper, and Rust lifetime-safe wrapper all implemented and tested. Schema maintenance guide in `snapshot-reader-api.md`.
+- Next action: Wire real `isengard_app` CANopenNODE data into the snapshot provider (Phase 0 CAN contract work). Future: pub/sub notification layer using topic name as subscription key.
+- Updated: 2026-05-06
 
 ### CANopen snapshot publication from seL4 to Linux
 

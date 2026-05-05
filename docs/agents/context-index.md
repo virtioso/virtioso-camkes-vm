@@ -169,9 +169,9 @@ Recovery note:
   - [../../../isengard-camkes-vm/docs/orin-can-simulator-vm-architecture.md](../../../isengard-camkes-vm/docs/orin-can-simulator-vm-architecture.md)
   - [../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md](../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md)
   - [../../../isengard-camkes-vm/docs/architecture.md](../../../isengard-camkes-vm/docs/architecture.md)
-- Last known state: Phase -1 (Orin AGX CAmkES mux/demux) is done — confirmed by Autopilot run `20260504-223718`. Orin AGX `vm_qemu_virtio` is the working substrate. Phase 0 (CAN contract and evidence) is now the active target: define the reusable CAN backend interface, decide where it lives (`sources/isengard-contracts` or similar), gather Orin `mttcan` DT/probe/netdev evidence, and stub it on `qemu_x86_64` with Linux vcan/SocketCAN. The snapshot service sub-track (Phase 3) has FUSE3 `isengard_objfs` working; highest-value next slice there is connecting the Linux-owned provider proof to real `sources/isengard-core` state.
-- Next action: open `isengard-master-tracker.md` first, then the relevant phase notes. Active phase is Phase 0. Do not start Phase 1 (first Orin app shape) before Phase 0 contract and evidence decisions are recorded.
-- Updated: 2026-05-04
+- Last known state: Isengard end-to-end demo on Orin AGX bare-metal is **done** — confirmed by Autopilot run `20260505-135944`. Full pipeline: stock Linux boot → SSH → Isengard rootfs upload → EFI boot → DHCP/SSH into Isengard → `isengard-demo-start` (vcan0 + isengard_app + FUSE /obj via snapshot_memfd_demo) → verify `/obj/obj/isengard/runtime/sequence` and `can/status_word`. Key fixes landed: busybox ifup udhcpc script path, $subnet vs $mask in 50default, SSH options in autopilot chain_runtime.py, snapshot_memfd_demo installed and wired correctly to isengard_objfs. Phase 0 (CAN contract and evidence) and Phase 1 (connect isengard_app CAN data to snapshot region) are the next active targets.
+- Next action: open `isengard-master-tracker.md` to pick up Phase 0/Phase 1. The Linux-native demo substrate is solid; next slice is wiring real `isengard_app` CANopenNODE data into the snapshot provider so `/obj/obj/isengard/` reflects live CAN state rather than memfd demo values.
+- Updated: 2026-05-05
 
 ### Legacy Autopilot MCP startup, status, and queue truth
 

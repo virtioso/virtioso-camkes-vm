@@ -264,6 +264,17 @@ Recovery note:
 - Next action: before any tracing code edits, verify repo cleanliness and request explicit approval for branch creation or dirty-repo handling.
 - Updated: 2026-04-27
 
+### Snapshot region reader-side memory barrier gap
+
+- Status: active
+- Primary note: `sources/isengard-contracts/include/isengard/snapshot.h`
+- Related notes:
+  - `sources/isengard-contracts/include/isengard/snapshot_provider_posix.h`
+  - `sources/isengard-contracts/include/isengard/snapshot_source_posix.h`
+- Last known state: User raised the concern that the snapshot writer (`isengard_snapshot_provider_publish`) can overwrite shared memory while a reader is mid-read. This is intentional — it's a seqlock. The writer side has correct `__sync_synchronize()` barriers (after `WRITING`, after `READY`). However, the reader side (`isengard_snapshot_region_read_begin` and `isengard_snapshot_region_read_retry` in `snapshot.h`) uses plain C reads of `writer_state` and `generation` with no memory barriers. On ARM64 (weakly ordered), the CPU can reorder data reads relative to the state/generation checks, meaning the generation-mismatch detection can silently fail and the reader can consume partially-overwritten data without retrying.
+- Next action: Add `__sync_synchronize()` (or `__atomic_load_n(..., __ATOMIC_ACQUIRE)`) to the reader path: (1) after saving `generation` in `read_begin`, before any data reads; (2) at the start of `read_retry`, before reading `writer_state`/`generation`. This matches the kernel `read_seqbegin`/`read_seqretry` pattern. Fix is confined to `snapshot.h` inline functions. Low urgency for the current single-core vcan0 demo, but required before multi-core production use.
+- Updated: 2026-05-05
+
 ### CANopen snapshot publication from seL4 to Linux
 
 - Status: paused

@@ -266,14 +266,15 @@ Recovery note:
 
 ### Snapshot reader API and N-buffer design
 
-- Status: active — implementation in progress
+- Status: complete (Linux path)
 - Primary note: `projects/isengard-camkes-vm/docs/snapshot-reader-api.md`
 - Related notes:
   - `sources/isengard-contracts/include/isengard/snapshot.h` — seqlock primitives; reader-side barriers fixed in commit `9f90f58`
-  - `sources/isengard-contracts/include/isengard/snapshot_reader.h` — scheme-independent reader API (seqlock-backed; struct designed for tagged-union extension to N-buffer)
-  - `sources/isengard-app/platform/linux/isengard_objfs.c` — FUSE objfs; all callbacks migrated to reader API
-- Last known state: Seqlock correctness fixed (barriers in `snapshot.h`, `isengard-contracts` commit `9f90f58`). All call sites migrated to `isengard_snapshot_reader_t` acquire/release API. N-buffer design fully documented in `snapshot-reader-api.md` (commit `cc4ae17` on `isengard-camkes-vm/isengard-next`): slot structure, writer/reader CAS protocols, capability comparison vs seqlock, FUSE objfs per-generation directory design with open-time pinning semantics (`/snapshots/current/` pins latest at `open` moment; `/snapshots/<gen>/` joins existing pin), five Normet use cases. Implementation of `snapshot_nbuffer.h`, extended `snapshot_reader.h`, and `isengard_objfs.c` generation-tagged dirs is the active next step.
-- Next action: (1) implement `sources/isengard-contracts/include/isengard/snapshot_nbuffer.h` with slot struct and CAS pin/unpin API; (2) extend `snapshot_reader.h` with N-buffer scheme dispatch; (3) update `isengard_objfs.c` for `/snapshots/current/` and `/snapshots/<gen>/` path routing + per-open-file slot pinning.
+  - `sources/isengard-contracts/include/isengard/snapshot_reader.h` — scheme-independent reader API; N-buffer scheme dispatch added (commit `b7dc472`)
+  - `sources/isengard-contracts/include/isengard/snapshot_nbuffer.h` — new; 4-slot CAS-refcount pool (commits `b7dc472`, `afa302f`)
+  - `sources/isengard-app/platform/linux/isengard_objfs.c` — FUSE objfs with N-buffer pool and `/snapshots/` generation-tagged directory tree (commit `a47590a`)
+- Last known state: Full implementation complete and verified. `snapshot_nbuffer.h` provides writer `alloc_slot`/`publish_slot` and reader `pin_latest`/`pin(gen)`/`unpin` with CAS and ARM64-correct memory barriers. `snapshot_reader.h` extended to tagged-union (seqlock/nbuffer) with `init_nbuffer` and dispatch. `isengard_objfs.c` exposes `/snapshots/current/` (pins latest N-buffer slot at `open` time), `/snapshots/<gen>/` (joins existing slot by generation token), and full sub-directory trees matching `/obj/isengard/`. All paths verified on static-file mount. Pool pre-populated on init; writer skips when pool exhausted. Design and Normet use-case analysis in `snapshot-reader-api.md` (commit `cc4ae17`).
+- Next action: Wire real `isengard_app` CANopenNODE data into the snapshot provider (Phase 0 CAN contract work) so `/obj/obj/isengard/` reflects live CAN state. The N-buffer infrastructure is ready; the writer side (`snapshot_provider_posix.h`) uses seqlock and is the next piece to upgrade when N-buffer write path is needed.
 - Updated: 2026-05-06
 
 ### CANopen snapshot publication from seL4 to Linux

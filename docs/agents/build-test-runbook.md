@@ -2,6 +2,91 @@
 
 This file is the canonical source for build and test command sequences.
 
+## Isengard Linux Orin — Chain Reference
+
+There are three chains for Isengard Orin AGX bare-metal Linux. Pick based on
+the goal:
+
+| Chain | Use when | Ends with |
+|---|---|---|
+| `isengard-linux-orin` | CI / login-proof boot check | recovery boot |
+| `isengard-linux-orin-demo` | Verify end-to-end pipeline (vcan0 → isengard-demo-start → FUSE /obj) | recovery boot |
+| `isengard-linux-orin-interactive` | Leave device in Isengard rootfs for human console/SSH session | recovery boot after human closes console |
+
+### Rules for AI agents
+
+- **Never SSH to `root@192.168.101.112` without first knowing the device is in
+  the Isengard rootfs.** After a `pass` from `isengard-linux-orin` or
+  `isengard-linux-orin-demo`, the device has already recovered to stock Linux.
+- To SSH into a running Isengard rootfs, submit `isengard-linux-orin-interactive`
+  and poll until `last_step.step == "interactive"`. At that point the device is
+  at the Isengard login prompt and SSH works. **Do not poll waiting for the
+  chain to complete** — it blocks until a human closes the console session.
+- After the human closes the interactive console, the chain completes and
+  recovery boot runs automatically.
+- `isengard-linux-orin-demo` is the right choice for AI-only end-to-end
+  verification. It SSHes in, runs `isengard-demo-start`, reads the FUSE object
+  tree, and returns pass/fail with captured output in the log.
+
+### Build step (Isengard Linux image)
+
+```
+make isengard-linux-image
+```
+
+Both `isengard-initramfs` (kernel+initramfs EFI) and `isengard-rootfs` (ext4)
+are built by this single target. The chain uploads both automatically.
+
+### Submit — CI boot check
+
+```
+autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot submit efi \
+  --chain isengard-linux-orin \
+  --binary /home/hlyytine/tii-sel4/vm-images/build/tmp/deploy/images/isengard-agx-orin/Image-initramfs-isengard-agx-orin.bin \
+  --json
+```
+
+### Submit — End-to-end demo (AI-safe)
+
+```
+autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot submit efi \
+  --chain isengard-linux-orin-demo \
+  --binary /home/hlyytine/tii-sel4/vm-images/build/tmp/deploy/images/isengard-agx-orin/Image-initramfs-isengard-agx-orin.bin \
+  --json
+```
+
+After pass, inspect logs to confirm `sequence`, `status_word`, and `uptime_ms`
+were read from `/obj/isengard/`:
+```
+autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot logs <request-id> \
+  --file raw_ccplex.txt --grep "sequence\|obj tree\|vcan0" --include-contents --json
+```
+
+### Submit — Interactive (human-supervised)
+
+```
+autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot submit efi \
+  --chain isengard-linux-orin-interactive \
+  --binary /home/hlyytine/tii-sel4/vm-images/build/tmp/deploy/images/isengard-agx-orin/Image-initramfs-isengard-agx-orin.bin \
+  --json
+```
+
+Poll until device is at interactive hold:
+```
+autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot get <request-id> --json
+# wait for last_step.step == "interactive"
+```
+
+While `last_step.step == "interactive"`, SSH is live:
+```
+ssh root@192.168.101.112
+isengard-demo-start
+isengard-demo-watch
+```
+
+The human closes the autopilot console session to release the chain and trigger
+recovery boot.
+
 ## Orin AGX `vm_qemu_virtio`
 
 1. Clean build state:

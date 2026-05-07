@@ -173,6 +173,28 @@ Recovery note:
 - Next action: open `isengard-master-tracker.md` to pick up Phase 0/Phase 1. The Linux-native demo substrate is solid; next slice is wiring real `isengard_app` CANopenNODE data into the snapshot provider so `/obj/obj/isengard/` reflects live CAN state rather than memfd demo values.
 - Updated: 2026-05-05
 
+### virtioso-muxd Linux stream multiplexer and isengard zenoh demo
+
+- Status: active
+- Primary note: `sources/virtioso-muxd/` (source) and `autopilot/chains/isengard-linux-orin-zenoh-demo.json` (chain)
+- Related notes:
+  - `sources/isengard-core/meta-isengard/recipes-isengard/isengard-app/files/isengard-demo-zenoh-remote` (demo script)
+  - `sources/virtioso-muxd/virtioso-mux-exec/src/main.rs` (mux-exec client)
+  - `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/recipes-devtools/virtioso-muxd/virtioso-muxd_git.bb` (Yocto recipe)
+  - `sources/isengard-core/meta-isengard/images/isengard-image-native.bb` (image recipe)
+- Last known state (2026-05-07):
+  - `virtioso-mux-exec` pipe-hang fix is committed: child-exit oneshot channel + 2s drain timeout prevents infinite wait when grandchild inherits pipe fd.
+  - `isengard-demo-zenoh-remote` zenoh session polling is fixed: replaced `sleep 1` with a 30×0.5s poll loop checking `bridge: zenoh session open` in the bridge log before proceeding to the subscriber step.
+  - Autopilot chain `isengard-linux-orin-zenoh-demo` is live with: map_window steps (tty0=Isengard Console, tty1=Mux Output), `start_muxd` sinking to `uart:/dev/ttyAMA0`, and `run_zenoh_demo` wrapping demo in `sh -c 'isengard-demo-zenoh-remote 2>&1 | tee /tmp/demo.log'`.
+  - Run `20260507-104410` reported overall_status=pass, BUT `run_zenoh_demo` completed in only 2.5s — too fast for zenoh session establishment. Root cause: `sh -c 'demo 2>&1 | tee file'` exits 0 even when demo exits 1 (POSIX sh pipeline exit status = last command = tee), so the chain always passes regardless of demo outcome. The `;true` at the end of the chain cmd compounds this.
+  - muxd IS producing `0xfe` frames to `ttyAMA0` — confirmed in tty1.jsonl: `\xfe\x01\x1a\x00==> Starting zenoh bridge\r\n` and `bridge: zenoh session open` visible in the log at ~6.3MB offset (written after the chain completed, likely from board still running). ttyAMA0 is also the isengard kernel console, so tty1 shows mixed kernel dmesg + mux frames.
+  - Device mapping: ttyAMA0 inside isengard = ttyACM1 on autopilot host = UARTI at MMIO 0x31d0000. Confirmed from isengard kernel boot log.
+- Next action:
+  1. Fix the false-positive: change chain `run_zenoh_demo` to use `set -o pipefail` or capture demo exit code explicitly, OR add a `check_demo_log` step that greps `/tmp/demo.log` for `==> PASS` and fails if absent.
+  2. Rerun the chain to confirm the zenoh demo actually passes end-to-end (zenoh session opens, subscriber collects 10 samples, PASS marker present).
+  3. Optionally address the mixed kernel dmesg + mux frames on tty1 — either accept it or consider a dedicated UART if one is available.
+- Updated: 2026-05-07
+
 ### Legacy Autopilot MCP startup, status, and queue truth
 
 - Status: paused
@@ -266,7 +288,7 @@ Recovery note:
 
 ### Snapshot reader API, N-buffer design, topic projection, C++/Rust wrappers, Rust demo
 
-- Status: complete (Linux path); pending Yocto build validation on Orin
+- Status: **complete** (Linux path + Yocto build + on-hardware validation all done)
 - Primary note: `projects/isengard-camkes-vm/docs/snapshot-reader-api.md`
 - Related notes:
   - `sources/isengard-contracts/include/isengard/snapshot.h` — seqlock primitives; `static_assert` guard fixed for C++ (`!defined(__cplusplus)`) in commit `2121ff3`
@@ -278,8 +300,8 @@ Recovery note:
   - `sources/isengard-rs/` — Rust crate: `SnapshotPin<'pool>`, `SnapshotRegion` pread64 reader, `isengard_snapshot_watch` binary (commits `8a20327`, `1cd03e1`)
   - `sources/isengard-app/platform/linux/snapshot_memfd_demo.c` — added `--launch-watch-looping` mode (commit `8e494df`)
   - `meta-isengard/recipes-isengard/isengard-rs/isengard-rs_git.bb` — Yocto cargo+externalsrc recipe; `isengard-image-native.bb` includes `isengard-rs` (commit `81cdc13`)
-- Last known state: Full stack complete including Rust demo binary. `isengard_snapshot_watch` reads snapshot region directly via pread64 (double-read seqlock consistency, no mmap/libc). Verified locally: 100ms live updates from `snapshot_memfd_demo --launch-watch-looping`. Yocto recipe added; image build not yet triggered.
-- Next action: Run `make linux-image` to build Yocto image with `isengard-rs`, boot on Orin AGX, run `isengard-demo-watch-rust` to validate Rust binary on target.
+- Last known state: Fully validated on real Orin AGX by Autopilot run `20260506-111643` (chain: `isengard-linux-orin-rust-demo`, overall_status: pass). Chain uploaded fresh `isengard-rootfs` (built `make isengard-linux-image` 2026-05-06), booted Isengard EFI, ran `isengard-demo-start` and `isengard_snapshot_watch`, and `verify_rust_output` passed. All steps ok.
+- Next action: none — treat as closed. Next work is Phase 0/Phase 1 in `isengard-master-tracker.md` (CAN contract and first Orin Isengard app shape).
 - Updated: 2026-05-06
 
 ### CANopen snapshot publication from seL4 to Linux

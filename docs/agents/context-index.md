@@ -176,23 +176,28 @@ Recovery note:
 ### virtioso-muxd Linux stream multiplexer and isengard zenoh demo
 
 - Status: active
-- Primary note: `sources/virtioso-muxd/` (source) and `autopilot/chains/isengard-linux-orin-zenoh-demo.json` (chain)
+- Primary note: `sources/virtioso-muxd/` (source) and `/home/hlyytine/autopilot/chains/isengard-linux-orin-zenoh-demo.json` (chain)
 - Related notes:
+  - `/home/hlyytine/autopilot/demos/zenoh-orin.yaml` (demo layout file — first example of declarative layout + verdict system)
+  - `/home/hlyytine/autopilot/chain_runtime.py` (`_step_setup_demo`, `_step_check_verdict`, `_load_demo_layout`)
   - `sources/isengard-core/meta-isengard/recipes-isengard/isengard-app/files/isengard-demo-zenoh-remote` (demo script)
   - `sources/virtioso-muxd/virtioso-mux-exec/src/main.rs` (mux-exec client)
-  - `vm-images/virtioso-yocto-layers/meta-virtioso-sel4/recipes-devtools/virtioso-muxd/virtioso-muxd_git.bb` (Yocto recipe)
-  - `sources/isengard-core/meta-isengard/images/isengard-image-native.bb` (image recipe)
+  - Plan: `/home/hlyytine/.claude/plans/declarative-brewing-engelbart.md`
 - Last known state (2026-05-07):
-  - `virtioso-mux-exec` pipe-hang fix is committed: child-exit oneshot channel + 2s drain timeout prevents infinite wait when grandchild inherits pipe fd.
-  - `isengard-demo-zenoh-remote` zenoh session polling is fixed: replaced `sleep 1` with a 30×0.5s poll loop checking `bridge: zenoh session open` in the bridge log before proceeding to the subscriber step.
-  - Autopilot chain `isengard-linux-orin-zenoh-demo` is live with: map_window steps (tty0=Isengard Console, tty1=Mux Output), `start_muxd` sinking to `uart:/dev/ttyAMA0`, and `run_zenoh_demo` wrapping demo in `sh -c 'isengard-demo-zenoh-remote 2>&1 | tee /tmp/demo.log'`.
-  - Run `20260507-104410` reported overall_status=pass, BUT `run_zenoh_demo` completed in only 2.5s — too fast for zenoh session establishment. Root cause: `sh -c 'demo 2>&1 | tee file'` exits 0 even when demo exits 1 (POSIX sh pipeline exit status = last command = tee), so the chain always passes regardless of demo outcome. The `;true` at the end of the chain cmd compounds this.
-  - muxd IS producing `0xfe` frames to `ttyAMA0` — confirmed in tty1.jsonl: `\xfe\x01\x1a\x00==> Starting zenoh bridge\r\n` and `bridge: zenoh session open` visible in the log at ~6.3MB offset (written after the chain completed, likely from board still running). ttyAMA0 is also the isengard kernel console, so tty1 shows mixed kernel dmesg + mux frames.
-  - Device mapping: ttyAMA0 inside isengard = ttyACM1 on autopilot host = UARTI at MMIO 0x31d0000. Confirmed from isengard kernel boot log.
-- Next action:
-  1. Fix the false-positive: change chain `run_zenoh_demo` to use `set -o pipefail` or capture demo exit code explicitly, OR add a `check_demo_log` step that greps `/tmp/demo.log` for `==> PASS` and fails if absent.
-  2. Rerun the chain to confirm the zenoh demo actually passes end-to-end (zenoh session opens, subscriber collects 10 samples, PASS marker present).
-  3. Optionally address the mixed kernel dmesg + mux frames on tty1 — either accept it or consider a dedicated UART if one is available.
+  - Zenoh demo end-to-end confirmed working on real Orin AGX. Run `20260507-122249`: overall_status=pass, check_verdict=pass (4.4s polling). Demo script finds "bridge: zenoh session open", subscriber collects samples, "==> PASS" written to /tmp/demo.log.
+  - Declarative demo layout + verdict system is implemented and working:
+    - `setup_demo` step type: reads `autopilot/demos/<name>.yaml`, binds `uart:` panes via `ui.bind_window()`, stores pane→window map in ctx.
+    - `check_verdict` step type: supports `artifact_grep` (SSH polling on remote file, with timeout) and `tmux_capture` (polls tmux capture-pane). Both modes poll until timeout.
+    - `demos/zenoh-orin.yaml`: first layout file — `uart:tty0` (Isengard Console), `uart:tty1` (Mux Output), `mux:zenoh_demo` (placeholder); verdict = artifact_grep on /tmp/demo.log for "==> PASS", timeout_s=120.
+    - Chain now: `setup_demo` → demo launched in background (nohup) → `check_verdict` polls → `collect_log_pass`/`collect_log_fail` → `pass`/`fail`.
+  - Device mapping confirmed: ttyAMA0 inside isengard = ttyACM1 on autopilot host = UARTI at MMIO 0x31d0000.
+  - `mux:zenoh_demo` pane slot in the layout is reserved but not yet wired — the demuxer that splits 0xfe frames per stream does not exist yet.
+- Next action (per plan build order):
+  1. **Step 3 (done)**: `zenoh-orin.yaml` layout file exists as first example.
+  2. **Step 4**: Add `mux:<name>` pane source — implement a Python demuxer in Autopilot that reads 0xfe frames from ttyAMA0/tty1 and writes per-stream PTY/FIFO files; wire `setup_demo` to tail those for `mux:` panes.
+  3. **Step 5 (done)**: `check_verdict` with `artifact_grep` mode implemented and working.
+  4. **Step 6**: Container phase of two-machine zenoh demo (Docker bridge, two containers, multicast works by default).
+  5. **Step 7**: Add `tmux_capture` verdict mode (code exists, not yet tested) and `container:<name>` pane source.
 - Updated: 2026-05-07
 
 ### Legacy Autopilot MCP startup, status, and queue truth

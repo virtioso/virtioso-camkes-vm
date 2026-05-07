@@ -165,13 +165,21 @@ Recovery note:
 - Primary note: [../../../isengard-camkes-vm/docs/isengard-master-tracker.md](../../../isengard-camkes-vm/docs/isengard-master-tracker.md)
 - Related notes:
   - [../../../isengard-camkes-vm/docs/normet-isengard-project-direction.md](../../../isengard-camkes-vm/docs/normet-isengard-project-direction.md)
+  - [../../../isengard-camkes-vm/docs/isengard-time-coherence-and-sync-direction.md](../../../isengard-camkes-vm/docs/isengard-time-coherence-and-sync-direction.md)
+  - [../../../sources/isengard-core/docs/nbuffer-zenoh-remote-demo-architecture.md](../../../sources/isengard-core/docs/nbuffer-zenoh-remote-demo-architecture.md)
+  - [../../../sources/isengard-core/docs/canopen-od-alignment-and-iocfw-semantic-surface.md](../../../sources/isengard-core/docs/canopen-od-alignment-and-iocfw-semantic-surface.md)
   - [../../../isengard-camkes-vm/docs/orin-agx-support-plan.md](../../../isengard-camkes-vm/docs/orin-agx-support-plan.md)
   - [../../../isengard-camkes-vm/docs/orin-can-simulator-vm-architecture.md](../../../isengard-camkes-vm/docs/orin-can-simulator-vm-architecture.md)
   - [../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md](../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md)
   - [../../../isengard-camkes-vm/docs/architecture.md](../../../isengard-camkes-vm/docs/architecture.md)
-- Last known state: Isengard end-to-end demo on Orin AGX bare-metal is **done** — confirmed by Autopilot run `20260505-135944`. Full pipeline: stock Linux boot → SSH → Isengard rootfs upload → EFI boot → DHCP/SSH into Isengard → `isengard-demo-start` (vcan0 + isengard_app + FUSE /obj via snapshot_memfd_demo) → verify `/obj/obj/isengard/runtime/sequence` and `can/status_word`. Key fixes landed: busybox ifup udhcpc script path, $subnet vs $mask in 50default, SSH options in autopilot chain_runtime.py, snapshot_memfd_demo installed and wired correctly to isengard_objfs. Phase 0 (CAN contract and evidence) and Phase 1 (connect isengard_app CAN data to snapshot region) are the next active targets.
-- Next action: open `isengard-master-tracker.md` to pick up Phase 0/Phase 1. The Linux-native demo substrate is solid; next slice is wiring real `isengard_app` CANopenNODE data into the snapshot provider so `/obj/obj/isengard/` reflects live CAN state rather than memfd demo values.
-- Updated: 2026-05-05
+- Last known scope rule: this entry routes only the Isengard-specific roadmap,
+  ownership split, and dependent design notes. The broader `context-index.md`
+  intentionally also tracks unrelated workspace threads such as Autopilot,
+  console muxing, Orin VM investigations, QEMU backend work, and Yocto flow;
+  those topics do not need to appear in `isengard-master-tracker.md`.
+- Last known state: Isengard end-to-end demo on Orin AGX bare-metal is **done** — confirmed by Autopilot run `20260505-135944`. Full pipeline: stock Linux boot → SSH → Isengard rootfs upload → EFI boot → DHCP/SSH into Isengard → `isengard-demo-start` (vcan0 + isengard_app + FUSE /obj via snapshot_memfd_demo) → verify `/obj/obj/isengard/runtime/sequence` and `can/status_word`. Key fixes landed: busybox ifup udhcpc script path, $subnet vs $mask in 50default, SSH options in autopilot chain_runtime.py, snapshot_memfd_demo installed and wired correctly to isengard_objfs. The roadmap now records a mentoring model: Normet-side developers are the primary implementation team, while the external role is architecture guidance, exemplar slices, review, and de-risking of the sharpest platform unknowns. A new Isengard-specific time-coherence note now captures the missing distinction between local snapshot coherence and cross-box time comparability, including clock domains, sync-state metadata, consumer timing classes, and future safety-adjacent openness without moving safety ownership into Isengard. The new N-buffer/Zenoh architecture note records another important current boundary: the remote subscriber demo proves the transport and bridge seam, but the real `isengard_app` / CANopen-derived state is not yet the thing feeding that bridge. The iocfw replacement path is now assessed as a four-stage gradual migration (Isengard as observer → replace bounded responsibilities → Exertus as compatibility estate → selective retirement). Two concrete prerequisites to closing the semantic gap are identified: (1) wire real CANopenNode to `isengard_app` as the snapshot source, (2) align the CANopenNode OD to the objects Normet machines actually use — custom objects require Azure wiki access; standard CiA objects and PDO layout can be partially inferred from a live CAN trace.
+- Next action: open `isengard-master-tracker.md` for Phase 0 time-contract work, Phase 0.5 first team-facing seam, Phase 0.75 capability transfer, and the active N-buffer/Zenoh seam item; then use `isengard-time-coherence-and-sync-direction.md` when touching timestamps, `nbuffer-zenoh-remote-demo-architecture.md` when touching remote bridge wiring or claims about `iocfw` replacement progress, and `canopen-od-alignment-and-iocfw-semantic-surface.md` when touching the CANopenNode OD, iocfw bus-observable surface, or the blockers for wiring real machine state.
+- Updated: 2026-05-07
 
 ### virtioso-muxd Linux stream multiplexer and isengard zenoh demo
 
@@ -184,20 +192,15 @@ Recovery note:
   - `sources/virtioso-muxd/virtioso-mux-exec/src/main.rs` (mux-exec client)
   - Plan: `/home/hlyytine/.claude/plans/declarative-brewing-engelbart.md`
 - Last known state (2026-05-07):
-  - Zenoh demo end-to-end confirmed working on real Orin AGX. Run `20260507-122249`: overall_status=pass, check_verdict=pass (4.4s polling). Demo script finds "bridge: zenoh session open", subscriber collects samples, "==> PASS" written to /tmp/demo.log.
-  - Declarative demo layout + verdict system is implemented and working:
-    - `setup_demo` step type: reads `autopilot/demos/<name>.yaml`, binds `uart:` panes via `ui.bind_window()`, stores pane→window map in ctx.
-    - `check_verdict` step type: supports `artifact_grep` (SSH polling on remote file, with timeout) and `tmux_capture` (polls tmux capture-pane). Both modes poll until timeout.
-    - `demos/zenoh-orin.yaml`: first layout file — `uart:tty0` (Isengard Console), `uart:tty1` (Mux Output), `mux:zenoh_demo` (placeholder); verdict = artifact_grep on /tmp/demo.log for "==> PASS", timeout_s=120.
-    - Chain now: `setup_demo` → demo launched in background (nohup) → `check_verdict` polls → `collect_log_pass`/`collect_log_fail` → `pass`/`fail`.
-  - Device mapping confirmed: ttyAMA0 inside isengard = ttyACM1 on autopilot host = UARTI at MMIO 0x31d0000.
-  - `mux:zenoh_demo` pane slot in the layout is reserved but not yet wired — the demuxer that splits 0xfe frames per stream does not exist yet.
-- Next action (per plan build order):
-  1. **Step 3 (done)**: `zenoh-orin.yaml` layout file exists as first example.
-  2. **Step 4**: Add `mux:<name>` pane source — implement a Python demuxer in Autopilot that reads 0xfe frames from ttyAMA0/tty1 and writes per-stream PTY/FIFO files; wire `setup_demo` to tail those for `mux:` panes.
-  3. **Step 5 (done)**: `check_verdict` with `artifact_grep` mode implemented and working.
-  4. **Step 6**: Container phase of two-machine zenoh demo (Docker bridge, two containers, multicast works by default).
-  5. **Step 7**: Add `tmux_capture` verdict mode (code exists, not yet tested) and `container:<name>` pane source.
+  - Full mux: pane wiring done and validated. Run `20260507-132015`: overall_status=pass. `zenoh_demo` stream in sessions.json (stream_id=1, PTY /dev/pts/16 created on CTRL_CONNECTED). zenoh_demo.txt contains live subscriber output + "==> PASS".
+  - Protocol aligned: virtioso-muxd uses 0xfe/0xfd escape-sequence framing matching CAmkES muxer. CTRL_CONNECTED=0x01, CTRL_DISCONNECTED=0x04 in tcu_com.c and uart-proto.h. Stream IDs 0xfd/0xfe reserved in IdPool.
+  - `setup_demo` puts all panes in one split tmux window via `ensure_pane_window`. `zenoh-orin.yaml`: `uart:tty0` + `mux:zenoh_demo` side by side in window 1 (mux_output removed).
+  - Demo script now streams subscriber live for 30 s (was: 10 samples then dump). Output visible in pane in real time.
+  - Protocol documented in `docs/architecture/virtioso-mux-wire-protocol.md` (projects/virtioso-camkes-vm, virtioso-next branch).
+  - Rootfs rebuild in progress (log: /tmp/isengard-rebuild-2.log) to deploy new demo script.
+- Next action:
+  1. Wait for rootfs rebuild, then resubmit zenoh demo to validate 30 s streaming and split-window layout.
+  2. Container phase of two-machine demo (Docker bridge, two containers, zenoh multicast over bridge).
 - Updated: 2026-05-07
 
 ### Legacy Autopilot MCP startup, status, and queue truth

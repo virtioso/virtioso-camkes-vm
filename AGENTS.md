@@ -33,6 +33,25 @@ Operational policy and command sequences are authoritative only in:
 6. `docs/agents/repo-topology-policy.md`
 7. `docs/agents/example-workflows-fastpath.md`
 
+## Isengard Documentation Rule
+
+All durable Isengard documentation — roadmaps, trackers, architecture notes,
+design plans, and investigation logs — must live in `sources/isengard-core/docs/`.
+
+Do not create or move Isengard documentation into `projects/isengard-camkes-vm/docs/`.
+That directory is reserved for seL4-side deployment notes, CAmkES wiring docs, and
+hardware-description references that are inherently bound to the
+`projects/isengard-camkes-vm` repo.
+
+The current authoritative Isengard documents are:
+- `sources/isengard-core/docs/isengard-master-tracker.md` — active task and
+  decision tracker
+- `sources/isengard-core/docs/normet-program-roadmap.md` — management-level
+  program roadmap and cross-team discovery guide
+- `projects/isengard-camkes-vm/docs/normet-isengard-project-direction.md` —
+  strategic direction (exception: lives in `isengard-camkes-vm` because it
+  predates this rule and is closely tied to seL4-side placement decisions)
+
 ## Continuity / Lost Context Recovery
 
 When context appears lost, or the user asks whether we were working on a topic,
@@ -109,7 +128,7 @@ For `qemu_x86_64_defconfig` QEMU-backed x86 validation:
 
 - For Normet / Isengard architecture or platform-direction work, open
   `projects/isengard-camkes-vm/docs/normet-isengard-project-direction.md`
-  first, then `projects/isengard-camkes-vm/docs/isengard-master-tracker.md`
+  first, then `sources/isengard-core/docs/isengard-master-tracker.md`
   for active tasks, dependencies, open decisions, and validation expectations.
   Current strategic defaults: Orin-family rugged hardware is the primary
   direction; both plain Linux and seL4-with-Linux-VM placements remain open;
@@ -125,9 +144,9 @@ For `qemu_x86_64_defconfig` QEMU-backed x86 validation:
   full-layer review.
 - For requests like “continue Isengard stuff”, route immediately to
   `projects/isengard-camkes-vm/docs/normet-isengard-project-direction.md`,
-  then open the lower-level Orin and Linux-only plans as needed. Treat
-  `projects/isengard-camkes-vm` as the seL4-side repo plus
-  `sources/isengard-core` as the current source-side implementation repo.
+  then open `sources/isengard-core/docs/isengard-master-tracker.md` for
+  active tasks. Treat `projects/isengard-camkes-vm` as the seL4-side repo
+  plus `sources/isengard-core` as the current source-side implementation repo.
   Linux-side software for that plan must go through a dedicated Yocto layer
   `vm-images/meta-isengard`.
 - For `projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio`, treat the current

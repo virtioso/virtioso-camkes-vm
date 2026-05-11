@@ -44,9 +44,9 @@ hardware-description references that are inherently bound to the
 `projects/isengard-camkes-vm` repo.
 
 The current authoritative Isengard documents are:
-- `sources/isengard-core/docs/isengard-master-tracker.md` — active task and
+- `sources/isengard-core/docs/trackers/isengard-master-tracker.md` — active task and
   decision tracker
-- `sources/isengard-core/docs/normet-program-roadmap.md` — management-level
+- `sources/isengard-core/docs/trackers/normet-program-roadmap.md` — management-level
   program roadmap and cross-team discovery guide
 - `projects/isengard-camkes-vm/docs/normet-isengard-project-direction.md` —
   strategic direction (exception: lives in `isengard-camkes-vm` because it
@@ -138,7 +138,7 @@ For `qemu_x86_64_defconfig` QEMU-backed x86 validation:
 
 - For Normet / Isengard architecture or platform-direction work, open
   `projects/isengard-camkes-vm/docs/normet-isengard-project-direction.md`
-  first, then `sources/isengard-core/docs/isengard-master-tracker.md`
+  first, then `sources/isengard-core/docs/trackers/isengard-master-tracker.md`
   for active tasks, dependencies, open decisions, and validation expectations.
   Current strategic defaults: Orin-family rugged hardware is the primary
   direction; both plain Linux and seL4-with-Linux-VM placements remain open;
@@ -154,7 +154,7 @@ For `qemu_x86_64_defconfig` QEMU-backed x86 validation:
   full-layer review.
 - For requests like “continue Isengard stuff”, route immediately to
   `projects/isengard-camkes-vm/docs/normet-isengard-project-direction.md`,
-  then open `sources/isengard-core/docs/isengard-master-tracker.md` for
+  then open `sources/isengard-core/docs/trackers/isengard-master-tracker.md` for
   active tasks. Treat `projects/isengard-camkes-vm` as the seL4-side repo
   plus `sources/isengard-core` as the current source-side implementation repo.
   Linux-side software for that plan must go through a dedicated Yocto layer

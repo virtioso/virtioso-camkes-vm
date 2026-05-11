@@ -162,14 +162,14 @@ Recovery note:
 ### Isengard platform work
 
 - Status: active
-- Primary note: [../../../sources/isengard-core/docs/isengard-master-tracker.md](../../../sources/isengard-core/docs/isengard-master-tracker.md)
+- Primary note: [../../../sources/isengard-core/docs/trackers/isengard-master-tracker.md](../../../sources/isengard-core/docs/trackers/isengard-master-tracker.md)
 - Related notes:
-  - [../../../sources/isengard-core/docs/normet-program-roadmap.md](../../../sources/isengard-core/docs/normet-program-roadmap.md) — management-level program roadmap and cross-team discovery guide
+  - [../../../sources/isengard-core/docs/trackers/normet-program-roadmap.md](../../../sources/isengard-core/docs/trackers/normet-program-roadmap.md) — management-level program roadmap and cross-team discovery guide
   - [../../../isengard-camkes-vm/docs/normet-isengard-project-direction.md](../../../isengard-camkes-vm/docs/normet-isengard-project-direction.md)
   - [../../../isengard-camkes-vm/docs/isengard-time-coherence-and-sync-direction.md](../../../isengard-camkes-vm/docs/isengard-time-coherence-and-sync-direction.md)
-  - [../../../sources/isengard-core/docs/nbuffer-zenoh-remote-demo-architecture.md](../../../sources/isengard-core/docs/nbuffer-zenoh-remote-demo-architecture.md)
-  - [../../../sources/isengard-core/docs/canopen-od-alignment-and-iocfw-semantic-surface.md](../../../sources/isengard-core/docs/canopen-od-alignment-and-iocfw-semantic-surface.md)
-  - [../../../sources/isengard-core/docs/normet-codebase-survey.md](../../../sources/isengard-core/docs/normet-codebase-survey.md)
+  - [../../../sources/isengard-core/docs/architecture/nbuffer-zenoh-remote-demo-architecture.md](../../../sources/isengard-core/docs/architecture/nbuffer-zenoh-remote-demo-architecture.md)
+  - [../../../sources/isengard-core/docs/architecture/canopen-od-alignment-and-iocfw-semantic-surface.md](../../../sources/isengard-core/docs/architecture/canopen-od-alignment-and-iocfw-semantic-surface.md)
+  - [../../../sources/isengard-core/docs/reference/normet-codebase-survey.md](../../../sources/isengard-core/docs/reference/normet-codebase-survey.md)
   - [../../../isengard-camkes-vm/docs/orin-agx-support-plan.md](../../../isengard-camkes-vm/docs/orin-agx-support-plan.md)
   - [../../../isengard-camkes-vm/docs/orin-can-simulator-vm-architecture.md](../../../isengard-camkes-vm/docs/orin-can-simulator-vm-architecture.md)
   - [../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md](../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md)

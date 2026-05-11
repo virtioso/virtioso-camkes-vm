@@ -52,6 +52,16 @@ The current authoritative Isengard documents are:
   strategic direction (exception: lives in `isengard-camkes-vm` because it
   predates this rule and is closely tied to seL4-side placement decisions)
 
+## IOmux Binding Types SSOT
+
+The Normet ns3iomux JSON machine-configuration format (`~/normet/ns3iomux/machines/`)
+is the authoritative definition for signal binding types (`DirectMidPin`,
+`ExertusModule`, `RawCan`).  The Rust enum `CpSource` in `isengard-core` is an
+implementation mirror of that schema.
+
+When designing, implementing, or documenting these types, treat the JSON schema as
+ground truth, not the Rust code or internal prose descriptions.
+
 ## Continuity / Lost Context Recovery
 
 When context appears lost, or the user asks whether we were working on a topic,

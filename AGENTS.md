@@ -6,6 +6,17 @@ Canonical file: `projects/virtioso-camkes-vm/AGENTS.md`.
 Workspace root `AGENTS.md` is only a symlink/linkfile to the canonical file.
 Edits made via either path affect the same file; treat `projects/virtioso-camkes-vm/AGENTS.md` as the source of truth.
 
+## Knowledge Graph Tool (Orthanc)
+
+For AI-assisted architecture and project management work using idea graphs,
+see `~/orthanc/AGENTS.md`. The `/ideas-graph` skill provides shorthand access.
+
+Orthanc is a weighted association graph system: nodes are architectural ideas,
+edges are weighted associations, and every mutation is logged with reasoning.
+The `isengard` graph (30 nodes, 92 edges) covers Isengard architecture.
+
+---
+
 ## Current Investigation Focus
 
 - Topic: Orin AGX CAmkES component mux/demux completion.

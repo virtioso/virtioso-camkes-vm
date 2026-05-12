@@ -9,7 +9,7 @@ Cross-architecture successor:
 - [cross-arch-tcu-uart-mux-plan-2026-05-01.md](cross-arch-tcu-uart-mux-plan-2026-05-01.md)
 
 Note: the successor keeps the NVIDIA-style stream-switching behavior, but uses
-`0xfe` as the local escape byte instead of NVIDIA `tcu_muxer`'s `0xff` so the
+`0xfe` as the local escape byte instead of NVIDIA `vcmuxer`'s `0xff` so the
 local mux can run over a real NVIDIA TCU path.
 
 Supersedes as target architecture:
@@ -46,7 +46,7 @@ The replacement architecture is:
     changes
   - in the successor, emit `0xfe 0xfe` for a literal `0xfe` payload byte
   - otherwise emit the payload byte unchanged
-- use NVIDIA `tcu_muxer` behavior as the host-side demux baseline
+- use NVIDIA `vcmuxer` behavior as the host-side demux baseline
 
 The mux protocol is not where logging, PTY management, event journaling, or
 interactive policy should live. Those are host-tooling concerns layered above
@@ -143,7 +143,7 @@ Expected behavior:
 - a stream tag is emitted only when output ownership changes
 - payload bytes remain byte-exact except for the `0xff` escape case
 
-This follows the same design level as NVIDIA `tcu_muxer`, not the current local
+This follows the same design level as NVIDIA `vcmuxer`, not the current local
 framed transport.
 
 ## Stream Identity
@@ -206,7 +206,7 @@ preserved so low-level platform software continues to use its own path.
 
 ## Host Demux Direction
 
-Host demux should use NVIDIA `tcu_muxer` as the behavioral baseline.
+Host demux should use NVIDIA `vcmuxer` as the behavioral baseline.
 
 Concretely:
 
@@ -250,7 +250,7 @@ Exit criteria:
 ### Slice 4: Replace Host Demux
 
 - remove `binary_frames` decode from the active path
-- use a `tcu_muxer`-style demux path driven by generated stream metadata
+- use a `vcmuxer`-style demux path driven by generated stream metadata
 - keep optional per-channel PTY/log/runtime features above the demux seam
 
 Exit criteria:
@@ -303,7 +303,7 @@ Exit criteria:
 
 - The generated stream-id source needs a concrete implementation seam in the
   current CAmkES/app pipeline.
-- We need to decide whether to wrap `tcu_muxer` directly, fork a minimal local
+- We need to decide whether to wrap `vcmuxer` directly, fork a minimal local
   variant, or extract only the protocol logic and keep repo-local output
   plumbing.
 - Existing router/runtime conveniences such as PTY and event logs may still be

@@ -107,7 +107,7 @@ recovery boot.
    `autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot logs <request-id> --json`
 9. For VM-specific proof, inspect the demuxed guest console sink first. For VM1
    `uname -a`, use:
-   `autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot logs <request-id> --file console-runtime/tcu_muxer_logs/vm1_guest_console_sink.txt --grep "Linux user-vm" --include-contents --json`
+   `autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot logs <request-id> --file console-runtime/vcmuxer_logs/vm1_guest_console_sink.txt --grep "Linux user-vm" --include-contents --json`
 10. Do not treat raw host captures such as `tty1.raw` as the primary VM1 proof
     when mux/demux logs exist; they may contain firmware or carrier-console
     traffic instead of the logical VM stream.
@@ -156,7 +156,7 @@ recovery boot.
    `autopilot --autopilot-dir /home/hlyytine/tii-sel4/autopilot logs <request-id> --json`
 9. Inspect VM-specific managed-launch evidence in the demuxed guest console sink
    first, for example:
-   `results/<id>/console/console-runtime/tcu_muxer_logs/vm1_guest_console_sink.txt`
+   `results/<id>/console/console-runtime/vcmuxer_logs/vm1_guest_console_sink.txt`
 10. The `qemu_x86_64_defconfig` chain remains the boot-to-login smoke test;
     `qemu_x86_64_vm_qemu_virtio_uservm` is the x86 profile that runs
     `uservmctl start`, `uservmctl wait-ready`, VM1 root login on

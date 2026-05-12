@@ -35,7 +35,7 @@ This file is the canonical policy for Autopilot test submission and results.
   `results/<id>/console/`
 - For mux/demux runs, VM-specific evidence must come first from the demuxed
   guest console sink for that VM:
-  `results/<id>/console/console-runtime/tcu_muxer_logs/vmX_guest_console_sink.txt`
+  `results/<id>/console/console-runtime/vcmuxer_logs/vmX_guest_console_sink.txt`
 - Do not use raw host captures such as `tty0.raw` or `tty1.raw` as primary
   proof for VM-specific commands when the matching `vmX_guest_console_sink`
   log exists. Raw captures may include firmware, boot carrier, or multiplexed

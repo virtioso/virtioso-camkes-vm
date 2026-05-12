@@ -26,8 +26,8 @@ from typing import Iterable
 SCRIPT_DIR = Path(__file__).resolve().parent
 WORKSPACE_ROOT = SCRIPT_DIR.parent.parent.parent
 VM_IMAGES_DIR = WORKSPACE_ROOT / "vm-images"
-TCU_MUXER_DIR = WORKSPACE_ROOT / "sources" / "tcu_muxer"
-TCU_MUXER_BINARY = TCU_MUXER_DIR / "tcu_muxer"
+VCMUXER_DIR = WORKSPACE_ROOT / "sources" / "tcu_muxer"
+VCMUXER_BINARY = VCMUXER_DIR / "vcmuxer"
 DEFAULT_REMOTE_CONFIG = Path.home() / ".virtioso-qemu-runners.json"
 DEFAULT_RUNTIME_DEPLOY_DIR = VM_IMAGES_DIR / "build" / "tmp" / "deploy" / "virtioso-qemu-runtime"
 
@@ -268,13 +268,13 @@ def _write_bundle_console_manifest(path: Path, target: str, binary: Path, spec: 
     return path
 
 
-def _ensure_tcu_muxer_binary() -> Path:
-    if not (TCU_MUXER_DIR / "Makefile").exists():
-        raise RunnerError(f"tcu_muxer source directory not found: {TCU_MUXER_DIR}")
-    subprocess.run(["make", "-C", str(TCU_MUXER_DIR)], check=True)
-    if not TCU_MUXER_BINARY.exists():
-        raise RunnerError(f"tcu_muxer build did not produce {TCU_MUXER_BINARY}")
-    return TCU_MUXER_BINARY
+def _ensure_vcmuxer_binary() -> Path:
+    if not (VCMUXER_DIR / "Makefile").exists():
+        raise RunnerError(f"vcmuxer source directory not found: {VCMUXER_DIR}")
+    subprocess.run(["make", "-C", str(VCMUXER_DIR)], check=True)
+    if not VCMUXER_BINARY.exists():
+        raise RunnerError(f"vcmuxer build did not produce {VCMUXER_BINARY}")
+    return VCMUXER_BINARY
 
 
 def _router_command(
@@ -379,7 +379,7 @@ def run_local(
     else:
         wrapped_argv = _fallback_local_command(binary, spec, runtime.binary, merged_extra_qemu_args)
     if _console_profile(binary) == "vm_qemu_virtio" and not dry_run:
-        _ensure_tcu_muxer_binary()
+        _ensure_vcmuxer_binary()
     manifest_path = _write_console_manifest(console_root / "console-manifest.json", target, binary, spec)
     router_runtime_dir = console_root / "console-runtime"
     argv = _router_command(manifest_path, router_runtime_dir, wrapped_argv)
@@ -659,12 +659,12 @@ def _console_manifest(target: str, binary: Path, spec: TargetSpec, *, force_proc
                 "target": target,
                 "binary_name": binary.name,
                 "transport": {
-                    "type": "virtioso_tcu_mux",
+                    "type": "virtioso_vcmux",
                     "owner": "qemu_runner",
                     "qemu_binary": spec.qemu_binary,
-                    "tcu_muxer_path": str(TCU_MUXER_BINARY),
+                    "vcmuxer_path": str(VCMUXER_BINARY),
                     "outer": "raw",
-                    "note": "Runner-side Virtioso 0xfe demux; dynamic PTYs are created from target stream announcements.",
+                    "note": "Runner-side VCMux 0xfe demux; dynamic PTYs are created from target stream announcements.",
                 },
                 "channels": [
                     {
@@ -1030,7 +1030,7 @@ def run_remote(
     )
     manifest_path = _write_console_manifest(console_root / "console-manifest.json", target, binary, spec)
     if _console_profile(binary) == "vm_qemu_virtio" and not dry_run:
-        _ensure_tcu_muxer_binary()
+        _ensure_vcmuxer_binary()
     router_runtime_dir = console_root / "console-runtime"
     remote = f"{runner['ssh_user']}@{runner['ssh_host']}"
     remote_dir = runner["remote_dir"]

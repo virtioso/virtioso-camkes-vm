@@ -63,6 +63,28 @@ The current authoritative Isengard documents are:
   strategic direction (exception: lives in `isengard-camkes-vm` because it
   predates this rule and is closely tied to seL4-side placement decisions)
 
+## Isengard Docker (T2) Deployment
+
+**Do not re-scan the codebase for Docker support on every session.** The facts are:
+
+- Machine `isengard-x86-64` (`meta-isengard/conf/machine/isengard-x86-64.conf`) has
+  `IMAGE_FSTYPES = "container"` and uses `linux-dummy` (no kernel — container target).
+- Build command: `make isengard-vehicle-control-image` (runs bitbake inside `virtioso/build:latest`).
+- Output: `vm-images/build/tmp/deploy/images/isengard-x86-64/isengard-image-vehicle-control-isengard-x86-64.rootfs.tar.bz2`
+- This is a **rootfs tarball**, not a Docker manifest — import with `docker import`, not `docker load`.
+- T2 run: `docker run --ipc=host -v /run/isengard/iox2:/run/isengard/iox2 isengard-processors:latest`
+- iceoryx2 config baked at `/etc/iceoryx2/iceoryx2.toml` (via `isengard-app-config` package).
+- Full doc: `sources/isengard-core/docs/deployment/docker-t2.md`
+
+**Yocto crates.inc maintenance:** when `Cargo.lock` gains new crates.io deps, both
+`isengard-app-crates.inc` AND `isengard-zenoh-bridge-crates.inc` need updating (they
+each have their own offline cargo home). Check both with `bitbake -c update_crates <recipe>`.
+
+**virtioso-muxd sstate pitfall:** if `virtioso-muxd do_compile` fails with "no matching
+package named `clap`", run `bitbake -c cleansstate virtioso-muxd` then rebuild — it's
+a sstate/externalsrc interaction where configure restores from cache without populating
+the cargo home.
+
 ## IOmux Binding Types SSOT
 
 The Normet ns3iomux JSON machine-configuration format (`~/normet/ns3iomux/machines/`)

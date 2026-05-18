@@ -191,6 +191,25 @@ Recovery note:
 - Next action: open `isengard-master-tracker.md` for Phase 0 time-contract work, Phase 0.5 first team-facing seam, Phase 0.75 capability transfer, and the active N-buffer/Zenoh seam item; then use `isengard-time-coherence-and-sync-direction.md` when touching timestamps, `nbuffer-zenoh-remote-demo-architecture.md` when touching remote bridge wiring or claims about `iocfw` replacement progress, and `canopen-od-alignment-and-iocfw-semantic-surface.md` when touching the CANopenNode OD, iocfw bus-observable surface, or the blockers for wiring real machine state.
 - Updated: 2026-05-13 (migration patterns consolidated: new SSOT at `sources/isengard-core/docs/architecture/migration/` — strangler-fig, CAN gateway intercept, dual-track program structure, target-state, hardware path; normet docs updated with back-links)
 
+### iceoryx2 IPC migration (Isengard)
+
+- Status: active — T1 ready to verify
+- Primary note: [../../../sources/isengard-core/docs/architecture/iceoryx2-migration-plan.md](../../../sources/isengard-core/docs/architecture/iceoryx2-migration-plan.md)
+- Related notes:
+  - [../../../sources/isengard-core/docs/trackers/isengard-master-tracker.md](../../../sources/isengard-core/docs/trackers/isengard-master-tracker.md) — workstream and task entries
+- Last known state: implementation complete (2026-05-18). `cargo build --workspace` clean.
+  All 8 snapshot types implement `ZeroCopySend` + `Debug`. `Iox2Publisher<T>` and
+  `Iox2Subscriber<T>` in `lib/src/iceoryx2_transport.rs`. `ProcessorLoop` rewritten.
+  `can-bridge`, `watch`, `objfs`, `zenoh-bridge` all use iceoryx2. `topic-broker` removed
+  from workspace. Linux nbuf files deleted. `deploy/iceoryx2.toml` created for Docker T2.
+  iceoryx2 PAL stub template enables future seL4 port; kmod-sel4-virt is the
+  Linux-VM ↔ CAmkES cross-boundary bridge. NorSmart3 couples via iceoryx2 C FFI.
+- Next action: T1 verification — start `can-bridge` + processor components on host with
+  vcan0, run `isengard-watch` and confirm topics flow. Then T2 Docker verification.
+  Outstanding prerequisite: add `sources/iceoryx2` to `.repo/manifests/default.xml`
+  (confirm remote/revision with human owner).
+- Updated: 2026-05-18
+
 ### virtioso-muxd Linux stream multiplexer and isengard zenoh demo
 
 - Status: active

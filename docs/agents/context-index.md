@@ -193,22 +193,21 @@ Recovery note:
 
 ### iceoryx2 IPC migration (Isengard)
 
-- Status: active — T1 ready to verify
+- Status: **done** — T1 and T2 both verified
 - Primary note: [../../../sources/isengard-core/docs/architecture/iceoryx2-migration-plan.md](../../../sources/isengard-core/docs/architecture/iceoryx2-migration-plan.md)
 - Related notes:
   - [../../../sources/isengard-core/docs/trackers/isengard-master-tracker.md](../../../sources/isengard-core/docs/trackers/isengard-master-tracker.md) — workstream and task entries
-- Last known state: implementation complete (2026-05-18). `cargo build --workspace` clean.
-  All 8 snapshot types implement `ZeroCopySend` + `Debug`. `Iox2Publisher<T>` and
-  `Iox2Subscriber<T>` in `lib/src/iceoryx2_transport.rs`. `ProcessorLoop` rewritten.
-  `can-bridge`, `watch`, `objfs`, `zenoh-bridge` all use iceoryx2. `topic-broker` removed
-  from workspace. Linux nbuf files deleted. `deploy/iceoryx2.toml` created for Docker T2.
+  - [../../../sources/isengard-core/docs/deployment/docker-t2.md](../../../sources/isengard-core/docs/deployment/docker-t2.md) — T2 Docker deployment doc
+- Last known state: T1 verified 2026-05-18 (host vcan0, all 8 topics). T2 verified
+  2026-05-19 via `docker-compose up` from `sources/isengard-core/deploy/`. All 8 topics
+  flow cross-container: `ipc:shareable` + `ipc:"service:can-bridge"` shares `/dev/shm`;
+  named tmpfs volume at `/run/isengard/iox2` shares service registry. Yocto recipe
+  split into per-component packages. Verified with FC101 IOmux + `cansend 0x1E1/0x2E1`.
   iceoryx2 PAL stub template enables future seL4 port; kmod-sel4-virt is the
   Linux-VM ↔ CAmkES cross-boundary bridge. NorSmart3 couples via iceoryx2 C FFI.
-- Next action: T1 verification — start `can-bridge` + processor components on host with
-  vcan0, run `isengard-watch` and confirm topics flow. Then T2 Docker verification.
-  Outstanding prerequisite: add `sources/iceoryx2` to `.repo/manifests/default.xml`
-  (confirm remote/revision with human owner).
-- Updated: 2026-05-18
+- Next action: add `sources/iceoryx2` to `.repo/manifests/default.xml` (blocked —
+  confirm remote/revision with human owner).
+- Updated: 2026-05-19
 
 ### virtioso-muxd Linux stream multiplexer and isengard zenoh demo
 

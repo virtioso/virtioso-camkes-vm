@@ -72,8 +72,9 @@ The current authoritative Isengard documents are:
 - Build command: `make isengard-vehicle-control-image` (runs bitbake inside `virtioso/build:latest`).
 - Output: `vm-images/build/tmp/deploy/images/isengard-x86-64/isengard-image-vehicle-control-isengard-x86-64.rootfs.tar.bz2`
 - This is a **rootfs tarball**, not a Docker manifest — import with `docker import`, not `docker load`.
-- T2 run: `docker run --ipc=host -v /run/isengard/iox2:/run/isengard/iox2 isengard-processors:latest`
-- iceoryx2 config baked at `/etc/iceoryx2/iceoryx2.toml` (via `isengard-app-config` package).
+- T2 **dev** (no root on host): `cd sources/isengard-core/deploy && docker compose up` — all services (including can-bridge) run as containers; IPC shared via `ipc: shareable` + `ipc: "service:can-bridge"`; tmpfs volume for iceoryx2 metadata; dev config at `deploy/config/iceoryx2-dev.toml` overrides the baked-in `/etc/iceoryx2/iceoryx2.toml`.
+- T2 **production** (Orin AGX): can-bridge runs native on host, processors in `docker run --ipc=host -v /run/isengard/iox2:/run/isengard/iox2 isengard-processors:latest`.
+- iceoryx2 config baked at `/etc/iceoryx2/iceoryx2.toml` (via `isengard-app-config` package); `root-path = "/run/isengard/iox2"` (prod); dev compose overrides to `/tmp/isengard/iox2`.
 - Full doc: `sources/isengard-core/docs/deployment/docker-t2.md`
 
 **Yocto crates.inc maintenance:** when `Cargo.lock` gains new crates.io deps, both

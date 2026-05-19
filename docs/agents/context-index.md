@@ -205,8 +205,7 @@ Recovery note:
   split into per-component packages. Verified with FC101 IOmux + `cansend 0x1E1/0x2E1`.
   iceoryx2 PAL stub template enables future seL4 port; kmod-sel4-virt is the
   Linux-VM ↔ CAmkES cross-boundary bridge. NorSmart3 couples via iceoryx2 C FFI.
-- Next action: add `sources/iceoryx2` to `.repo/manifests/default.xml` (blocked —
-  confirm remote/revision with human owner).
+- Next action: none — migration fully complete including manifest entry.
 - Updated: 2026-05-19
 
 ### virtioso-muxd Linux stream multiplexer and isengard zenoh demo

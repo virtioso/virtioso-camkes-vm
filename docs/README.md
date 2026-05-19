@@ -24,7 +24,8 @@ Build tooling, Yocto integration, and CI/CD.
 
 ## Deployment
 Deployment scenarios and production guidance.
-- `deployment/`
+- `deployment/` — Virtioso seL4 deployment
+- Isengard deployment (T1/T2/T3): `sources/isengard-core/docs/deployment/`
 
 ## Platforms
 Platform-specific docs, especially Orin AGX.

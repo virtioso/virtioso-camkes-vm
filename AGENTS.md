@@ -75,7 +75,7 @@ The current authoritative Isengard documents are:
 - T2 **dev** (no root on host): `cd sources/isengard-core/deploy && docker-compose up` — all services (including can-bridge) run as containers; IPC shared via `ipc: shareable` + `ipc: "service:can-bridge"`; named tmpfs volume `iox2-meta` mounted at `/run/isengard/iox2` in every container provides shared iceoryx2 service registry. No config override needed — all containers use the baked-in `/etc/iceoryx2/iceoryx2.toml` consistently.
 - T2 **production** (Orin AGX): can-bridge runs native on host, processors in `docker run --ipc=host -v /run/isengard/iox2:/run/isengard/iox2 isengard-processors:latest`.
 - iceoryx2 config baked at `/etc/iceoryx2/iceoryx2.toml` (via `isengard-app-config` package); `root-path = "/run/isengard/iox2"`.
-- Full doc: `sources/isengard-core/docs/deployment/docker-t2.md`
+- Full doc: `sources/isengard-core/docs/deployment/README.md`
 
 **Yocto crates.inc maintenance:** when `Cargo.lock` gains new crates.io deps, both
 `isengard-app-crates.inc` AND `isengard-zenoh-bridge-crates.inc` need updating (they

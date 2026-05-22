@@ -26,8 +26,8 @@ from typing import Iterable
 SCRIPT_DIR = Path(__file__).resolve().parent
 WORKSPACE_ROOT = SCRIPT_DIR.parent.parent.parent
 VM_IMAGES_DIR = WORKSPACE_ROOT / "vm-images"
-VCMUXER_DIR = WORKSPACE_ROOT / "sources" / "tcu_muxer"
-VCMUXER_BINARY = VCMUXER_DIR / "vcmuxer"
+VCMUXER_DIR = WORKSPACE_ROOT / "sources" / "virtioso-mux" / "host"
+VCMUXER_BINARY = VCMUXER_DIR / "virtioso-mux"
 DEFAULT_REMOTE_CONFIG = Path.home() / ".virtioso-qemu-runners.json"
 DEFAULT_RUNTIME_DEPLOY_DIR = VM_IMAGES_DIR / "build" / "tmp" / "deploy" / "virtioso-qemu-runtime"
 

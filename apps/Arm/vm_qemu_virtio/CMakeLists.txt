@@ -20,9 +20,9 @@ config_option(
 )
 AddCamkesCPPFlag(cpp_flags CONFIG_VARS UserVmDtb)
 
-CAmkESAddImportPath(${VIRTIOSO_CAMKES_VM_DIR}/components/GuestConsoleSink)
-CAmkESAddImportPath(${VIRTIOSO_CAMKES_VM_DIR}/components/ConsoleMux)
-CAmkESAddImportPath(${VIRTIOSO_CAMKES_VM_DIR}/components/ConsoleDebugBatchSink)
+CAmkESAddImportPath(${VIRTIOSO_MUX_SOURCE_DIR}/sel4/GuestSink)
+CAmkESAddImportPath(${VIRTIOSO_MUX_SOURCE_DIR}/sel4/Mux)
+CAmkESAddImportPath(${VIRTIOSO_MUX_SOURCE_DIR}/sel4/DebugSink)
 
 VirtiosoGenerateCAmkESStreamRegistry(
     vm_qemu_virtio
@@ -34,15 +34,15 @@ VirtiosoGenerateCAmkESStreamRegistry(
 )
 
 add_subdirectory(
-    ${VIRTIOSO_CAMKES_VM_DIR}/components/GuestConsoleSink
+    ${VIRTIOSO_MUX_SOURCE_DIR}/sel4/GuestSink
     ${CMAKE_CURRENT_BINARY_DIR}/GuestConsoleSink
 )
 add_subdirectory(
-    ${VIRTIOSO_CAMKES_VM_DIR}/components/ConsoleMux
+    ${VIRTIOSO_MUX_SOURCE_DIR}/sel4/Mux
     ${CMAKE_CURRENT_BINARY_DIR}/ConsoleMux
 )
 add_subdirectory(
-    ${VIRTIOSO_CAMKES_VM_DIR}/components/ConsoleDebugBatchSink
+    ${VIRTIOSO_MUX_SOURCE_DIR}/sel4/DebugSink
     ${CMAKE_CURRENT_BINARY_DIR}/ConsoleDebugBatchSink
 )
 

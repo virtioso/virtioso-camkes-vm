@@ -20,7 +20,7 @@ The `isengard` graph (30 nodes, 92 edges) covers Isengard architecture.
 ## Current Investigation Focus
 
 - Topic: Orin AGX CAmkES component mux/demux completion.
-- Working notes (primary): `docs/virtioso-camkes-vm/architecture/cross-arch-tcu-uart-mux-plan-2026-05-01.md`.
+- Working notes (primary): `docs/virtioso-mux/cross-arch-tcu-uart-mux-plan-2026-05-01.md`.
 - Current status: finish the mux/demux path on real Orin AGX first. Keep the
   shared `0xfe` TCU-style protocol, generated CAmkES stream identity, runtime
   announcements, demux-created channels, and Autopilot introspection as the

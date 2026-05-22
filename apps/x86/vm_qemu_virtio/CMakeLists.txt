@@ -17,14 +17,14 @@ include(${CAMKES_VM_HELPERS_PATH})
 include(${VIRTIOSO_CAMKES_VM_HELPERS_PATH})
 find_package(camkes-vm-linux REQUIRED)
 include(${CAMKES_VM_LINUX_HELPERS_PATH})
-CAmkESAddImportPath(${VIRTIOSO_CAMKES_VM_DIR}/components/GuestConsoleSink)
-CAmkESAddImportPath(${VIRTIOSO_CAMKES_VM_DIR}/components/ConsolePassthroughSink)
+CAmkESAddImportPath(${VIRTIOSO_MUX_SOURCE_DIR}/sel4/GuestSink)
+CAmkESAddImportPath(${VIRTIOSO_MUX_SOURCE_DIR}/sel4/PassthruSink)
 add_subdirectory(
-    ${VIRTIOSO_CAMKES_VM_DIR}/components/GuestConsoleSink
+    ${VIRTIOSO_MUX_SOURCE_DIR}/sel4/GuestSink
     ${CMAKE_CURRENT_BINARY_DIR}/GuestConsoleSink
 )
 add_subdirectory(
-    ${VIRTIOSO_CAMKES_VM_DIR}/components/ConsolePassthroughSink
+    ${VIRTIOSO_MUX_SOURCE_DIR}/sel4/PassthruSink
     ${CMAKE_CURRENT_BINARY_DIR}/ConsolePassthroughSink
 )
 

@@ -17,8 +17,6 @@ nav:
       - vhost Acceleration: architecture/vhost-acceleration.md
       - Real-Time Properties: architecture/real-time-properties.md
       - RPC Protocol: architecture/rpc-protocol.md
-      - Virtual Channel Mux: architecture/virtual-channel-mux-architecture.md
-      - Mux Wire Protocol: architecture/virtioso-mux-wire-protocol.md
       - Cross-EL Tracing Feasibility: architecture/cross-el-tracing-feasibility.md
       - Autopilot Integration:
           - Console Source Integration: architecture/autopilot-console-source-integration.md
@@ -109,8 +107,6 @@ nav:
       - ftrace Integration Status: reference/ftrace-integration-status.md
       - UART Raw Binary Transfer: reference/uart_raw_binary_transfer_for_debugging_se_l_4_embedded_systems.md
   - Plans:
-      - Cross-Arch TCU UART Mux: architecture/cross-arch-tcu-uart-mux-plan-2026-05-01.md
-      - Orin UARTI Mux Carrier: architecture/orin-uarti-mux-carrier-plan-2026-05-03.md
       - kmod-sel4-virt Rewrite: plans/kmod-sel4-virt-virtioso-next-rewrite-plan.md
       - VM Image Boot Unification: plans/vm-image-boot-unification-plan.md
       - CAmkES to Microkit Migration: plans/camkes-to-microkit-migration.md

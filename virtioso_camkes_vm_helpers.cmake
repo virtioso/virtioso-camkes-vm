@@ -79,7 +79,7 @@ function(VirtiosoGenerateCAmkESStreamRegistry name camkes_config)
     set(stream_registry_includes
         "${CMAKE_CURRENT_LIST_DIR}"
         "${CMAKE_CURRENT_SOURCE_DIR}"
-        "${VIRTIOSO_CAMKES_VM_DIR}"
+        "${VIRTIOSO_MUX_SOURCE_DIR}"
         ${STREAM_REGISTRY_CPP_INCLUDES}
         "${CAMKES_VM_DIR}/components/VM"
         "${CAMKES_VM_DIR}/components/VM/configurations"
@@ -108,7 +108,7 @@ function(VirtiosoGenerateCAmkESStreamRegistry name camkes_config)
             "${stream_registry_source}"
         COMMAND
             ${Python3_EXECUTABLE}
-            "${VIRTIOSO_CAMKES_VM_DIR}/tools/generate_camkes_stream_registry.py"
+            "${VIRTIOSO_MUX_SOURCE_DIR}/tools/generate_camkes_stream_registry.py"
             --camkes "${stream_registry_camkes}"
             --name "${name}"
             --out-dir "${stream_registry_out_dir}"
@@ -117,7 +117,7 @@ function(VirtiosoGenerateCAmkESStreamRegistry name camkes_config)
             ${stream_registry_cpp_flag_args}
         DEPENDS
             "${stream_registry_camkes}"
-            "${VIRTIOSO_CAMKES_VM_DIR}/tools/generate_camkes_stream_registry.py"
+            "${VIRTIOSO_MUX_SOURCE_DIR}/tools/generate_camkes_stream_registry.py"
         COMMENT "Generating CAmkES stream registry for ${name}"
         VERBATIM
     )

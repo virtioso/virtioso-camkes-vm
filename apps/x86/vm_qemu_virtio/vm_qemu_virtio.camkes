@@ -10,8 +10,8 @@ import <std_connector.camkes>;
 import <global-connectors.camkes>;
 import <FileServerInterface.camkes>;
 import <FileServer/FileServer.camkes>;
-import <GuestConsoleSink.camkes>;
-import <ConsolePassthroughSink.camkes>;
+import <GuestSink.camkes>;
+import <PassthruSink.camkes>;
 import <VM/vm.camkes>;
 import <vm-connectors.camkes>;
 

@@ -81,9 +81,9 @@ Entry fields:
 ### Cross-arch TCU-style UART mux and stream routing
 
 - Status: active
-- Primary note: [../architecture/cross-arch-tcu-uart-mux-plan-2026-05-01.md](../architecture/cross-arch-tcu-uart-mux-plan-2026-05-01.md)
+- Primary note: [Cross-arch TCU UART mux plan](../../virtioso-mux/cross-arch-tcu-uart-mux-plan-2026-05-01.md)
 - Related notes:
-  - [../architecture/orin-uarti-mux-carrier-plan-2026-05-03.md](../architecture/orin-uarti-mux-carrier-plan-2026-05-03.md)
+  - [Orin UARTI mux carrier plan](../../virtioso-mux/orin-uarti-mux-carrier-plan-2026-05-03.md)
   - [../architecture/autopilot-console-source-integration.md](../architecture/autopilot-console-source-integration.md)
   - [../integration/console-router-and-timeline-implementation-plan-2026-04-23.md](../integration/console-router-and-timeline-implementation-plan-2026-04-23.md)
   - [../integration/console-timeline-and-interactive-architecture-2026-04-23.md](../integration/console-timeline-and-interactive-architecture-2026-04-23.md)
@@ -217,7 +217,7 @@ Recovery note:
   - Protocol aligned: virtioso-muxd uses 0xfe/0xfd escape-sequence framing matching CAmkES muxer. CTRL_CONNECTED=0x01, CTRL_DISCONNECTED=0x04 in tcu_com.c and uart-proto.h. Stream IDs 0xfd/0xfe reserved in IdPool.
   - `setup_demo` puts all panes in one split tmux window via `ensure_pane_window`. `zenoh-orin.yaml`: `uart:tty0` + `mux:zenoh_demo` side by side in window 1 (mux_output removed).
   - Demo script now streams subscriber live for 30 s (was: 10 samples then dump). Output visible in pane in real time.
-  - Protocol documented in `docs/architecture/virtioso-mux-wire-protocol.md` (projects/virtioso-camkes-vm, virtioso-next branch).
+  - Protocol documented in `docs/virtioso-mux/virtioso-mux-wire-protocol.md` (sources/virtioso-mux repo).
   - Rootfs rebuild in progress (log: /tmp/isengard-rebuild-2.log) to deploy new demo script.
 - Next action:
   1. Wait for rootfs rebuild, then resubmit zenoh demo to validate 30 s streaming and split-window layout.

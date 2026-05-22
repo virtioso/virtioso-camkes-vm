@@ -8,6 +8,12 @@
 
 #include <configurations/vm.h>
 
+#include <Mux/Mux.camkes>
+#include <GuestSink/GuestSink.camkes>
+#include <PassthruSink/PassthruSink.camkes>
+#include <DebugSink/DebugSink.camkes>
+#include <NullSink/NullSink.camkes>
+
 #define VM_VIRTIOSO_INIT_DEF() \
     VM_INIT_DEF() \
     attribute int tracebuffer_base; \

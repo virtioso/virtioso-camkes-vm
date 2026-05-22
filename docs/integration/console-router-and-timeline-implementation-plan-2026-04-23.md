@@ -23,11 +23,8 @@ Autopilot abstractions.
 
 Current architecture references:
 
-- [Console Transport And Routing Architecture](../architecture/console-transport-and-routing.md)
+- [Virtual Channel Mux Architecture](../architecture/virtual-channel-mux-architecture.md)
 - [Autopilot Console Source Integration](../architecture/autopilot-console-source-integration.md)
-- historical x86 notes:
-  - [X86 `vm_qemu_virtio` Console Stream Inventory (2026-04-24)](x86-vm-qemu-virtio-console-stream-inventory-2026-04-24.md)
-  - [X86 `vm_qemu_virtio` Framed Console Transport Plan (2026-04-24)](x86-vm-qemu-virtio-framed-console-transport-plan-2026-04-24.md)
 
 ## Progress
 
@@ -76,20 +73,9 @@ Current architecture references:
       interactive guest-channel `raw.log` files
     - so the investigation has moved from producer stream ownership to the
       router/runtime handling of valid guest-console frame delivery
-- 2026-04-24: added a dedicated x86 console-stream inventory reference:
-  [x86-vm-qemu-virtio-console-stream-inventory-2026-04-24.md](x86-vm-qemu-virtio-console-stream-inventory-2026-04-24.md)
-  - purpose:
-    - freeze the meaning of `driver_vm_console`, `vmm_mux_control`, and
-      `vmm_debug`
-    - separate verdict sources from diagnostics-only sources
-    - document which logical channels are declared versus actually populated by
-      the current `line_prefixes` compatibility transport
-- 2026-04-24: added a dedicated framed transport target note:
-  [x86-vm-qemu-virtio-framed-console-transport-plan-2026-04-24.md](x86-vm-qemu-virtio-framed-console-transport-plan-2026-04-24.md)
-  - purpose:
-    - make `line_prefixes` explicitly legacy-only for x86
-    - define a no-heuristics target where the producer owns stream identity
-    - specify the migration direction toward length-delimited framed records
+- 2026-04-24: established x86 console-stream inventory (driver_vm_console,
+  vmm_mux_control, vmm_debug) and framed transport direction (`binary_frames`).
+  Both are now backlog; the current target is VCMux 0xfe on Orin AGX.
 - 2026-04-24: implemented the first code slice for that target:
   - `tools/console_router.py` now supports `transport.type = "binary_frames"`
   - `tools/console_frame_stream.py` was added as an explicit producer wrapper

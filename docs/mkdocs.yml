@@ -17,16 +17,9 @@ nav:
       - vhost Acceleration: architecture/vhost-acceleration.md
       - Real-Time Properties: architecture/real-time-properties.md
       - RPC Protocol: architecture/rpc-protocol.md
-      - Console Transport and Routing: architecture/console-transport-and-routing.md
       - Virtual Channel Mux: architecture/virtual-channel-mux-architecture.md
       - Mux Wire Protocol: architecture/virtioso-mux-wire-protocol.md
-      - Console Stream Topology Diagrams: architecture/console-stream-topology-diagrams.md
       - Cross-EL Tracing Feasibility: architecture/cross-el-tracing-feasibility.md
-      - Console Mux Plans:
-          - CAmkES Architecture Plan: architecture/console-mux-camkes-architecture-plan-2026-04-25.md
-          - NVIDIA-Style Rewrite Plan: architecture/console-mux-nvidia-style-rewrite-plan-2026-04-27.md
-          - Orin UARTI Mux Carrier Plan: architecture/orin-uarti-mux-carrier-plan-2026-05-03.md
-          - Cross-Arch TCU UART Mux Plan: architecture/cross-arch-tcu-uart-mux-plan-2026-05-01.md
       - Autopilot Integration:
           - Console Source Integration: architecture/autopilot-console-source-integration.md
           - QEMU Backends: architecture/autopilot-qemu-backends.md
@@ -56,8 +49,6 @@ nav:
       - Other Repos: integration/other-repos.md
       - Arm64 vm_qemu_virtio Shape: integration/arm64-vm-qemu-virtio-shape.md
       - x86 pc99 Port Notes: integration/x86-qemu-pc99-vm-qemu-virtio-port-notes-2026-04-16.md
-      - x86 Console Stream Inventory: integration/x86-vm-qemu-virtio-console-stream-inventory-2026-04-24.md
-      - x86 Framed Console Transport Plan: integration/x86-vm-qemu-virtio-framed-console-transport-plan-2026-04-24.md
       - Console Router and Timeline Plan: integration/console-router-and-timeline-implementation-plan-2026-04-23.md
       - Console Timeline and Interactive Architecture: integration/console-timeline-and-interactive-architecture-2026-04-23.md
       - VM1 Launch Automation Options: integration/vm1-launch-automation-options-2026-04-23.md
@@ -118,6 +109,8 @@ nav:
       - ftrace Integration Status: reference/ftrace-integration-status.md
       - UART Raw Binary Transfer: reference/uart_raw_binary_transfer_for_debugging_se_l_4_embedded_systems.md
   - Plans:
+      - Cross-Arch TCU UART Mux: architecture/cross-arch-tcu-uart-mux-plan-2026-05-01.md
+      - Orin UARTI Mux Carrier: architecture/orin-uarti-mux-carrier-plan-2026-05-03.md
       - kmod-sel4-virt Rewrite: plans/kmod-sel4-virt-virtioso-next-rewrite-plan.md
       - VM Image Boot Unification: plans/vm-image-boot-unification-plan.md
       - CAmkES to Microkit Migration: plans/camkes-to-microkit-migration.md

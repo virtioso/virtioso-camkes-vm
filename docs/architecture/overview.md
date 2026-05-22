@@ -6,9 +6,8 @@ Relevant supporting architecture documents:
 
 - [vm-topology.md](vm-topology.md)
 - [virtio-architecture.md](virtio-architecture.md)
+- [virtual-channel-mux-architecture.md](virtual-channel-mux-architecture.md)
 - [cross-arch-tcu-uart-mux-plan-2026-05-01.md](cross-arch-tcu-uart-mux-plan-2026-05-01.md)
-- [console-mux-nvidia-style-rewrite-plan-2026-04-27.md](console-mux-nvidia-style-rewrite-plan-2026-04-27.md)
-- [console-transport-and-routing.md](console-transport-and-routing.md)
 - [autopilot-console-source-integration.md](autopilot-console-source-integration.md)
 
 ## Architecture Diagram

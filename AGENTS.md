@@ -6,6 +6,25 @@ Canonical file: `projects/virtioso-camkes-vm/AGENTS.md`.
 Workspace root `AGENTS.md` is only a symlink/linkfile to the canonical file.
 Edits made via either path affect the same file; treat `projects/virtioso-camkes-vm/AGENTS.md` as the source of truth.
 
+## Known Issues
+
+### CAmkES build broken after virtioso-mux consolidation (2026-05-22)
+
+`make vm_qemu_virtio` fails in `generate_camkes_stream_registry.py` with:
+```
+ValueError: mux source component 'vm0_guest_console_sink' has no stream id
+```
+
+Root cause: the component rename (`ConsoleMux` → `Mux`, `GuestConsoleSink` → `GuestSink`, etc.)
+introduced as part of the `virtioso-mux` repo consolidation is not yet fully reflected
+in the stream registry generator's CPP include path setup. The `generate_camkes_stream_registry.py`
+tool in `sources/virtioso-mux/tools/` cannot resolve the new component type definitions
+when preprocessing the app `.camkes` file.
+
+Do not attempt to build or test CAmkES targets until this is resolved.
+
+---
+
 ## Knowledge Graph Tool (Orthanc)
 
 For AI-assisted architecture and project management work using idea graphs,

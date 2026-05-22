@@ -35,15 +35,15 @@ VirtiosoGenerateCAmkESStreamRegistry(
 
 add_subdirectory(
     ${VIRTIOSO_MUX_SOURCE_DIR}/sel4/GuestSink
-    ${CMAKE_CURRENT_BINARY_DIR}/GuestConsoleSink
+    ${CMAKE_CURRENT_BINARY_DIR}/GuestSink
 )
 add_subdirectory(
     ${VIRTIOSO_MUX_SOURCE_DIR}/sel4/Mux
-    ${CMAKE_CURRENT_BINARY_DIR}/ConsoleMux
+    ${CMAKE_CURRENT_BINARY_DIR}/Mux
 )
 add_subdirectory(
     ${VIRTIOSO_MUX_SOURCE_DIR}/sel4/DebugSink
-    ${CMAKE_CURRENT_BINARY_DIR}/ConsoleDebugBatchSink
+    ${CMAKE_CURRENT_BINARY_DIR}/DebugSink
 )
 
 AddToFileServer("linux" "${VM_IMAGE_LINUX}")

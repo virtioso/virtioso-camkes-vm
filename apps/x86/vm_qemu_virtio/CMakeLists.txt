@@ -21,11 +21,11 @@ CAmkESAddImportPath(${VIRTIOSO_MUX_SOURCE_DIR}/sel4/GuestSink)
 CAmkESAddImportPath(${VIRTIOSO_MUX_SOURCE_DIR}/sel4/PassthruSink)
 add_subdirectory(
     ${VIRTIOSO_MUX_SOURCE_DIR}/sel4/GuestSink
-    ${CMAKE_CURRENT_BINARY_DIR}/GuestConsoleSink
+    ${CMAKE_CURRENT_BINARY_DIR}/GuestSink
 )
 add_subdirectory(
     ${VIRTIOSO_MUX_SOURCE_DIR}/sel4/PassthruSink
-    ${CMAKE_CURRENT_BINARY_DIR}/ConsolePassthroughSink
+    ${CMAKE_CURRENT_BINARY_DIR}/PassthruSink
 )
 
 if(EXISTS "${VM_IMAGES_DIR}/${VM_IMAGE_MACHINE}/vm-image-driver-${VM_IMAGE_MACHINE}.rootfs.ext4.qcow2")

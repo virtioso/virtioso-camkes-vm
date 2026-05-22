@@ -34,12 +34,12 @@ import <vm-connectors.camkes>;
 #undef VM_COMPOSITION_DEF
 #define VM_COMPOSITION_DEF() \
     component FileServer fserv; \
-    component ConsolePassthroughSink serial; \
-    component GuestConsoleSink VM_GUEST_SINK_NAME(0); \
-    component GuestConsoleSink VM_GUEST_SINK_NAME(1); \
-    component GuestConsoleSink VM_DIAG_SINK_NAME(0); \
-    component GuestConsoleSink VM_DIAG_SINK_NAME(1); \
-    component GuestConsoleSink infra_diag_sink; \
+    component PassthruSink serial; \
+    component GuestSink VM_GUEST_SINK_NAME(0); \
+    component GuestSink VM_GUEST_SINK_NAME(1); \
+    component GuestSink VM_DIAG_SINK_NAME(0); \
+    component GuestSink VM_DIAG_SINK_NAME(1); \
+    component GuestSink infra_diag_sink; \
     component PCIConfigIO pci_config; \
     component TimeServer time_server; \
     component RTC rtc; \

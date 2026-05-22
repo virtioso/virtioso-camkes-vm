@@ -24,15 +24,15 @@ VirtiosoGenerateCAmkESStreamRegistry(
 
 add_subdirectory(
     ${VIRTIOSO_MUX_SOURCE_DIR}/sel4/Mux
-    ${CMAKE_CURRENT_BINARY_DIR}/ConsoleMux
+    ${CMAKE_CURRENT_BINARY_DIR}/Mux
 )
 add_subdirectory(
     ${VIRTIOSO_MUX_SOURCE_DIR}/sel4/GuestSink
-    ${CMAKE_CURRENT_BINARY_DIR}/GuestConsoleSink
+    ${CMAKE_CURRENT_BINARY_DIR}/GuestSink
 )
 add_subdirectory(
     ${VIRTIOSO_MUX_SOURCE_DIR}/sel4/PassthruSink
-    ${CMAKE_CURRENT_BINARY_DIR}/ConsolePassthroughSink
+    ${CMAKE_CURRENT_BINARY_DIR}/PassthruSink
 )
 
 if(EXISTS "${VM_IMAGES_DIR}/${VM_IMAGE_MACHINE}/vm-image-driver-${VM_IMAGE_MACHINE}.rootfs.ext4.qcow2")

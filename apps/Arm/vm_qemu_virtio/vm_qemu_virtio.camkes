@@ -35,9 +35,9 @@ assembly {
     composition {
         /* Boilerplate composition settings */
         VM_GENERAL_COMPOSITION_DEF()
-        component ConsoleMux console_mux;
-        component GuestConsoleSink vm0_guest_console_sink;
-        component GuestConsoleSink vm1_guest_console_sink;
+        component Mux console_mux;
+        component GuestSink vm0_guest_console_sink;
+        component GuestSink vm1_guest_console_sink;
 
         /* Other standard VM definitions (vm0, vm1) */
         VM_COMPOSITION_DEF(0)

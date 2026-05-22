@@ -47,7 +47,7 @@ shared responsibility is result and verdict handling.
 
 The source of truth for QEMU-backed execution is the repo-owned manual runner:
 
-- [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py)
+- tools/qemu_runner.py
 
 Autopilot may automate this runner, but it must not carry separate QEMU launch
 knowledge that diverges from it.

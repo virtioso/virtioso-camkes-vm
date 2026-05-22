@@ -45,12 +45,12 @@ Verified from code:
 
 - `tools/qemu_runner.py` selects `transport.type = "line_prefixes"` for
   `vm_qemu_virtio` when `VIRTIOSO_CONSOLE_ROUTER_USE_VM_PREFIX_DEMUX=1`
-  ([qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:621)).
+  (qemu_runner.py).
 - `tools/console_router.py` then classifies the merged byte stream using
   textual prefixes such as `[vmmdbg] `, `vm0: `, and `vm1: `
-  ([console_router.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/console_router.py:448)).
+  (console_router.py).
 - unmatched text falls through to `driver_vm_console`
-  ([qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:642)).
+  (qemu_runner.py).
 
 Operationally, that means:
 
@@ -193,7 +193,7 @@ Use stable numeric stream ids:
 - `0x07` `vmm_debug`
 
 The names already exist in the manifest/channel set defined by
-[qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:533).
+qemu_runner.py.
 The missing part is not taxonomy; it is producer-side authority.
 
 ## Router Contract

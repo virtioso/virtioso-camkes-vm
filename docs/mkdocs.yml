@@ -1,5 +1,6 @@
 site_name: Virtioso CAmkES VM
 docs_dir: .
+exclude_docs: README.md
 nav:
   - Overview: index.md
   - Start Here:

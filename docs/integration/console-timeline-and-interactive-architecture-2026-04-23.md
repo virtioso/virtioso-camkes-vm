@@ -27,17 +27,17 @@ Verified seams:
 
 - Autopilot already models consoles as named sources and persists per-source
   JSONL logs under `results/<timestamp>/console/`:
-  [docs/overview.md](/home/hlyytine/autopilot/docs/overview.md:114),
-  [chain_runtime.py](/home/hlyytine/autopilot/chain_runtime.py:369)
+  docs/overview.md,
+  chain_runtime.py
 - Autopilot interactive console sessions already record bidirectional events
   (`rx` and `tx`) per session:
-  [console_sessions.py](/home/hlyytine/autopilot/console_sessions.py:84)
+  console_sessions.py
 - Those event logs currently use wall-clock timestamps with second precision:
-  [console_sessions.py](/home/hlyytine/autopilot/console_sessions.py:109)
+  console_sessions.py
 - The current VMM code already distinguishes per-VM guest console paths from
   component/VMM logging paths:
-  [projects/vm/components/VM/configurations/vm.h](/home/hlyytine/tii-sel4/projects/vm/components/VM/configurations/vm.h:92),
-  [projects/vm/components/VM_Arm/configurations/vm.h](/home/hlyytine/tii-sel4/projects/vm/components/VM_Arm/configurations/vm.h:147)
+  projects/vm/components/VM/configurations/vm.h,
+  projects/vm/components/VM_Arm/configurations/vm.h
 
 So the missing architecture is not "console sources exist." The missing
 architecture is:
@@ -94,8 +94,8 @@ Rationale:
 
 Affected areas:
 
-- [console_sessions.py](/home/hlyytine/autopilot/console_sessions.py:1)
-- [chain_runtime.py](/home/hlyytine/autopilot/chain_runtime.py:165)
+- console_sessions.py
+- chain_runtime.py
 - result artifact schema under `results/<timestamp>/console/`
 
 Short-term benefit:

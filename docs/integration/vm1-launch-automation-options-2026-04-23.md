@@ -66,20 +66,20 @@ dependency on a human typing commands at the driver-vm prompt.
 ### What exists today
 
 - `vm-image-driver` includes `qemu-rnd-helper` and the benchmark package:
-  [vm-image-driver.bb](/home/hlyytine/tii-sel4/vm-images/virtioso-yocto-layers/meta-virtioso/images/vm-image-driver.bb:1),
-  [vm-image-features.bbclass](/home/hlyytine/tii-sel4/vm-images/virtioso-yocto-layers/meta-virtioso/classes/vm-image-features.bbclass:1)
+  vm-image-driver.bb,
+  vm-image-features.bbclass
 - `tii-benchmark` installs two `screenrc` files into `/home/root`:
-  [tii-benchmark_1.0.bb](/home/hlyytine/tii-sel4/vm-images/virtioso-yocto-layers/meta-virtioso/recipes-benchmark/tii-benchmark/tii-benchmark_1.0.bb:1)
+  tii-benchmark_1.0.bb
 - `screenrc-drivervm` starts a shell plus one window running
   `/usr/bin/qemu-rnd-helper`:
-  [screenrc-drivervm](/home/hlyytine/tii-sel4/vm-images/virtioso-yocto-layers/meta-virtioso/recipes-benchmark/tii-benchmark/tii-benchmark/screenrc-drivervm:1)
+  screenrc-drivervm
 - the helper launches nested QEMU using the `uservm=` bootarg contract,
   expects the user image at `/var/lib/virt/images/user-vm.qcow2`, and binds
   guest console to the helper's stdio channel:
-  [qemu-rnd-helper](/home/hlyytine/tii-sel4/vm-images/virtioso-yocto-layers/meta-virtioso/recipes-devtools/qemu/qemu-rnd-helper/qemu-rnd-helper:1)
+  qemu-rnd-helper
 - the driver image already installs the user image into
   `/var/lib/virt/images/user-vm.qcow2` during rootfs construction:
-  [vm-guest-images-install.bbclass](/home/hlyytine/tii-sel4/vm-images/virtioso-yocto-layers/meta-virtioso/classes/vm-guest-images-install.bbclass:1)
+  vm-guest-images-install.bbclass
 
 ### Current automation bottlenecks
 
@@ -93,7 +93,7 @@ dependency on a human typing commands at the driver-vm prompt.
 - There is no explicit readiness marker beyond inferring success from console
   text.
 - Existing Autopilot flow still reflects this interactive model:
-  [autopilot-chain-diagrams.md](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/docs/reference/autopilot-chain-diagrams.md:523)
+  autopilot-chain-diagrams.md
 
 ### Constraint that should be preserved
 
@@ -245,7 +245,7 @@ Good baseline signal. This should exist even if stronger checks are added.
 ## Readiness signal 2: Shared-directory heartbeat
 
 The user image already mounts a QEMU shared directory at `/mnt/shared`:
-[vm-image-user.bb](/home/hlyytine/tii-sel4/vm-images/virtioso-yocto-layers/meta-virtioso/images/vm-image-user.bb:1)
+vm-image-user.bb
 
 User-vm can write a file such as:
 

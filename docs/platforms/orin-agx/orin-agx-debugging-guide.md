@@ -50,8 +50,8 @@ See [Firmware Shared Memory](reference/orin-firmware-shared-memory.md) for compl
 - Firmware memory conflicts (TZDRAM at 0x50000000, not 0x80000000)
 - ATF SMC handlers accessing NS DRAM (they don't)
 - Basic IPC, scheduling, CNode ops (never trigger errors)
-- Safe PTE multi-level correctness (audited - see [safe-pte-multi-level-plan.md](../../../../../kernel/docs/safe-pte-multi-level-plan.md))
-- memzero/clearMemory on page tables (audited - see [memzero-page-table-audit.md](../../../../../kernel/docs/memzero-page-table-audit.md))
+- Safe PTE multi-level correctness (audited - see safe-pte-multi-level-plan.md)
+- memzero/clearMemory on page tables (audited - see memzero-page-table-audit.md)
 
 ## Documentation Index
 
@@ -68,8 +68,8 @@ See [Firmware Shared Memory](reference/orin-firmware-shared-memory.md) for compl
 
 | Document | Description |
 |----------|-------------|
-| [safe-pte-multi-level-plan.md](../../../../../kernel/docs/safe-pte-multi-level-plan.md) | Confirms pte_pte_invalid_new() correct for ALL levels (L0-L3) |
-| [memzero-page-table-audit.md](../../../../../kernel/docs/memzero-page-table-audit.md) | Audit of memzero/memset usage - ARM64 is safe |
+| safe-pte-multi-level-plan.md | Confirms pte_pte_invalid_new() correct for ALL levels (L0-L3) |
+| memzero-page-table-audit.md | Audit of memzero/memset usage - ARM64 is safe |
 | [sel4-memory-layout-orinagx.md](reference/sel4-memory-layout-orinagx.md) | Physical memory layout, kernel load addresses, DTS configuration |
 | [orin-firmware-shared-memory.md](reference/orin-firmware-shared-memory.md) | UEFI/ATF/OP-TEE shared memory - **no conflicts with seL4** |
 | [tegra-cache-operations.md](reference/tegra-cache-operations.md) | **CRITICAL**: Why dc cisw doesn't work on Tegra, must use dc civac |

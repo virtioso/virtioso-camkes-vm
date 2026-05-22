@@ -90,7 +90,7 @@ Yocto workdirs.
 ### Ownership
 
 - repo: `projects/virtioso-camkes-vm`
-- file: [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:1)
+- file: tools/qemu_runner.py
 
 ### Consumer changes
 

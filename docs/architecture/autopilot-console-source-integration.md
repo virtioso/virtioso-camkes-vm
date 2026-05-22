@@ -39,7 +39,7 @@ itself.
 ## Source Resolution In Autopilot
 
 Autopilot source resolution is implemented in
-[/home/hlyytine/autopilot/chain_runtime.py](/home/hlyytine/autopilot/chain_runtime.py:453).
+/home/hlyytine/autopilot/chain_runtime.py.
 
 Mechanics:
 
@@ -59,7 +59,7 @@ Autopilot reads router-managed channel logs by source name.
 
 Reference:
 
-- [read_router_since in `chain_runtime.py`](/home/hlyytine/autopilot/chain_runtime.py:485)
+- read_router_since in `chain_runtime.py`
 
 Behavior:
 
@@ -78,7 +78,7 @@ Autopilot `send_cmd` targets explicit sources.
 
 Reference:
 
-- [\_step_send_cmd in `chain_runtime.py`](/home/hlyytine/autopilot/chain_runtime.py:1014)
+- \_step_send_cmd in `chain_runtime.py`
 
 Behavior:
 
@@ -105,7 +105,7 @@ The active x86 chains already use split sources in practice.
 
 Example:
 
-- [qemu_x86_64_vm_qemu_virtio_login_probe.json](/home/hlyytine/autopilot/chains/qemu_x86_64_vm_qemu_virtio_login_probe.json:1)
+- qemu_x86_64_vm_qemu_virtio_login_probe.json
 
 Current shape:
 

@@ -19,30 +19,30 @@ Verified current producer/consumer split:
 
 - `isengard` consumes Yocto guest deploy artifacts from
   `vm-images/build/tmp/deploy/images/qemux86-64/...` during the CAmkES/seL4
-  build in [projects/isengard-camkes-vm/apps/x86/isengard/CMakeLists.txt](/home/hlyytine/tii-sel4/projects/isengard-camkes-vm/apps/x86/isengard/CMakeLists.txt:38).
+  build in projects/isengard-camkes-vm/apps/x86/isengard/CMakeLists.txt.
 - The generic x86 QEMU bundle is assembled after `make <app>` in
-  [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:471).
+  tools/qemu_runner.py.
 - `qemu_runner.py` currently reaches into Yocto workdirs for:
   - `qemu-system-x86_64`
   - runtime libraries
   - QEMU data files
   - `pc-bios`
   - uninative loader
-  via [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:314) and [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:340).
+  via tools/qemu_runner.py and tools/qemu_runner.py.
 - The seL4 side of the bundle is separate and already cleanly owned by the
   workspace build:
   - `simulate`
   - `images/`
-  via [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:255).
+  via tools/qemu_runner.py.
 - Yocto `populate_sdk` provides a useful reference model for relocatable
   artifacts:
   - staged output tree and archived deploy output in
-    [populate_sdk_base.bbclass](/home/hlyytine/tii-sel4/vm-images/poky/meta/classes-recipe/populate_sdk_base.bbclass:49)
-    and [populate_sdk_base.bbclass](/home/hlyytine/tii-sel4/vm-images/poky/meta/classes-recipe/populate_sdk_base.bbclass:89)
+    populate_sdk_base.bbclass
+    and populate_sdk_base.bbclass
   - installer-time relocation in
-    [toolchain-shar-extract.sh](/home/hlyytine/tii-sel4/vm-images/poky/meta/files/toolchain-shar-extract.sh:155),
-    [toolchain-shar-relocate.sh](/home/hlyytine/tii-sel4/vm-images/poky/meta/files/toolchain-shar-relocate.sh:8),
-    and [relocate_sdk.py](/home/hlyytine/tii-sel4/vm-images/poky/scripts/relocate_sdk.py:1)
+    toolchain-shar-extract.sh,
+    toolchain-shar-relocate.sh,
+    and relocate_sdk.py
 
 Strong inference:
 
@@ -192,7 +192,7 @@ The final bundle remains workspace-owned and app-specific:
   - `runtime/qemu-wrapper.sh`
 
 This is already the model used by
-[tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:382),
+tools/qemu_runner.py,
 but the QEMU runtime producer boundary should be swapped to the new artifact.
 
 ### Local Intel Use Case
@@ -240,8 +240,8 @@ Rationale:
 
 Affected areas:
 
-- [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:314)
-- [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:471)
+- tools/qemu_runner.py
+- tools/qemu_runner.py
 
 Short-term benefit:
 
@@ -332,4 +332,4 @@ Non-goal:
 
 - this contract does not attempt to make app builds themselves independent of
   workspace-local source paths such as the hardcoded include roots in
-  [projects/isengard-camkes-vm/apps/x86/isengard/CMakeLists.txt](/home/hlyytine/tii-sel4/projects/isengard-camkes-vm/apps/x86/isengard/CMakeLists.txt:15).
+  projects/isengard-camkes-vm/apps/x86/isengard/CMakeLists.txt.

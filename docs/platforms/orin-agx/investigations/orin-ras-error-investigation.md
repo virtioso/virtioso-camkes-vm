@@ -396,7 +396,7 @@ Built sel4test with `CONFIG_KERNEL_FUNCTION_TRACE` enabled (GCC `-finstrument-fu
 
 **Full ftrace captured: 65,536 function calls between PT verification and garbage detection.**
 
-See: [ftrace-pt-corruption-20251219.txt](ftrace-pt-corruption-20251219.txt) (99,050 lines decoded)
+See: ftrace-pt-corruption-20251219.txt (99,050 lines decoded)
 
 #### Key Findings from ftrace Statistics
 

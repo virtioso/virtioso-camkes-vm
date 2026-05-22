@@ -18,7 +18,7 @@ Supporting Orin AGX (Tegra234) SMMUs on seL4 requires significant work due to th
 2. [Implementation Phases](#implementation-phases)
 3. [Key Technical Challenges](#key-technical-challenges)
 4. [Resource Estimates](#resource-estimates)
-5. [Recommended Initial Scope](#recommended-initial-scope)
+5. Recommended Initial Scope
 6. [References](#references)
 
 ---

@@ -159,4 +159,4 @@ mcp__sel4-autopilot__query_ftrace(request_id="...", summary=True)
 - [CancelBadgedSends Pattern](ras-cancelbadgedsends-pattern.md) - The other reproducible pattern
 - [ARM Speculative PTW Research](../reference/arm-speculative-ptw-research.md) - Linux/KVM/Xen fixes
 - [orin-ras-error-investigation.md](orin-ras-error-investigation.md) - Full investigation log
-- [arm64-speculative-ptw-safe-invalid-pte.md](../../../../../../kernel/docs/arm64-speculative-ptw-safe-invalid-pte.md) - Speculative PTW fix details
+- arm64-speculative-ptw-safe-invalid-pte.md - Speculative PTW fix details

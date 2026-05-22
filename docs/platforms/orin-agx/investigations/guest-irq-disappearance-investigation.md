@@ -147,7 +147,7 @@ If the badge is somehow wrong, the fault would be treated as a notification and 
 
 | Document | Description |
 |----------|-------------|
-| [ftrace.md](../../../../../../kernel/docs/ftrace.md) | Kernel ftrace tooling used to capture the bug pattern |
+| ftrace.md | Kernel ftrace tooling used to capture the bug pattern |
 | [driver-vm-notification-bug.md](driver-vm-notification-bug.md) | Disproven hypothesis about RPC notifications |
 | [orin-agx-debugging-guide.md](../orin-agx-debugging-guide.md) | Master debugging guide |
 

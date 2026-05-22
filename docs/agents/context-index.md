@@ -162,26 +162,26 @@ Recovery note:
 ### Isengard platform work
 
 - Status: active
-- Primary note: [../../../sources/isengard-core/docs/trackers/isengard-master-tracker.md](../../../sources/isengard-core/docs/trackers/isengard-master-tracker.md)
+- Primary note: [../../../sources/isengard-core/docs/trackers/isengard-master-tracker.md](../../isengard-core/trackers/isengard-master-tracker.md)
 - Related notes:
-  - [../../../sources/isengard-core/docs/trackers/normet-program-roadmap.md](../../../sources/isengard-core/docs/trackers/normet-program-roadmap.md) — management-level program roadmap and cross-team discovery guide
-  - [../../../isengard-camkes-vm/docs/normet-isengard-project-direction.md](../../../isengard-camkes-vm/docs/normet-isengard-project-direction.md)
-  - [../../../isengard-camkes-vm/docs/isengard-time-coherence-and-sync-direction.md](../../../isengard-camkes-vm/docs/isengard-time-coherence-and-sync-direction.md)
-  - [../../../sources/isengard-core/docs/architecture/nbuffer-zenoh-remote-demo-architecture.md](../../../sources/isengard-core/docs/architecture/nbuffer-zenoh-remote-demo-architecture.md)
-  - [../../../sources/isengard-core/docs/architecture/migration/README.md](../../../sources/isengard-core/docs/architecture/migration/README.md) — SSOT for all NS3→Isengard migration patterns (strangler fig, CAN gateway, dual-track program, target state, hardware path)
-  - [../../../sources/isengard-core/docs/architecture/canopen-od-alignment-and-iocfw-semantic-surface.md](../../../sources/isengard-core/docs/architecture/canopen-od-alignment-and-iocfw-semantic-surface.md)
-  - [../../../sources/isengard-core/docs/reference/normet-codebase-survey.md](../../../sources/isengard-core/docs/reference/normet-codebase-survey.md) — iocfw PDO layouts, OD enum, IOmux binding, node table, signal naming, CANopen profiles
-  - [../../../sources/isengard-core/docs/reference/mid-codebase-survey/README.md](../../../sources/isengard-core/docs/reference/mid-codebase-survey/README.md) — Norsmart3 beyond iocfw: system-app modules, Guitu, HCM2010/HCM2030, emukit, signals, build/test/tools (surveyed 2026-05-12)
-  - [../../../sources/isengard-core/docs/reference/mid-codebase-survey/gui-guitu-deep-dive.md](../../../sources/isengard-core/docs/reference/mid-codebase-survey/gui-guitu-deep-dive.md) — Guitu deep-dive: full data model, 8 core widget types, 800+ block-graph scripts (49xxx bytecodes), 18-language TextNumbers, SignalSampler, ResourceType/ODI mapping, replacement requirements table
-  - [../../../sources/isengard-core/docs/reference/mid-codebase-survey/emukit-deep-dive.md](../../../sources/isengard-core/docs/reference/mid-codebase-survey/emukit-deep-dive.md) — Emukit deep-dive: 14-state FSM hierarchy, 50 inputs/30 outputs, utility APIs, alarm catalogue, charge params from unit tests, seL4/Rust porting notes (single platform seam: proc_timer_now)
-  - [../../../sources/isengard-core/docs/reference/mid-codebase-survey/hcm-safety-controllers-deep-dive.md](../../../sources/isengard-core/docs/reference/mid-codebase-survey/hcm-safety-controllers-deep-dive.md) — HCM deep-dive: execution cycle, CP-redundancy safety interlocks, iomux solver (OD 0x2001 → runtime PDO bit-extraction), J1939 TP, HCM2010 vs HCM2030 fwapi diff
-  - [../../../sources/isengard-core/docs/reference/mid-codebase-survey/system-app-deep-dive.md](../../../sources/isengard-core/docs/reference/mid-codebase-survey/system-app-deep-dive.md) — System-app deep-dive: 4-thread architecture, 20ms norsmart3main() cycle, BMS abstraction (Impact J1939 / CellTech CANopen multi-pack), charging FSM, OBC (Bel Power J1939 / V2G), DC-DC converter, Enterex battery cooling, 2-layer alarm system, event logger, IoT recorder (3 streams: 400ms/6min/100ms), Isengard observer pattern catalogue
-  - [../../../sources/isengard-core/docs/reference/mid-codebase-survey/signals-and-buses-deep-dive.md](../../../sources/isengard-core/docs/reference/mid-codebase-survey/signals-and-buses-deep-dive.md) — Signals deep-dive: CANsignalAttributes data model (value/valid/lifetime fields), per-bus init lifecycle, J1939 (80) / drive (567) / process (977) per-domain catalogues, indicator-enable DO pattern, validity model, Isengard access priority table (drive+J1939 via iocfw first)
-  - [../../../sources/isengard-core/docs/reference/mid-codebase-survey/build-test-tools-deep-dive.md](../../../sources/isengard-core/docs/reference/mid-codebase-survey/build-test-tools-deep-dive.md) — Build/test/deploy deep-dive: Unity/CMake framework, 4 emukit test binaries (valve state, IIR filter, process event FIFO, explosive charge calcs), MessagePack event log (25 types), OpenSSL RSA-SHA256 package signing, SysV sysupd remote update, IoT telemetry stack (ecm.sh/canserver/httpserver.py), USB backup/recovery
-  - [../../../isengard-camkes-vm/docs/orin-agx-support-plan.md](../../../isengard-camkes-vm/docs/orin-agx-support-plan.md)
-  - [../../../isengard-camkes-vm/docs/orin-can-simulator-vm-architecture.md](../../../isengard-camkes-vm/docs/orin-can-simulator-vm-architecture.md)
-  - [../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md](../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md)
-  - [../../../isengard-camkes-vm/docs/architecture.md](../../../isengard-camkes-vm/docs/architecture.md)
+  - [../../../sources/isengard-core/docs/trackers/normet-program-roadmap.md](../../isengard-core/trackers/normet-program-roadmap.md) — management-level program roadmap and cross-team discovery guide
+  - [../../../isengard-camkes-vm/docs/normet-isengard-project-direction.md](../../isengard-camkes-vm/normet-isengard-project-direction.md)
+  - [../../../isengard-camkes-vm/docs/isengard-time-coherence-and-sync-direction.md](../../isengard-camkes-vm/isengard-time-coherence-and-sync-direction.md)
+  - [../../../sources/isengard-core/docs/architecture/nbuffer-zenoh-remote-demo-architecture.md](../../isengard-core/architecture/nbuffer-zenoh-remote-demo-architecture.md)
+  - [../../../sources/isengard-core/docs/architecture/migration/README.md](../../isengard-core/architecture/migration/README.md) — SSOT for all NS3→Isengard migration patterns (strangler fig, CAN gateway, dual-track program, target state, hardware path)
+  - [../../../sources/isengard-core/docs/architecture/canopen-od-alignment-and-iocfw-semantic-surface.md](../../isengard-core/architecture/canopen-od-alignment-and-iocfw-semantic-surface.md)
+  - [../../../sources/isengard-core/docs/reference/normet-codebase-survey.md](../../isengard-core/reference/normet-codebase-survey.md) — iocfw PDO layouts, OD enum, IOmux binding, node table, signal naming, CANopen profiles
+  - [../../../sources/isengard-core/docs/reference/mid-codebase-survey/README.md](../../isengard-core/reference/mid-codebase-survey/README.md) — Norsmart3 beyond iocfw: system-app modules, Guitu, HCM2010/HCM2030, emukit, signals, build/test/tools (surveyed 2026-05-12)
+  - [../../../sources/isengard-core/docs/reference/mid-codebase-survey/gui-guitu-deep-dive.md](../../isengard-core/reference/mid-codebase-survey/gui-guitu-deep-dive.md) — Guitu deep-dive: full data model, 8 core widget types, 800+ block-graph scripts (49xxx bytecodes), 18-language TextNumbers, SignalSampler, ResourceType/ODI mapping, replacement requirements table
+  - [../../../sources/isengard-core/docs/reference/mid-codebase-survey/emukit-deep-dive.md](../../isengard-core/reference/mid-codebase-survey/emukit-deep-dive.md) — Emukit deep-dive: 14-state FSM hierarchy, 50 inputs/30 outputs, utility APIs, alarm catalogue, charge params from unit tests, seL4/Rust porting notes (single platform seam: proc_timer_now)
+  - [../../../sources/isengard-core/docs/reference/mid-codebase-survey/hcm-safety-controllers-deep-dive.md](../../isengard-core/reference/mid-codebase-survey/hcm-safety-controllers-deep-dive.md) — HCM deep-dive: execution cycle, CP-redundancy safety interlocks, iomux solver (OD 0x2001 → runtime PDO bit-extraction), J1939 TP, HCM2010 vs HCM2030 fwapi diff
+  - [../../../sources/isengard-core/docs/reference/mid-codebase-survey/system-app-deep-dive.md](../../isengard-core/reference/mid-codebase-survey/system-app-deep-dive.md) — System-app deep-dive: 4-thread architecture, 20ms norsmart3main() cycle, BMS abstraction (Impact J1939 / CellTech CANopen multi-pack), charging FSM, OBC (Bel Power J1939 / V2G), DC-DC converter, Enterex battery cooling, 2-layer alarm system, event logger, IoT recorder (3 streams: 400ms/6min/100ms), Isengard observer pattern catalogue
+  - [../../../sources/isengard-core/docs/reference/mid-codebase-survey/signals-and-buses-deep-dive.md](../../isengard-core/reference/mid-codebase-survey/signals-and-buses-deep-dive.md) — Signals deep-dive: CANsignalAttributes data model (value/valid/lifetime fields), per-bus init lifecycle, J1939 (80) / drive (567) / process (977) per-domain catalogues, indicator-enable DO pattern, validity model, Isengard access priority table (drive+J1939 via iocfw first)
+  - [../../../sources/isengard-core/docs/reference/mid-codebase-survey/build-test-tools-deep-dive.md](../../isengard-core/reference/mid-codebase-survey/build-test-tools-deep-dive.md) — Build/test/deploy deep-dive: Unity/CMake framework, 4 emukit test binaries (valve state, IIR filter, process event FIFO, explosive charge calcs), MessagePack event log (25 types), OpenSSL RSA-SHA256 package signing, SysV sysupd remote update, IoT telemetry stack (ecm.sh/canserver/httpserver.py), USB backup/recovery
+  - [../../../isengard-camkes-vm/docs/orin-agx-support-plan.md](../../isengard-camkes-vm/orin-agx-support-plan.md)
+  - [../../../isengard-camkes-vm/docs/orin-can-simulator-vm-architecture.md](../../isengard-camkes-vm/orin-can-simulator-vm-architecture.md)
+  - [../../../isengard-camkes-vm/docs/linux-only-qemu-migration-plan.md](../../isengard-camkes-vm/linux-only-qemu-migration-plan.md)
+  - [../../../isengard-camkes-vm/docs/architecture.md](../../isengard-camkes-vm/architecture.md)
 - Last known scope rule: this entry routes only the Isengard-specific roadmap,
   ownership split, and dependent design notes. The broader `context-index.md`
   intentionally also tracks unrelated workspace threads such as Autopilot,
@@ -194,10 +194,10 @@ Recovery note:
 ### iceoryx2 IPC migration (Isengard)
 
 - Status: **done** — T1 and T2 both verified
-- Primary note: [../../../sources/isengard-core/docs/architecture/iceoryx2-migration-plan.md](../../../sources/isengard-core/docs/architecture/iceoryx2-migration-plan.md)
+- Primary note: [../../../sources/isengard-core/docs/architecture/iceoryx2-migration-plan.md](../../isengard-core/architecture/iceoryx2-migration-plan.md)
 - Related notes:
-  - [../../../sources/isengard-core/docs/trackers/isengard-master-tracker.md](../../../sources/isengard-core/docs/trackers/isengard-master-tracker.md) — workstream and task entries
-  - [../../../sources/isengard-core/docs/deployment/docker-t2.md](../../../sources/isengard-core/docs/deployment/docker-t2.md) — T2 Docker deployment doc
+  - [../../../sources/isengard-core/docs/trackers/isengard-master-tracker.md](../../isengard-core/trackers/isengard-master-tracker.md) — workstream and task entries
+  - [../../../sources/isengard-core/docs/deployment/docker-t2.md](../../isengard-core/deployment/docker-t2.md) — T2 Docker deployment doc
 - Last known state: T1 verified 2026-05-18 (host vcan0, all 8 topics). T2 verified
   2026-05-19 via `docker-compose up` from `sources/isengard-core/deploy/`. All 8 topics
   flow cross-container: `ipc:shareable` + `ipc:"service:can-bridge"` shares `/dev/shm`;
@@ -342,7 +342,7 @@ Recovery note:
 ### CANopen snapshot publication from seL4 to Linux
 
 - Status: paused
-- Primary note: [../../../../normet/docs/can-stack-architecture.md](../../../../normet/docs/can-stack-architecture.md)
+- Primary note: ../../../../normet/docs/can-stack-architecture.md
 - Related notes:
   - [../architecture/memory-model.md](../architecture/memory-model.md)
   - [../architecture/virtio-architecture.md](../architecture/virtio-architecture.md)
@@ -353,10 +353,10 @@ Recovery note:
 ### Normet rugged x86 secure boot, TPM, attestation, and BSP questions
 
 - Status: paused
-- Primary note: [../../../../../normet/docs/05-platform-next/trust-and-update/Rugged_x86_Secure_Boot_TPM_Attestation_And_BSP_Questions.md](../../../../../normet/docs/05-platform-next/trust-and-update/Rugged_x86_Secure_Boot_TPM_Attestation_And_BSP_Questions.md)
+- Primary note: ../../../../../normet/docs/05-platform-next/trust-and-update/Rugged_x86_Secure_Boot_TPM_Attestation_And_BSP_Questions.md
 - Related notes:
-  - [../../../../../normet/docs/05-platform-next/trust-and-update/Boot_Trust_And_Platform_Ownership_Comparison.md](../../../../../normet/docs/05-platform-next/trust-and-update/Boot_Trust_And_Platform_Ownership_Comparison.md)
-  - [../../../../../normet/docs/05-platform-next/trust-and-update/Why_Update_And_Boot_Trust_Must_Be_First_Class_In_Normet_Platform_Design.md](../../../../../normet/docs/05-platform-next/trust-and-update/Why_Update_And_Boot_Trust_Must_Be_First_Class_In_Normet_Platform_Design.md)
+  - ../../../../../normet/docs/05-platform-next/trust-and-update/Boot_Trust_And_Platform_Ownership_Comparison.md
+  - ../../../../../normet/docs/05-platform-next/trust-and-update/Why_Update_And_Boot_Trust_Must_Be_First_Class_In_Normet_Platform_Design.md
 - Last known state: EPEC rugged `x86` call-prep requirements were captured in a durable Normet note. The key questions are customer-owned `UEFI` Secure Boot `PK`/`KEK`/`db`/`dbx`, `TPM 2.0` type and provisioning, measured boot and attestation behavior, BSP source availability, arbitrary customer-signed EFI payloads, custom Linux or hypervisor/seL4 loader support, `VT-x`/`VT-d`/IOMMU exposure, update/recovery semantics, and the minimum engineering package to request from the vendor.
 - Next action: deprioritised — Orin AGX hardware is the primary direction, making rugged x86 evaluation unlikely to be needed. Reopen only if a customer or project requirement forces a non-Orin x86 platform choice.
 - Updated: 2026-05-04

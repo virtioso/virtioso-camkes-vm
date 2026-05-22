@@ -3,7 +3,7 @@
 This document describes the manual QEMU workflows for Virtioso seL4 builds.
 The canonical runner is:
 
-- [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py)
+- tools/qemu_runner.py
 
 It prefers the generated seL4 `simulate` script and overrides the QEMU binary
 to use the Yocto-built custom QEMU.

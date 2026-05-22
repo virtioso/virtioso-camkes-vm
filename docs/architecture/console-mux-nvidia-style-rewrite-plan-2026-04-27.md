@@ -21,8 +21,8 @@ Supersedes as target architecture:
 
 Reference implementation to follow:
 
-- [`sources/tcu_muxer/uart-proto.h`](/home/hlyytine/tii-sel4/sources/tcu_muxer/uart-proto.h:27)
-- [`sources/tcu_muxer/tcu_com.c`](/home/hlyytine/tii-sel4/sources/tcu_muxer/tcu_com.c:696)
+- `sources/tcu_muxer/uart-proto.h`
+- `sources/tcu_muxer/tcu_com.c`
 
 ## Summary
 
@@ -76,14 +76,14 @@ demuxed streams, not part of the wire format.
 The current design spreads transport semantics across repo-owned target and
 host code:
 
-- [`components/GuestConsoleSink/src/guest_console_sink.c`](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/GuestConsoleSink/src/guest_console_sink.c:79)
+- `components/GuestConsoleSink/src/guest_console_sink.c`
   locally wraps every payload byte in an 11-byte frame
-- [`components/ConsoleMux/src/console_mux.c`](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsoleMux/src/console_mux.c:42)
+- `components/ConsoleMux/src/console_mux.c`
   forwards framed payloads and also injects debug/profiling records in that
   same format
-- [`tools/console_router.py`](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/console_router.py:530)
+- `tools/console_router.py`
   owns multiple transport modes, including `binary_frames`
-- [`tools/qemu_runner.py`](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:736)
+- `tools/qemu_runner.py`
   selects `binary_frames` transport for the current split-console path
 
 That is the wrong ownership split. The protocol is carrying host-runtime policy

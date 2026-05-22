@@ -47,7 +47,7 @@ merged plaintext producers.
 ## Logical Channel Model
 
 The current canonical channel set for the x86 `vm_qemu_virtio` profile is
-declared in [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:593).
+declared in tools/qemu_runner.py.
 
 | Id | Name | Kind | Interactive | Purpose |
 | --- | --- | --- | --- | --- |
@@ -83,7 +83,7 @@ In the target architecture, the producer decides channel identity explicitly.
 
 ### Router
 
-[tools/console_router.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/console_router.py:530)
+tools/console_router.py
 is the executable routing boundary.
 
 It is responsible for:
@@ -111,7 +111,7 @@ Current consumers:
 ## Transport Modes
 
 Transport selection is declared by
-[tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:633)
+tools/qemu_runner.py
 in `console-manifest.json`.
 
 ### `process_stdio`
@@ -148,10 +148,10 @@ Current prefix map for x86 `vm_qemu_virtio`:
 Implementation references:
 
 - manifest declaration:
-  [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:675)
+  tools/qemu_runner.py
 - classification and fallback flush:
-  [tools/console_router.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/console_router.py:220),
-  [tools/console_router.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/console_router.py:251)
+  tools/console_router.py,
+  tools/console_router.py
 
 Authority model:
 
@@ -191,11 +191,11 @@ Characteristics:
 Implementation references:
 
 - manifest declaration:
-  [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:645)
+  tools/qemu_runner.py
 - router encode/decode:
-  [tools/console_router.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/console_router.py:200)
+  tools/console_router.py
 - transitional single-channel wrapper:
-  [tools/console_frame_stream.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/console_frame_stream.py:1)
+  tools/console_frame_stream.py
 
 Authority model:
 
@@ -223,9 +223,9 @@ Files:
 Runtime generation references:
 
 - runtime manifest:
-  [tools/console_router.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/console_router.py:350)
+  tools/console_router.py
 - sessions:
-  [tools/console_router.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/console_router.py:388)
+  tools/console_router.py
 
 Input contract:
 
@@ -244,11 +244,11 @@ The x86 app now has native producer-side framing in the `Init` component.
 References:
 
 - VMM debug framing:
-  [projects/vm/components/Init/src/main.c](/home/hlyytine/tii-sel4/projects/vm/components/Init/src/main.c:615)
+  projects/vm/components/Init/src/main.c
 - guest UART framing:
-  [projects/vm/components/Init/src/serial.c](/home/hlyytine/tii-sel4/projects/vm/components/Init/src/serial.c:413)
+  projects/vm/components/Init/src/serial.c
 - frame emission:
-  [projects/vm/components/Init/src/console_frame_transport.c](/home/hlyytine/tii-sel4/projects/vm/components/Init/src/console_frame_transport.c:1)
+  projects/vm/components/Init/src/console_frame_transport.c
 
 Currently framed native sources:
 
@@ -268,7 +268,7 @@ Important behavior:
 
 Reference:
 
-- [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:620)
+- tools/qemu_runner.py
 
 ### Current Limitation
 
@@ -288,7 +288,7 @@ What is still true today:
 
 Reference:
 
-- [tools/console_router.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/console_router.py:233)
+- tools/console_router.py
 
 That resynchronization is a tolerance mechanism for incomplete producer
 coverage. It is not a return to plaintext source heuristics.

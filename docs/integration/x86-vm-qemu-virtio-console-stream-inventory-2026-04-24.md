@@ -45,11 +45,11 @@ The current x86 console path has three ownership layers:
 Code references:
 
 - runner channel and manifest definition:
-  [tools/qemu_runner.py](../../tools/qemu_runner.py)
+  tools/qemu_runner.py
 - router transport and runtime/session generation:
-  [tools/console_router.py](../../tools/console_router.py)
+  tools/console_router.py
 - Autopilot router-session discovery and PTY write resolution:
-  [/home/hlyytine/autopilot/chain_runtime.py](/home/hlyytine/autopilot/chain_runtime.py:452)
+  /home/hlyytine/autopilot/chain_runtime.py
 
 ### Transport Modes
 
@@ -167,13 +167,13 @@ Only `line_prefixes` currently distinguishes `driver_vm_console`,
 
 ### Smoke And Login Chains
 
-- [qemu_x86_64_defconfig.json](/home/hlyytine/autopilot/chains/qemu_x86_64_defconfig.json:1)
+- qemu_x86_64_defconfig.json
   should use:
   - `driver_vm_console` for login/shell success
   - `tty0` for early runner failure detection
-- [qemu_x86_64_vm_qemu_virtio_minimal_login.json](/home/hlyytine/autopilot/chains/qemu_x86_64_vm_qemu_virtio_minimal_login.json:1)
+- qemu_x86_64_vm_qemu_virtio_minimal_login.json
   uses `driver_vm_console` as the interactive source for login injection
-- [qemu_x86_64_vm_qemu_virtio_uservm.json](/home/hlyytine/autopilot/chains/qemu_x86_64_vm_qemu_virtio_uservm.json:1)
+- qemu_x86_64_vm_qemu_virtio_uservm.json
   uses `driver_vm_console` for login and `uservmctl` orchestration
 
 ### Diagnostic Interpretation

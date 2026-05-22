@@ -49,11 +49,11 @@ Implementation notes:
 - 2026-04-25: removed the temporary `while (1) { seL4_Yield(); }` control-thread
   loops from the repo-owned mux/sink components after verifying they were only
   bring-up scaffolding, not part of the target design.
-  - [components/ConsoleMux/ConsoleMux.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsoleMux/ConsoleMux.camkes:1)
+  - components/ConsoleMux/ConsoleMux.camkes
     and
-    [components/GuestConsoleSink/GuestConsoleSink.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/GuestConsoleSink/GuestConsoleSink.camkes:1)
+    components/GuestConsoleSink/GuestConsoleSink.camkes
     no longer declare a `control` thread at all.
-  - [components/ConsolePassthroughSink/src/console_passthrough_sink.c](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsolePassthroughSink/src/console_passthrough_sink.c:1)
+  - components/ConsolePassthroughSink/src/console_passthrough_sink.c
     now returns from `run()` instead of spinning in a yield loop.
   - a fresh clean x86 build still passed:
     - `make mrproper`
@@ -71,15 +71,15 @@ Implementation notes:
     - `VIRTIOSO_CONSOLE_ROUTER_USE_BINARY_FRAMES=1`
     - `VIRTIOSO_QEMU_DEDICATED_MUX_UPLINK=1`
   - preserved runtime:
-    [qemu-x86-consolemux-runtime-driver-prompt](/tmp/qemu-x86-consolemux-runtime-driver-prompt/console-runtime/runtime-manifest.json:1)
+    qemu-x86-consolemux-runtime-driver-prompt
   - `driver_vm_console` and `user_vm_console` both stayed active and grew, so
     this is not a dead console path:
-    - [driver_vm_console/raw.log](/tmp/qemu-x86-consolemux-runtime-driver-prompt/console-runtime/channels/driver_vm_console/raw.log:1)
-    - [user_vm_console/raw.log](/tmp/qemu-x86-consolemux-runtime-driver-prompt/console-runtime/channels/user_vm_console/raw.log:1)
+    - driver_vm_console/raw.log
+    - user_vm_console/raw.log
   - no `driver-vm login:` marker appeared on any channel during the prompt
     wait window, so there was nothing valid to type `root` into.
   - at the same time
-    [vmm_mux_control/raw.log](/tmp/qemu-x86-consolemux-runtime-driver-prompt/console-runtime/channels/vmm_mux_control/raw.log:1)
+    vmm_mux_control/raw.log
     remained the largest stream and still carried heavy `[vmmdbg]` traffic,
     while `vmm_debug` stayed empty.
 - 2026-04-25: deeper slowness analysis against that preserved prompt-attempt
@@ -87,7 +87,7 @@ Implementation notes:
   - VM0 is booting with an explicitly very noisy kernel command line:
     `debug loglevel=8 ignore_loglevel initcall_debug`
     in
-    [driver_vm_console/raw.log](/tmp/qemu-x86-consolemux-runtime-driver-prompt/console-runtime/channels/driver_vm_console/raw.log:2).
+    driver_vm_console/raw.log.
   - In the captured VM0 log there are at least:
     - `348` `calling ...` initcall traces
     - `258` `initcall ... returned ...` traces
@@ -145,7 +145,7 @@ Implementation notes:
     - `vm##num.putchar -> serial.processed_putchar`
     - `vm##num.guest_putchar -> serial.raw_putchar`
   - upstream
-    [SerialServer/src/serial.c](/home/hlyytine/tii-sel4/projects/global-components/components/SerialServer/src/serial.c:252)
+    SerialServer/src/serial.c
     appends each received byte into an internal output buffer and flushes that
     buffer opportunistically or on its periodic timer path, rather than
     re-encoding every payload byte into a separate transport record
@@ -155,7 +155,7 @@ Implementation notes:
     - `ConsoleMux`
     - `ConsolePassthroughSink`
   - current
-    [ConsoleMux/src/console_mux.c](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsoleMux/src/console_mux.c:1)
+    ConsoleMux/src/console_mux.c
     emits one payload byte as one full 11-byte frame and does so by calling the
     downstream `uplink_putchar(...)` once per frame byte
   - in the preserved prompt-attempt runtime the three populated payload streams
@@ -196,7 +196,7 @@ Implementation notes:
   even though it still did not reach `driver-vm login:` in the observation
   window.
   - preserved runtime:
-    [qemu-x86-consolemux-runtime-batch1](/tmp/qemu-x86-consolemux-runtime-batch1/console-runtime/runtime-manifest.json:1)
+    qemu-x86-consolemux-runtime-batch1
   - after a 120s prompt watch window:
     - `driver_vm_console/raw.log` reached `60,795` bytes
     - `user_vm_console/raw.log` reached `120,486` bytes
@@ -228,7 +228,7 @@ Implementation notes:
 - 2026-04-25: first runtime after that second batching slice was mixed rather
   than a clear win.
   - preserved runtime:
-    [qemu-x86-consolemux-runtime-batch2](/tmp/qemu-x86-consolemux-runtime-batch2/console-runtime/runtime-manifest.json:1)
+    qemu-x86-consolemux-runtime-batch2
   - the run stayed healthy and all three active channels continued growing:
     - `driver_vm_console`: `58,566` bytes
     - `user_vm_console`: `66,121` bytes
@@ -254,7 +254,7 @@ Implementation notes:
     - `make qemu_x86_64_defconfig`
     - `make vm_qemu_virtio`
   - preserved runtime:
-    [qemu-x86-consolemux-runtime-batch3](/tmp/qemu-x86-consolemux-runtime-batch3/console-runtime/runtime-manifest.json:1)
+    qemu-x86-consolemux-runtime-batch3
   - this tuning did **not** produce a runtime win:
     - within a `180s` watch window it still did not reach
       `jent_mod_init`
@@ -285,9 +285,9 @@ Implementation notes:
     - `make qemu_x86_64_defconfig`
     - `make vm_qemu_virtio`
   - preserved runtime:
-    [qemu-x86-consolemux-runtime-bypass1](/tmp/qemu-x86-consolemux-runtime-bypass1/console-runtime/runtime-manifest.json:1)
+    qemu-x86-consolemux-runtime-bypass1
   - clean measurement lines are in:
-    [vmm_debug/raw.log](/tmp/qemu-x86-consolemux-runtime-bypass1/console-runtime/channels/vmm_debug/raw.log:1)
+    vmm_debug/raw.log
   - with `ConsoleMux` removed from the x86 fixed-stream path:
     - stream `3` (`vmm_mux_control`) caller-side cost dropped from the old
       `~220M..260M` cycle range to roughly `~180M..200M` cycles per call after
@@ -312,7 +312,7 @@ Implementation notes:
   reran the preserved x86 probe to separate “generic diag chatter” from the
   remaining control-lane cost.
   - x86 app-local build now defines `VMM_CONSOLE_DROP_DIAG_OUTPUT=1`, and
-    [console_frame_transport.c](/home/hlyytine/tii-sel4/projects/vm/components/Init/src/console_frame_transport.c:1)
+    console_frame_transport.c
     drops `vmm_console_diag_putchar()` bytes while keeping:
     - explicit `vmm_console_debug_putchar()` traffic
     - producer-side `txg` / `txd` / `txdbg` heartbeat counters
@@ -321,7 +321,7 @@ Implementation notes:
     - `make qemu_x86_64_defconfig`
     - `make vm_qemu_virtio`
   - preserved runtime:
-    [qemu-x86-consolemux-runtime-instr3](/tmp/qemu-x86-consolemux-runtime-instr3/console-runtime/runtime-manifest.json:1)
+    qemu-x86-consolemux-runtime-instr3
   - early heartbeat samples show the intended effect:
     - first samples still had startup `txd` bursts, for example:
       - `vm1 hb=1`: `txd=+2909B` with `cyc=+8,014,600,064`
@@ -336,7 +336,7 @@ Implementation notes:
     - `user_vm_console`: `116,296` bytes
     - `vmm_mux_control`: `340,895` bytes
   - direct content counts from
-    [vmm_mux_control/raw.log](/tmp/qemu-x86-consolemux-runtime-instr3/console-runtime/channels/vmm_mux_control/raw.log:1)
+    vmm_mux_control/raw.log
     show what that lane is carrying now:
     - `[vmmdbg]` markers: `822`
     - `vm0:` prefixes: `269`
@@ -360,14 +360,14 @@ Implementation notes:
   x86 console components and reran a short preserved probe.
   - instrumentation now measures:
     - caller-side batch RPC cost in
-      [GuestConsoleSink](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/GuestConsoleSink/src/guest_console_sink.c:1)
+      GuestConsoleSink
       around `mux_batch_batch()`
     - server-side batch handling plus caller-side uplink RPC cost in
-      [ConsoleMux](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsoleMux/src/console_mux.c:1)
+      ConsoleMux
       around `mux_batch_batch()` and `uplink_batch_batch()`
   - the probes publish low-frequency `[rpcprof]` summaries on the framed debug
     stream, preserved in:
-    [qemu-x86-consolemux-runtime-rpc3/vmm_debug/raw.log](/tmp/qemu-x86-consolemux-runtime-rpc3/console-runtime/channels/vmm_debug/raw.log:1)
+    qemu-x86-consolemux-runtime-rpc3/vmm_debug/raw.log
   - first clean measurements show the two measured hops are both expensive,
     but `GuestConsoleSink -> ConsoleMux` is clearly worse than the
     `ConsoleMux -> uplink` hop:
@@ -393,12 +393,12 @@ Implementation notes:
 - 2026-04-25: ran a direct null-sink comparison to test whether the physical
   `115200` UART path is the dominant source of the measured RPC latency.
   - x86 app-local build now defines `CONSOLE_SINK_DROP_OUTPUT=1`, so
-    [ConsolePassthroughSink](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsolePassthroughSink/src/console_passthrough_sink.c:1)
+    ConsolePassthroughSink
     discards bytes instead of calling `ps_cdev_putchar()`
   - preserved comparison runtime:
-    [qemu-x86-consolemux-runtime-null1](/tmp/qemu-x86-consolemux-runtime-null1/console-runtime/runtime-manifest.json:1)
+    qemu-x86-consolemux-runtime-null1
   - first framed `rpcprof` samples in
-    [vmm_debug/raw.log](/tmp/qemu-x86-consolemux-runtime-null1/console-runtime/channels/vmm_debug/raw.log:1)
+    vmm_debug/raw.log
     did **not** show the dramatic collapse that a UART-backpressure root cause
     would predict:
     - `GuestConsoleSink -> ConsoleMux` stream `3` still sat roughly around
@@ -424,12 +424,12 @@ Implementation notes:
   server path.
   - removed `console_mux_emit_lock`, `console_mux_lock()`, and
     `console_mux_unlock()` from
-    [ConsoleMux/src/console_mux.c](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsoleMux/src/console_mux.c:1)
+    ConsoleMux/src/console_mux.c
   - preserved comparison runtime:
-    [qemu-x86-consolemux-runtime-null2](/tmp/qemu-x86-consolemux-runtime-null2/console-runtime/runtime-manifest.json:1)
+    qemu-x86-consolemux-runtime-null2
   - generated topology still confirms the `mux_batch` hot path is already
     served by one active server thread:
-    [console_mux/mux_batch_seL4SerialServer_0.c](/home/hlyytine/tii-sel4/qemu_x86_64_vm_qemu_virtio/console_mux/mux_batch_seL4SerialServer_0.c:348)
+    console_mux/mux_batch_seL4SerialServer_0.c
   - the lock-free rerun did **not** produce a dramatic timing drop:
     - `null1` with lock:
       - `gcs stream=3` early samples roughly `219M..260M` cycles/call
@@ -453,7 +453,7 @@ Implementation notes:
     - total calls
     - cumulative TSC cycles spent inside the producer-side console transport
   - first measured runtime:
-    [qemu-x86-consolemux-runtime-instr1](/tmp/qemu-x86-consolemux-runtime-instr1/console-runtime/runtime-manifest.json:1)
+    qemu-x86-consolemux-runtime-instr1
   - the early heartbeats are the strongest new fact so far:
     - before guest console output starts, `txg=0B` while `txd` is already
       burning billions of cycles per heartbeat
@@ -487,7 +487,7 @@ Implementation notes:
     - `PIT irq update ...` and `PIT timer callback ...` in
       `projects/vm/components/Init/src/i8254.c`
   - preserved runtime after that change:
-    [qemu-x86-consolemux-runtime-instr2](/tmp/qemu-x86-consolemux-runtime-instr2/console-runtime/runtime-manifest.json:1)
+    qemu-x86-consolemux-runtime-instr2
   - result: early `txd` cost remained very large, so those sites were not the
     dominant producer-side culprit
   - representative early post-removal heartbeat samples still showed:
@@ -507,9 +507,9 @@ Implementation notes:
     (`set_putchar(vmm_console_diag_putchar)` plus broad `ZF_LOGI`/`ZF_LOGD`
     traffic), not just the three removed x86 debug print sites
 - 2026-04-25: started Slice 1 implementation in
-  [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:1)
+  tools/qemu_runner.py
   and added
-  [tools/qemu_mux_uplink_bridge.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_mux_uplink_bridge.py:1)
+  tools/qemu_mux_uplink_bridge.py
   to establish a dedicated second-QEMU-uplink mode for binary-framed runs.
 - 2026-04-25: verified by smoke test that the remote bundle wrapper emitted for
   a `vm_qemu_virtio`-profile binary includes:
@@ -517,25 +517,25 @@ Implementation notes:
   - `console-mux.sock`
   - `socket,id=virtioso_mux`
 - 2026-04-25: extended Slice 1 support into the local QEMU path in
-  [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:1)
+  tools/qemu_runner.py
   so local runs can also append a dedicated QEMU mux uplink socket and route
   it through `qemu_mux_uplink_bridge.py`.
 - 2026-04-25: moved x86 `vm_qemu_virtio` and
   `vm_qemu_virtio_minimal` app settings to COM2 via
-  [apps/x86/vm_qemu_virtio/app_settings.cmake](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio/app_settings.cmake:1)
+  apps/x86/vm_qemu_virtio/app_settings.cmake
   and
-  [apps/x86/vm_qemu_virtio_minimal/app_settings.cmake](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio_minimal/app_settings.cmake:1),
+  apps/x86/vm_qemu_virtio_minimal/app_settings.cmake,
   so the seL4-side console sink can target the dedicated QEMU uplink on x86
   without reusing the legacy COM1 console line.
 - 2026-04-25: started removing upstream `SerialServer` from the x86
   authoritative path by adding a repo-owned
-  [components/ConsolePassthroughSink/ConsolePassthroughSink.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsolePassthroughSink/ConsolePassthroughSink.camkes:1)
+  components/ConsolePassthroughSink/ConsolePassthroughSink.camkes
   component plus
-  [components/ConsolePassthroughSink/src/console_passthrough_sink.c](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsolePassthroughSink/src/console_passthrough_sink.c:1),
+  components/ConsolePassthroughSink/src/console_passthrough_sink.c,
   and switching the x86 app-local `VM_COMPOSITION_DEF()` overrides in
-  [apps/x86/vm_qemu_virtio/vm_qemu_virtio.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio/vm_qemu_virtio.camkes:1)
+  apps/x86/vm_qemu_virtio/vm_qemu_virtio.camkes
   and
-  [apps/x86/vm_qemu_virtio_minimal/vm_qemu_virtio_minimal.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio_minimal/vm_qemu_virtio_minimal.camkes:1)
+  apps/x86/vm_qemu_virtio_minimal/vm_qemu_virtio_minimal.camkes
   to instantiate that sink instead of upstream `SerialServer`.
 - 2026-04-25: first x86 verification build failed in two useful ways:
   - the new sink component needed an explicit CAmkES import path
@@ -548,9 +548,9 @@ Implementation notes:
   the new sink component was being instantiated, but also showed the remaining
   integration gap: the component needed repo-local `DeclareCAmkESComponent(...)`
   registration plus a trivial `run()` entrypoint. Those were added in
-  [components/ConsolePassthroughSink/CMakeLists.txt](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsolePassthroughSink/CMakeLists.txt:1)
+  components/ConsolePassthroughSink/CMakeLists.txt
   and
-  [components/ConsolePassthroughSink/src/console_passthrough_sink.c](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsolePassthroughSink/src/console_passthrough_sink.c:1)
+  components/ConsolePassthroughSink/src/console_passthrough_sink.c
   before the next rebuild.
 - 2026-04-25: clean x86 rebuild succeeded after the repo-owned sink wiring:
   - `make mrproper`
@@ -564,7 +564,7 @@ Implementation notes:
   showed the cause in `qemu-run.log.stderr`:
   `QEMU_MUX_UPLINK_BRIDGE_ERROR: ... AF_UNIX path too long`.
   The dedicated mux socket path was then shortened in
-  [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:1)
+  tools/qemu_runner.py
   to allocate the socket under `/tmp` instead of inside the long remote bundle
   directory.
 - 2026-04-25: the dedicated-uplink wrapper generation had two additional real
@@ -576,7 +576,7 @@ Implementation notes:
     `producer_cmd` before mutating `qemu_extra_opt` with the dynamic dedicated
     uplink arguments
   Both were corrected in
-  [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:1)
+  tools/qemu_runner.py
   so the bridge and QEMU now share the same dynamically allocated short socket
   path.
 - 2026-04-25: remote runtime validation after those fixes proved the dedicated
@@ -601,11 +601,11 @@ Implementation notes:
   broad cleanup of the legacy path first.
 - 2026-04-25: started Slice 2 by adding repo-owned shared component
   scaffolding:
-  - [components/ConsoleMux/ConsoleMux.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsoleMux/ConsoleMux.camkes:1)
-  - [components/ConsoleMux/interfaces/ConsoleMuxEmit.idl4](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsoleMux/interfaces/ConsoleMuxEmit.idl4:1)
-  - [components/ConsoleMux/src/console_mux.c](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsoleMux/src/console_mux.c:1)
-  - [components/GuestConsoleSink/GuestConsoleSink.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/GuestConsoleSink/GuestConsoleSink.camkes:1)
-  - [components/GuestConsoleSink/src/guest_console_sink.c](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/GuestConsoleSink/src/guest_console_sink.c:1)
+  - components/ConsoleMux/ConsoleMux.camkes
+  - components/ConsoleMux/interfaces/ConsoleMuxEmit.idl4
+  - components/ConsoleMux/src/console_mux.c
+  - components/GuestConsoleSink/GuestConsoleSink.camkes
+  - components/GuestConsoleSink/src/guest_console_sink.c
   The current scope of this slice is intentionally narrow:
   `ConsoleMux` owns stream-id-aware frame emission onto one downstream uplink,
   and `GuestConsoleSink` binds a fixed guest-visible stream id without forcing
@@ -614,9 +614,9 @@ Implementation notes:
 - 2026-04-25: registered those new shared components in the x86
   `vm_qemu_virtio` and `vm_qemu_virtio_minimal` app CMake import/build path so
   upcoming cutovers can use repo-owned seams directly:
-  [apps/x86/vm_qemu_virtio/CMakeLists.txt](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio/CMakeLists.txt:1)
+  apps/x86/vm_qemu_virtio/CMakeLists.txt
   and
-  [apps/x86/vm_qemu_virtio_minimal/CMakeLists.txt](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio_minimal/CMakeLists.txt:1).
+  apps/x86/vm_qemu_virtio_minimal/CMakeLists.txt.
   A clean validation build still passed:
   - `make mrproper`
   - `make qemu_x86_64_defconfig`
@@ -629,9 +629,9 @@ Implementation notes:
   - `ConsoleMux` emits framed bytes to the downstream `serial.raw_putchar`
   - ordinary `vm##num.putchar` still stays on the legacy processed path for now
   This was wired in:
-  [apps/x86/vm_qemu_virtio/vm_qemu_virtio.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio/vm_qemu_virtio.camkes:1)
+  apps/x86/vm_qemu_virtio/vm_qemu_virtio.camkes
   and
-  [apps/x86/vm_qemu_virtio_minimal/vm_qemu_virtio_minimal.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio_minimal/vm_qemu_virtio_minimal.camkes:1).
+  apps/x86/vm_qemu_virtio_minimal/vm_qemu_virtio_minimal.camkes.
 - 2026-04-25: validated that first x86 cutover by another clean build:
   - `make mrproper`
   - `make qemu_x86_64_defconfig`
@@ -642,7 +642,7 @@ Implementation notes:
   repo-owned mux/sink components are not just scaffolding but are now part of
   the x86 app composition.
 - 2026-04-25: added direct CapDL loader instrumentation in
-  [projects/capdl/capdl-loader-app/src/main.c](/home/hlyytine/tii-sel4/projects/capdl/capdl-loader-app/src/main.c:1)
+  projects/capdl/capdl-loader-app/src/main.c
   for the non-static allocation path.
   - the loader now logs, at `INFO` level, the exact object name/id/type/size
     and bootinfo untyped cptr/index/paddr/size whenever a `seL4_NotEnoughMemory`
@@ -675,11 +675,11 @@ Implementation notes:
 - 2026-04-25: removed the old `Init`-side framed producer from the x86 app
   path by:
   - dropping `-DVMM_CONSOLE_FRAMED_OUTPUT=1` from
-    [apps/x86/vm_qemu_virtio/CMakeLists.txt](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio/CMakeLists.txt:1)
+    apps/x86/vm_qemu_virtio/CMakeLists.txt
   - routing `vm.putchar` plus `pci_config`, `time_server`, and `rtc` `putchar`
     connections through fixed-stream sink instances into `ConsoleMux` instead
     of directly to the serial sink in
-    [apps/x86/vm_qemu_virtio/vm_qemu_virtio.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio/vm_qemu_virtio.camkes:1)
+    apps/x86/vm_qemu_virtio/vm_qemu_virtio.camkes
   This established a single intended producer path onto the dedicated uplink.
 - 2026-04-25: rerunning that single-producer shape showed a second, narrower
   corruption source. The old `Init` overlap was gone, but preserved remote
@@ -688,7 +688,7 @@ Implementation notes:
   `uplink_putchar` RPCs with no frame-level serialization across concurrent
   callers.
 - 2026-04-25: added a frame-level lock in
-  [components/ConsoleMux/src/console_mux.c](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsoleMux/src/console_mux.c:1)
+  components/ConsoleMux/src/console_mux.c
   so one complete frame is serialized on the uplink before another caller can
   emit. Temporary `run()` bring-up markers that had been added to
   `ConsoleMux` and `GuestConsoleSink` for post-CapDL diagnosis were then
@@ -719,7 +719,7 @@ Implementation notes:
   participant in the generated `serial` startup barrier.
   - added explicit `raw_putchar__init`, `getchar__init`, and
     `serial_irq__init` markers in
-    [components/ConsolePassthroughSink/src/console_passthrough_sink.c](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsolePassthroughSink/src/console_passthrough_sink.c:1)
+    components/ConsolePassthroughSink/src/console_passthrough_sink.c
   - observed at runtime:
     - `[cps raw init]`
     - `[cps getchar init]`
@@ -733,7 +733,7 @@ Implementation notes:
     prevented `raw_putchar__run()` from starting
 - 2026-04-25: started a repo-owned no-IRQ sink experiment by removing the
   hardware interrupt dependency from
-  [components/ConsolePassthroughSink/ConsolePassthroughSink.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/components/ConsolePassthroughSink/ConsolePassthroughSink.camkes:1)
+  components/ConsolePassthroughSink/ConsolePassthroughSink.camkes
   while keeping the output path otherwise intact.
   - clean x86 rebuild passed after this change
   - runtime validation is in progress, but the remote host became unstable
@@ -851,12 +851,12 @@ Verified from code:
 
 - `SerialServer` is presentation-heavy and includes multi-client switching and
   colorized output behavior:
-  [projects/global-components/components/SerialServer/src/serial.c](/home/hlyytine/tii-sel4/projects/global-components/components/SerialServer/src/serial.c:1)
+  projects/global-components/components/SerialServer/src/serial.c
 - x86 producer framing currently piggybacks on host-visible `putchar_putchar`
   and `guest_putchar_putchar` sinks:
-  [projects/vm/components/Init/src/console_frame_transport.c](/home/hlyytine/tii-sel4/projects/vm/components/Init/src/console_frame_transport.c:1)
+  projects/vm/components/Init/src/console_frame_transport.c
 - `Init` already redirects global output through `set_putchar(...)`:
-  [projects/vm/components/Init/src/main.c](/home/hlyytine/tii-sel4/projects/vm/components/Init/src/main.c:635)
+  projects/vm/components/Init/src/main.c
 - the repo architecture rule is already that producer owns source identity and
   the router should not infer it:
   [console-transport-and-routing.md](console-transport-and-routing.md)
@@ -872,12 +872,12 @@ Additional verified nuance:
 
 - standard VM composition today wires `vm##num.putchar` and
   `vm##num.guest_putchar` as distinct paths:
-  [projects/vm/components/VM/configurations/vm.h](/home/hlyytine/tii-sel4/projects/vm/components/VM/configurations/vm.h:93)
+  projects/vm/components/VM/configurations/vm.h
 - but not all guest-visible output necessarily flows through a dedicated
   `guest_putchar` path
 - for example, the Arm PL011 early-debug path currently does:
   `putchar((int)value)` in
-  [projects/virtioso-camkes-vm/src/camkes/modules/pl011.c](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/src/camkes/modules/pl011.c:37)
+  projects/virtioso-camkes-vm/src/camkes/modules/pl011.c
 - semantically, those bytes belong to the guest console, but operationally they
   currently flow through the VMM component’s default output path
 
@@ -1050,7 +1050,7 @@ The x86 side already provides a strong existing seam for this approach:
 
 - standard VM composition distinguishes `putchar` and `guest_putchar`
   in
-  [projects/vm/components/VM/configurations/vm.h](/home/hlyytine/tii-sel4/projects/vm/components/VM/configurations/vm.h:93)
+  projects/vm/components/VM/configurations/vm.h
 
 So the intended shared interpretation becomes:
 
@@ -1297,16 +1297,16 @@ Verified enabling facts:
 
 - this repo already adds its own CAmkES template search path via
   `CAmkESAddTemplatesPath(${VIRTIOSO_CAMKES_VM_DIR}/templates)`:
-  [virtioso_camkes_vm_helpers.cmake](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/virtioso_camkes_vm_helpers.cmake:19)
+  virtioso_camkes_vm_helpers.cmake
 - the x86 app still composes the standard VM wiring and imports
   `SerialServer.camkes`:
-  [apps/x86/vm_qemu_virtio/vm_qemu_virtio.camkes](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/apps/x86/vm_qemu_virtio/vm_qemu_virtio.camkes:1)
+  apps/x86/vm_qemu_virtio/vm_qemu_virtio.camkes
 - current VM composition macros already define the serial-related wiring in one
   place:
-  [projects/vm/components/VM/configurations/vm.h](/home/hlyytine/tii-sel4/projects/vm/components/VM/configurations/vm.h:93)
+  projects/vm/components/VM/configurations/vm.h
 - the CAmkES runner supports cross-template state passing and generation-time
   context:
-  [camkes-tool/camkes/runner/Context.py](/home/hlyytine/tii-sel4/projects/camkes-tool/camkes/runner/Context.py:141)
+  camkes-tool/camkes/runner/Context.py
 
 So architecturally, yes: Jinja2 templates can generate a stream registry.
 
@@ -1493,7 +1493,7 @@ Recommendation:
 
 More specifically, this option is attractive because the VM macros already
 centralize standard serial-related wiring in
-[projects/vm/components/VM/configurations/vm.h](/home/hlyytine/tii-sel4/projects/vm/components/VM/configurations/vm.h:93).
+projects/vm/components/VM/configurations/vm.h.
 
 That makes them a plausible long-term place to derive the default implicit
 stream classes for all standard VM instances, without requiring each app to
@@ -1806,9 +1806,9 @@ upstream `SerialServer`, not to repo-owned mux/sink components.
 Verified locations:
 
 - x86:
-  [projects/vm/components/VM/configurations/vm.h](/home/hlyytine/tii-sel4/projects/vm/components/VM/configurations/vm.h:93)
+  projects/vm/components/VM/configurations/vm.h
 - Arm:
-  [projects/vm/components/VM_Arm/configurations/vm.h](/home/hlyytine/tii-sel4/projects/vm/components/VM_Arm/configurations/vm.h:147)
+  projects/vm/components/VM_Arm/configurations/vm.h
 
 So the “implicit for all apps” requirement is not satisfied yet. The current
 default composition still gives apps `SerialServer` semantics.
@@ -1816,7 +1816,7 @@ default composition still gives apps `SerialServer` semantics.
 ### 3. The Current X86 Producer Is Still A Transitional Init-Side Shim
 
 The current x86 `binary_frames` path is implemented in
-[projects/vm/components/Init/src/console_frame_transport.c](/home/hlyytine/tii-sel4/projects/vm/components/Init/src/console_frame_transport.c:1)
+projects/vm/components/Init/src/console_frame_transport.c
 as a producer-side framing shim over `putchar_putchar` and
 `guest_putchar_putchar`.
 
@@ -1848,7 +1848,7 @@ ownership model.
 The Arm PL011 early-printk path still writes guest-visible bytes through the
 default VMM output path:
 
-- [projects/virtioso-camkes-vm/src/camkes/modules/pl011.c](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/src/camkes/modules/pl011.c:37)
+- projects/virtioso-camkes-vm/src/camkes/modules/pl011.c
 
 This means PL011 remains the clearest proof that sender identity alone is not
 sufficient.
@@ -1856,7 +1856,7 @@ sufficient.
 Arm virtual console plumbing is also still tied to legacy guest-putchar
 semantics:
 
-- [projects/vm/components/VM_Arm/src/modules/vuart_init.c](/home/hlyytine/tii-sel4/projects/vm/components/VM_Arm/src/modules/vuart_init.c:29)
+- projects/vm/components/VM_Arm/src/modules/vuart_init.c
 
 So the Arm side still needs explicit migration to the new sink model.
 
@@ -1882,7 +1882,7 @@ tooling instead of being generated from the composition source of truth.
 Today the logical channel set for `vm_qemu_virtio` is still declared in
 Python inside:
 
-- [tools/qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:668)
+- tools/qemu_runner.py
 
 That is acceptable for the prototype phase, but it is the wrong long-term
 owner. The runner should eventually render manifests from generated metadata,
@@ -1894,7 +1894,7 @@ not define the channel architecture itself.
 mode it still mirrors all received payload bytes to process stdout for
 compatibility:
 
-- [tools/console_router.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/console_router.py:612)
+- tools/console_router.py
 
 That is a presentation behavior, not an authoritative routing behavior.
 
@@ -2098,8 +2098,8 @@ modifications.
 
 The QEMU x86 PC/Q35 machine already initializes multiple ISA serial ports:
 
-- [sources/qemu/hw/i386/pc.c](/home/hlyytine/tii-sel4/sources/qemu/hw/i386/pc.c:1092)
-- [sources/qemu/include/hw/char/serial-isa.h](/home/hlyytine/tii-sel4/sources/qemu/include/hw/char/serial-isa.h:31)
+- sources/qemu/hw/i386/pc.c
+- sources/qemu/include/hw/char/serial-isa.h
 
 `MAX_ISA_SERIAL_PORTS` is 4, so QEMU already supports multiple host-backed ISA
 serial endpoints on the x86 machine type.
@@ -2114,7 +2114,7 @@ the legacy serial path that BIOS/firmware and other software may also use.
 
 There is also an x86 `isa-debugcon` device available in local QEMU:
 
-- [sources/qemu/hw/char/debugcon.c](/home/hlyytine/tii-sel4/sources/qemu/hw/char/debugcon.c:36)
+- sources/qemu/hw/char/debugcon.c
 
 But `debugcon` should be treated as a secondary option only. It is attractive
 as a host-visible side channel, but it is not the best default candidate for
@@ -2127,8 +2127,8 @@ choice.
 The QEMU Arm `virt` machine already has support for a second non-secure PL011
 UART when `serial_hd(1)` is present:
 
-- [sources/qemu/hw/arm/virt.c](/home/hlyytine/tii-sel4/sources/qemu/hw/arm/virt.c:179)
-- [sources/qemu/hw/arm/virt.c](/home/hlyytine/tii-sel4/sources/qemu/hw/arm/virt.c:2400)
+- sources/qemu/hw/arm/virt.c
+- sources/qemu/hw/arm/virt.c
 
 The implementation explicitly creates:
 
@@ -2137,7 +2137,7 @@ The implementation explicitly creates:
 
 and only `UART0` is set as `/chosen/stdout-path` by default:
 
-- [sources/qemu/hw/arm/virt.c](/home/hlyytine/tii-sel4/sources/qemu/hw/arm/virt.c:939)
+- sources/qemu/hw/arm/virt.c
 
 Architectural implication:
 

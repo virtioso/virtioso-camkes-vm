@@ -545,34 +545,34 @@ But the current state does not yet provide:
 ### QEMU Runner And Autopilot
 
 - QEMU-backed runs are launched through the runner as a mapped command source:
-  [qemu_x86_64_defconfig.json](/home/hlyytine/autopilot/chains/qemu_x86_64_defconfig.json:1),
-  [qemu_arm64_defconfig.json](/home/hlyytine/autopilot/chains/qemu_arm64_defconfig.json:1)
+  qemu_x86_64_defconfig.json,
+  qemu_arm64_defconfig.json
 - local arm64 fallback currently uses `-serial mon:stdio`, which collapses
   monitor and serial traffic early:
-  [qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:53)
+  qemu_runner.py
 - the runner is therefore already the correct architectural seam for QEMU-backed
   console refactoring:
-  [qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:1)
+  qemu_runner.py
 
 ### Autopilot Source And Session Model
 
 - Autopilot already has a source-binding abstraction that owns a serial device
   or subprocess:
-  [chain_runtime.py](/home/hlyytine/autopilot/chain_runtime.py:165)
+  chain_runtime.py
 - interactive sessions already support bidirectional logging and command
   round-trips:
-  [console_sessions.py](/home/hlyytine/autopilot/console_sessions.py:48)
+  console_sessions.py
 - current event logs are structurally useful but timestamp precision is too weak
   for reliable ordering:
-  [console_sessions.py](/home/hlyytine/autopilot/console_sessions.py:109)
+  console_sessions.py
 
 ### VM Console Identity
 
 - x86 VMM wiring already distinguishes VM-originated guest console traffic from
   component/VMM logging traffic:
-  [projects/vm/components/VM/configurations/vm.h](/home/hlyytine/tii-sel4/projects/vm/components/VM/configurations/vm.h:92)
+  projects/vm/components/VM/configurations/vm.h
 - Arm virtual serial wiring already distinguishes per-VM console paths:
-  [projects/vm/components/VM_Arm/configurations/vm.h](/home/hlyytine/tii-sel4/projects/vm/components/VM_Arm/configurations/vm.h:147)
+  projects/vm/components/VM_Arm/configurations/vm.h
 
 This means the architectural deficiency is backend routing and capture, not a
 lack of logical source identity inside the VM system.
@@ -773,7 +773,7 @@ Goal:
 
 Scope:
 
-- extend `SourceBinding` in [chain_runtime.py](/home/hlyytine/autopilot/chain_runtime.py:165)
+- extend `SourceBinding` in chain_runtime.py
 - keep existing `map_source` and `map_command_source` working
 - add support for event-rich capture without changing current chains yet
 
@@ -806,8 +806,8 @@ Goal:
 
 Scope:
 
-- [console_sessions.py](/home/hlyytine/autopilot/console_sessions.py:1)
-- interactive command path in [sel4_client.py](/home/hlyytine/autopilot/sel4_client.py:648)
+- console_sessions.py
+- interactive command path in sel4_client.py
 
 Changes:
 
@@ -835,7 +835,7 @@ Goal:
 
 Scope:
 
-- [qemu_runner.py](/home/hlyytine/tii-sel4/projects/virtioso-camkes-vm/tools/qemu_runner.py:1)
+- qemu_runner.py
 
 Changes:
 

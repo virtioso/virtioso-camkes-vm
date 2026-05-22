@@ -62,7 +62,7 @@ Also read:
 Preflight gate before implementation work:
 
 1. Apply tracing change-control policy from `AGENTS.md`.
-2. Apply repo-level clean/branch checks from `docs/agents/repo-topology-policy.md`.
+2. Apply repo-level clean/branch checks from `docs/virtioso-camkes-vm/agents/repo-topology-policy.md`.
 3. If any target repo is dirty, stop and request explicit human approval before
    continuing.
 

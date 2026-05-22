@@ -129,7 +129,7 @@ Recommended split:
 
 - `AGENTS.md` and runbooks contain the hard policy: one API only, no internals,
   stop on API failure.
-- `docs/agents/autopilot-testing-policy.md` contains the canonical command
+- `docs/virtioso-camkes-vm/agents/autopilot-testing-policy.md` contains the canonical command
   contract and state interpretation.
 - an optional `ci-tester` skill can summarize and operationalize that policy for
   test-heavy sessions.

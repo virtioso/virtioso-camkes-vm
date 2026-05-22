@@ -12,12 +12,12 @@ This document is architecture/design guidance only. Operational command
 authority and build/test policy remain in the canonical SSOT set:
 
 1. `projects/virtioso-camkes-vm/AGENTS.md`
-2. `docs/agents/task-router.md`
-3. `docs/agents/build-test-runbook.md`
-4. `docs/agents/autopilot-testing-policy.md`
-5. `docs/agents/preflight-policy.md`
-6. `docs/agents/repo-topology-policy.md`
-7. `docs/agents/example-workflows-fastpath.md`
+2. `docs/virtioso-camkes-vm/agents/task-router.md`
+3. `docs/virtioso-camkes-vm/agents/build-test-runbook.md`
+4. `docs/virtioso-camkes-vm/agents/autopilot-testing-policy.md`
+5. `docs/virtioso-camkes-vm/agents/preflight-policy.md`
+6. `docs/virtioso-camkes-vm/agents/repo-topology-policy.md`
+7. `docs/virtioso-camkes-vm/agents/example-workflows-fastpath.md`
 
 ### Timing-Channel Danger Warning (v1 Accepted, 2026-02-10)
 

@@ -799,10 +799,10 @@ Phase-1 target:
 
 When phase-1 code lands, update these docs in the same change window to avoid stale split-device guidance:
 
-1. `docs/architecture/memory-model.md`
+1. `docs/virtioso-camkes-vm/architecture/memory-model.md`
 - replace “iobuf/memdev as separate connector devices” wording with “single connector device with control/data BARs”.
 
-2. `docs/architecture/vm-topology.md`
+2. `docs/virtioso-camkes-vm/architecture/vm-topology.md`
 - update channel diagrams to show one PCI function per channel (`event/data/control`), not two functions.
 
 3. `docs/components/camkes-templates.md`

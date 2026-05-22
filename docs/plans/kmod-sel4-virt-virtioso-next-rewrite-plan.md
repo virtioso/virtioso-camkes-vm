@@ -17,7 +17,7 @@ head: 66afe76 trace: log kmod mailbox mapping
 ```
 
 This is a planning document, not command authority. Build and test commands
-remain governed by `AGENTS.md` and `docs/agents/*`.
+remain governed by `AGENTS.md` and `docs/virtioso-camkes-vm/agents/*`.
 
 ## Cross-Repo Branch Evidence
 

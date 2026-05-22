@@ -151,8 +151,8 @@ Make the new runtime artifact the documented happy path for teams.
 - repo: `projects/virtioso-camkes-vm`
 - docs likely touched:
   - `docs/start-here/running-qemu.md`
-  - `docs/architecture/autopilot-qemu-backends.md`
-  - `docs/agents/build-test-runbook.md`
+  - `docs/virtioso-camkes-vm/architecture/autopilot-qemu-backends.md`
+  - `docs/virtioso-camkes-vm/agents/build-test-runbook.md`
 
 ### Required workflow changes
 

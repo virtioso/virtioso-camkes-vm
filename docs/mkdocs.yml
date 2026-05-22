@@ -1,0 +1,141 @@
+site_name: Virtioso CAmkES VM
+docs_dir: .
+nav:
+  - Overview: index.md
+  - Start Here:
+      - Prerequisites: start-here/prerequisites.md
+      - Building: start-here/building.md
+      - Running QEMU: start-here/running-qemu.md
+      - Running RPi4: start-here/running-rpi4.md
+      - Kernel Development Workflow: start-here/kernel-development-workflow.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - VM Topology: architecture/vm-topology.md
+      - Memory Model: architecture/memory-model.md
+      - virtio Architecture: architecture/virtio-architecture.md
+      - vhost Acceleration: architecture/vhost-acceleration.md
+      - Real-Time Properties: architecture/real-time-properties.md
+      - RPC Protocol: architecture/rpc-protocol.md
+      - Console Transport and Routing: architecture/console-transport-and-routing.md
+      - Virtual Channel Mux: architecture/virtual-channel-mux-architecture.md
+      - Mux Wire Protocol: architecture/virtioso-mux-wire-protocol.md
+      - Console Stream Topology Diagrams: architecture/console-stream-topology-diagrams.md
+      - Cross-EL Tracing Feasibility: architecture/cross-el-tracing-feasibility.md
+      - Console Mux Plans:
+          - CAmkES Architecture Plan: architecture/console-mux-camkes-architecture-plan-2026-04-25.md
+          - NVIDIA-Style Rewrite Plan: architecture/console-mux-nvidia-style-rewrite-plan-2026-04-27.md
+          - Orin UARTI Mux Carrier Plan: architecture/orin-uarti-mux-carrier-plan-2026-05-03.md
+          - Cross-Arch TCU UART Mux Plan: architecture/cross-arch-tcu-uart-mux-plan-2026-05-01.md
+      - Autopilot Integration:
+          - Console Source Integration: architecture/autopilot-console-source-integration.md
+          - QEMU Backends: architecture/autopilot-qemu-backends.md
+      - Yocto/QEMU Runtime:
+          - Artifact Contract: architecture/yocto-qemu-runtime-artifact-contract.md
+          - Implementation Plan: architecture/yocto-qemu-runtime-implementation-plan.md
+  - Build System:
+      - Build Architecture: build-system/build-architecture.md
+      - CI/CD: build-system/ci-cd.md
+      - Yocto Integration: build-system/yocto-integration.md
+  - Components:
+      - CAmkES Templates: components/camkes-templates.md
+      - Device Tree: components/device-tree.md
+      - Interrupt Handling: components/interrupt-handling.md
+      - IO Proxy: components/io-proxy.md
+      - PCI Passthrough: components/pci-passthrough.md
+      - Passthru: components/passthru.md
+      - Hyp ftrace Interface: components/hyp-ftrace-interface.md
+  - Integration:
+      - Guest Linux: integration/guest-linux.md
+      - Guest-Side Components: integration/guest-side-components.md
+      - Kernel Modifications: integration/kernel-modifications.md
+      - kmod-sel4-virt: integration/kmod-sel4-virt.md
+      - kmod-sel4-virt Backend Analysis: integration/kmod-sel4-virt-backend-analysis.md
+      - QEMU Backend: integration/qemu-backend.md
+      - QEMU seL4 Accelerator: integration/qemu-sel4-accelerator.md
+      - Other Repos: integration/other-repos.md
+      - Arm64 vm_qemu_virtio Shape: integration/arm64-vm-qemu-virtio-shape.md
+      - x86 pc99 Port Notes: integration/x86-qemu-pc99-vm-qemu-virtio-port-notes-2026-04-16.md
+      - x86 Console Stream Inventory: integration/x86-vm-qemu-virtio-console-stream-inventory-2026-04-24.md
+      - x86 Framed Console Transport Plan: integration/x86-vm-qemu-virtio-framed-console-transport-plan-2026-04-24.md
+      - Console Router and Timeline Plan: integration/console-router-and-timeline-implementation-plan-2026-04-23.md
+      - Console Timeline and Interactive Architecture: integration/console-timeline-and-interactive-architecture-2026-04-23.md
+      - VM1 Launch Automation Options: integration/vm1-launch-automation-options-2026-04-23.md
+      - Orin AGX Cross-VM IRQ Analysis: integration/orinagx-vm-qemu-virtio-crossvm-irq-analysis-2026-02-09.md
+  - Platforms:
+      - Orin AGX:
+          - Debugging Guide: platforms/orin-agx/orin-agx-debugging-guide.md
+          - Complete Debugging Reference: platforms/orin-agx/orin-agx-complete-debugging-reference.md
+          - RAS Errors: platforms/orin-agx/ras-errors.md
+          - UARTA BCT: platforms/orin-agx/uarta-bct/README.md
+          - Investigations:
+              - VM Boot: platforms/orin-agx/investigations/vm-qemu-virtio-boot-investigation.md
+              - RAS Error: platforms/orin-agx/investigations/orin-ras-error-investigation.md
+              - TCU Console Hang: platforms/orin-agx/investigations/tcu-console-sporadic-hang.md
+              - Guest IRQ Disappearance: platforms/orin-agx/investigations/guest-irq-disappearance-investigation.md
+              - Orin Cache: platforms/orin-agx/investigations/orin-cache-investigation.md
+              - Stage2 Device Cacheability Bug: platforms/orin-agx/investigations/stage2-device-cacheability-bug.md
+              - Code in Pagetable Discovery: platforms/orin-agx/investigations/code-in-pagetable-discovery.md
+              - Boot Section Corruption: platforms/orin-agx/investigations/boot-section-corruption-investigation.md
+              - Driver VM Notification Bug: platforms/orin-agx/investigations/driver-vm-notification-bug.md
+              - Kernel PT Init: platforms/orin-agx/investigations/kernel-pt-initialization-investigation.md
+              - Diagnostic Region: platforms/orin-agx/investigations/diagnostic-region-investigation.md
+              - Page Table Barrier Audit: platforms/orin-agx/investigations/page-table-barrier-audit.md
+              - Phase27 Stale Ref: platforms/orin-agx/investigations/phase27-stale-ref-investigation.md
+              - MGBE DMA: platforms/orin-agx/investigations/mgbe-dma-investigation.md
+              - RAS CancelBadgedSends Pattern: platforms/orin-agx/investigations/ras-cancelbadgedsends-pattern.md
+              - RAS FPU Pattern: platforms/orin-agx/investigations/ras-fpu-pattern.md
+              - Bug B: platforms/orin-agx/investigations/bug-b-investigation.md
+          - Plans:
+              - GICv3 vGIC Implementation: platforms/orin-agx/plans/gicv3-vgic-implementation-plan.md
+              - SMMU Implementation: platforms/orin-agx/plans/orin-agx-smmu-implementation-plan.md
+              - RAS Errors Implementation: platforms/orin-agx/plans/ras-errors-implementation-plan.md
+              - RAS Errors Hypotheses: platforms/orin-agx/plans/ras-errors-hypotheses.md
+              - Stage2 Device Cacheability Fix: platforms/orin-agx/plans/stage2-device-cacheability-fix-plan.md
+              - ARM64 Cache Refactoring: platforms/orin-agx/plans/arm64-cache-refactoring-plan.md
+              - Speculative PTW Analysis: platforms/orin-agx/plans/speculative-ptw-analysis-plan.md
+          - Porting:
+              - CAmkES Porting: platforms/orin-agx/porting/orinagx-camkes-porting.md
+              - vm_qemu_virtio Orin AGX: platforms/orin-agx/porting/vm-qemu-virtio-orinagx.md
+          - Reference:
+              - seL4 Memory Layout: platforms/orin-agx/reference/sel4-memory-layout-orinagx.md
+              - ARM64 MM Register Audit: platforms/orin-agx/reference/arm64-mm-register-audit.md
+              - ARM Speculative PTW Research: platforms/orin-agx/reference/arm-speculative-ptw-research.md
+              - Orin Firmware Shared Memory: platforms/orin-agx/reference/orin-firmware-shared-memory.md
+              - SDEI RAS Error Handling: platforms/orin-agx/reference/sdei-ras-error-handling.md
+              - Tegra Cache Operations: platforms/orin-agx/reference/tegra-cache-operations.md
+              - Tegra Whole Cache Operations: platforms/orin-agx/reference/tegra-whole-cache-operations.md
+  - Deployment:
+      - Deployment Scenarios: deployment/deployment-scenarios.md
+      - Production Guide: deployment/production-guide.md
+  - Reference:
+      - API Reference: reference/api-reference.md
+      - Configuration: reference/configuration.md
+      - RPC Opcodes: reference/rpc-opcodes.md
+      - Debugging: reference/debugging.md
+      - Gaps: reference/gaps.md
+      - Autopilot Chain Diagrams: reference/autopilot-chain-diagrams.md
+      - ftrace Integration Status: reference/ftrace-integration-status.md
+      - UART Raw Binary Transfer: reference/uart_raw_binary_transfer_for_debugging_se_l_4_embedded_systems.md
+  - Plans:
+      - kmod-sel4-virt Rewrite: plans/kmod-sel4-virt-virtioso-next-rewrite-plan.md
+      - VM Image Boot Unification: plans/vm-image-boot-unification-plan.md
+      - CAmkES to Microkit Migration: plans/camkes-to-microkit-migration.md
+      - DTB Generation Enhancements: plans/dtb-generation-enhancements-plan.md
+      - CapDL Autopilot Extension: plans/capdl-autopilot-extension-plan.md
+      - ftrace Upstream Integration: plans/ftrace-upstream-integration-plan.md
+      - Orin AGX vm_qemu_virtio Triage: plans/orinagx-next-vm-qemu-virtio-triage.md
+      - Autopilot Usable Agent Interface: plans/autopilot-usable-agent-interface-plan.md
+  - Agent Policies:
+      - Task Router: agents/task-router.md
+      - Build/Test Runbook: agents/build-test-runbook.md
+      - Autopilot Testing Policy: agents/autopilot-testing-policy.md
+      - Preflight Policy: agents/preflight-policy.md
+      - Repo Topology Policy: agents/repo-topology-policy.md
+      - Example Workflows Fastpath: agents/example-workflows-fastpath.md
+      - Context Index: agents/context-index.md
+  - Reports:
+      - Weekly 2026-05-18: reports/weekly-2026-05-18.md
+  - Appendix:
+      - Glossary: appendix/glossary.md
+      - KVM/pKVM vs seL4 Comparison: appendix/kvm-pkvm-sel4-comparison.md
+      - Related Work: appendix/related-work.md

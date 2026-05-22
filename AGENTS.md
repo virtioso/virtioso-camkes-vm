@@ -20,7 +20,7 @@ The `isengard` graph (30 nodes, 92 edges) covers Isengard architecture.
 ## Current Investigation Focus
 
 - Topic: Orin AGX CAmkES component mux/demux completion.
-- Working notes (primary): `docs/architecture/cross-arch-tcu-uart-mux-plan-2026-05-01.md`.
+- Working notes (primary): `docs/virtioso-camkes-vm/architecture/cross-arch-tcu-uart-mux-plan-2026-05-01.md`.
 - Current status: finish the mux/demux path on real Orin AGX first. Keep the
   shared `0xfe` TCU-style protocol, generated CAmkES stream identity, runtime
   announcements, demux-created channels, and Autopilot introspection as the
@@ -37,12 +37,12 @@ The `isengard` graph (30 nodes, 92 edges) covers Isengard architecture.
 Operational policy and command sequences are authoritative only in:
 
 1. `projects/virtioso-camkes-vm/AGENTS.md`
-2. `docs/agents/task-router.md`
-3. `docs/agents/build-test-runbook.md`
-4. `docs/agents/autopilot-testing-policy.md`
-5. `docs/agents/preflight-policy.md`
-6. `docs/agents/repo-topology-policy.md`
-7. `docs/agents/example-workflows-fastpath.md`
+2. `docs/virtioso-camkes-vm/agents/task-router.md`
+3. `docs/virtioso-camkes-vm/agents/build-test-runbook.md`
+4. `docs/virtioso-camkes-vm/agents/autopilot-testing-policy.md`
+5. `docs/virtioso-camkes-vm/agents/preflight-policy.md`
+6. `docs/virtioso-camkes-vm/agents/repo-topology-policy.md`
+7. `docs/virtioso-camkes-vm/agents/example-workflows-fastpath.md`
 
 ## Isengard Documentation Rule
 
@@ -102,8 +102,9 @@ reading surface for cross-repo content.
 3. Prose references like `` `sources/<repo>/docs/<path>` `` with no href → convert to
    a proper link using the site-namespace path (without `docs/`)
 
-After fixing, check for remaining `WARNING` lines in `make docker-serve` output
-to confirm all cross-repo links resolve.
+After fixing, check for remaining `WARNING` and `INFO` lines in `make docker-serve`
+output to confirm all cross-repo links resolve. WARNING = broken cross-repo links;
+INFO = files present in `docs_dir` but not reachable via nav (orphaned after a move).
 
 ## Isengard Docker (T2) Deployment
 
@@ -141,7 +142,7 @@ ground truth, not the Rust code or internal prose descriptions.
 ## Continuity / Lost Context Recovery
 
 When context appears lost, or the user asks whether we were working on a topic,
-first check `docs/agents/context-index.md`.
+first check `docs/virtioso-camkes-vm/agents/context-index.md`.
 
 When creating or substantially updating a durable plan, investigation note, or
 long-running work item, update the context index with the primary file, current
@@ -207,7 +208,7 @@ For `qemu_x86_64_defconfig` QEMU-backed x86 validation:
 
 ## Preflight
 
-- Use task-based preflight only: `docs/agents/preflight-policy.md`.
+- Use task-based preflight only: `docs/virtioso-camkes-vm/agents/preflight-policy.md`.
 - Do not read broad investigation material for routine build/test tasks.
 
 ## Session Warm-Start Defaults
@@ -223,7 +224,7 @@ For `qemu_x86_64_defconfig` QEMU-backed x86 validation:
   `sources/` or shared Virtioso/Isengard substrate before adding Arm support.
 - For requests mentioning `projects/virtioso-camkes-vm/apps/Arm` or
   `projects/vm-examples/apps/Arm`, route immediately via
-  `docs/agents/example-workflows-fastpath.md` instead of broad repo scanning.
+  `docs/virtioso-camkes-vm/agents/example-workflows-fastpath.md` instead of broad repo scanning.
 - For requests on Yocto-built VM images (`vm-images/*`), scope context to
   touched recipe/source paths first; do not restudy whole
   `vm-images/virtioso-yocto-layers/` unless the request explicitly asks for a
@@ -299,12 +300,12 @@ Before `git add` or `git commit`, always work from the real repo root:
 git -C <path> rev-parse --show-toplevel
 ```
 
-If you are editing `docs/` (linked to this repo), commit from:
+If you are editing `docs/virtioso-camkes-vm/` (linked to this repo), commit from:
 `projects/virtioso-camkes-vm/`.
 
 ## Additional Notes
 
-- When unsure, prefer `docs/agents/*` for operational guidance.
+- When unsure, prefer `docs/virtioso-camkes-vm/agents/*` for operational guidance.
 - Treat investigation and plan docs as technical context, not command authority.
 
 ## Tracing Implementation Change-Control Policy
@@ -322,7 +323,7 @@ Applies to cross-repo tracing implementation work.
    approval is recorded.
 6. Commit in atomic logical units; each commit message should reference the
    design source:
-   `docs/architecture/cross-el-tracing-feasibility.md`.
+   `docs/virtioso-camkes-vm/architecture/cross-el-tracing-feasibility.md`.
 7. Keep rollback simple:
    - capture pre-implementation `HEAD` per repo
    - optionally create baseline tag before first tracing commit

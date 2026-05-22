@@ -6,7 +6,8 @@
 
 set(VIRTIOSO_CAMKES_VM_DIR "${CMAKE_CURRENT_LIST_DIR}" CACHE STRING "")
 set(VIRTIOSO_CAMKES_VM_HELPERS_PATH "${CMAKE_CURRENT_LIST_DIR}/virtioso_camkes_vm_helpers.cmake" CACHE STRING "")
-mark_as_advanced(VIRTIOSO_CAMKES_VM_DIR VIRTIOSO_CAMKES_VM_HELPERS_PATH)
+set(VIRTIOSO_MUX_SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../../sources/virtioso-mux" CACHE PATH "Path to virtioso-mux repo")
+mark_as_advanced(VIRTIOSO_CAMKES_VM_DIR VIRTIOSO_CAMKES_VM_HELPERS_PATH VIRTIOSO_MUX_SOURCE_DIR)
 
 macro(virtioso_camkes_vm_setup)
 if(AppArch STREQUAL "Arm")

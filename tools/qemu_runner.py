@@ -662,7 +662,7 @@ def _console_manifest(target: str, binary: Path, spec: TargetSpec, *, force_proc
                     "type": "virtioso_vcmux",
                     "owner": "qemu_runner",
                     "qemu_binary": spec.qemu_binary,
-                    "vcmuxer_path": str(VCMUXER_BINARY),
+                    "virtioso_mux_path": str(VCMUXER_BINARY),
                     "outer": "raw",
                     "note": "Runner-side VCMux 0xfe demux; dynamic PTYs are created from target stream announcements.",
                 },

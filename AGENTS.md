@@ -193,7 +193,7 @@ For `qemu_x86_64_defconfig` QEMU-backed x86 validation:
 - When reporting VM-specific console evidence from mux/demux Autopilot runs,
   always check the demuxed `vmX_guest_console_sink` log for the target VM
   first. For VM1 `uname -a` proof, prefer
-  `results/<id>/console/console-runtime/vcmuxer_logs/vm1_guest_console_sink.txt`
+  `results/<id>/console/console-runtime/virtioso_mux_logs/vm1_guest_console_sink.txt`
   over raw host captures such as `tty1.raw`; raw captures may show firmware or
   carrier traffic rather than the logical VM stream.
 - `qemu_x86_64_defconfig` is an autopilot-backed remote QEMU target; prefer the

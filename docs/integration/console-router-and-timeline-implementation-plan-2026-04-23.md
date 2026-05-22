@@ -23,7 +23,7 @@ Autopilot abstractions.
 
 Current architecture references:
 
-- [Virtual Channel Mux Architecture](../architecture/virtual-channel-mux-architecture.md)
+- [Virtual Channel Mux Architecture](../../virtioso-mux/virtual-channel-mux-architecture.md)
 - [Autopilot Console Source Integration](../architecture/autopilot-console-source-integration.md)
 
 ## Progress

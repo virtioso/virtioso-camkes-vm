@@ -4,7 +4,7 @@ This document describes how Autopilot consumes the repo-owned console router
 runtime and how chain sources map onto router-managed channels.
 
 The transport and muxer/demuxer architecture itself is defined in
-[virtual-channel-mux-architecture.md](virtual-channel-mux-architecture.md).
+[Virtual Channel Mux Architecture](../../virtioso-mux/virtual-channel-mux-architecture.md).
 
 ## Summary
 
@@ -168,6 +168,6 @@ Rule:
 
 ## Related Documents
 
-- [virtual-channel-mux-architecture.md](virtual-channel-mux-architecture.md)
+- [Virtual Channel Mux Architecture](../../virtioso-mux/virtual-channel-mux-architecture.md)
 - [autopilot-qemu-backends.md](autopilot-qemu-backends.md)
 - [../integration/console-router-and-timeline-implementation-plan-2026-04-23.md](../integration/console-router-and-timeline-implementation-plan-2026-04-23.md)

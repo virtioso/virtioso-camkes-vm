@@ -5,7 +5,7 @@ Virtioso seL4 builds and by autopilot.
 
 Related console architecture documents:
 
-- [virtual-channel-mux-architecture.md](virtual-channel-mux-architecture.md)
+- [Virtual Channel Mux Architecture](../../virtioso-mux/virtual-channel-mux-architecture.md)
 - [autopilot-console-source-integration.md](autopilot-console-source-integration.md)
 
 ## Goals

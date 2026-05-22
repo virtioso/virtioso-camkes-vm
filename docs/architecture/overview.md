@@ -6,8 +6,8 @@ Relevant supporting architecture documents:
 
 - [vm-topology.md](vm-topology.md)
 - [virtio-architecture.md](virtio-architecture.md)
-- [virtual-channel-mux-architecture.md](virtual-channel-mux-architecture.md)
-- [cross-arch-tcu-uart-mux-plan-2026-05-01.md](cross-arch-tcu-uart-mux-plan-2026-05-01.md)
+- [Virtual Channel Mux Architecture](../../virtioso-mux/virtual-channel-mux-architecture.md)
+- [Cross-Arch TCU UART Mux Plan](../../virtioso-mux/cross-arch-tcu-uart-mux-plan-2026-05-01.md)
 - [autopilot-console-source-integration.md](autopilot-console-source-integration.md)
 
 ## Architecture Diagram

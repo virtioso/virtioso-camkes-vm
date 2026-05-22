@@ -63,6 +63,48 @@ The current authoritative Isengard documents are:
   strategic direction (exception: lives in `isengard-camkes-vm` because it
   predates this rule and is closely tied to seL4-side placement decisions)
 
+## Cross-Repo Documentation Link Convention
+
+The workspace uses an aggregated mkdocs site (`docs-site/`) that merges docs from
+multiple repos via `mkdocs-monorepo-plugin`. The plugin strips each repo's `docs_dir`
+from the site namespace. A file at `sources/isengard-core/docs/deployment/foo.md`
+is served at `/isengard-core/deployment/foo.md` — the `docs/` component is absent.
+
+**When writing cross-repo links, omit `docs/`:**
+
+```markdown
+<!-- correct -->
+[Production infrastructure](../../isengard-core/deployment/production-infrastructure.md)
+
+<!-- broken — docs/ does not exist in the site namespace -->
+[Production infrastructure](../../isengard-core/docs/deployment/production-infrastructure.md)
+```
+
+**Link text must be descriptive, never a file path:**
+
+```markdown
+<!-- correct -->
+[Signing key management](../../isengard-core/deployment/signing-key-management.md)
+
+<!-- wrong -->
+[`../../isengard-core/deployment/signing-key-management.md`](../../isengard-core/deployment/signing-key-management.md)
+```
+
+These links resolve in the aggregated site but are dead on GHE and the local
+filesystem. That is the accepted trade-off — the aggregated site is the canonical
+reading surface for cross-repo content.
+
+**When asked to fix doc linking problems**, scan for these patterns and correct them:
+
+1. `](../../<repo>/docs/<path>)` → `](../../<repo>/<path>)` — remove the `docs/` component
+2. `` [`../../...`](...) `` or any link whose visible text is a file path → replace
+   text with a descriptive label derived from the document's title or section heading
+3. Prose references like `` `sources/<repo>/docs/<path>` `` with no href → convert to
+   a proper link using the site-namespace path (without `docs/`)
+
+After fixing, check for remaining `WARNING` lines in `make docker-serve` output
+to confirm all cross-repo links resolve.
+
 ## Isengard Docker (T2) Deployment
 
 **Do not re-scan the codebase for Docker support on every session.** The facts are:
